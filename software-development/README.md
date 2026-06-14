@@ -23,8 +23,7 @@ build on, not a phase. Each skill does one job and is unaware of the others — 
 | Skill | What it does |
 |-------|--------------|
 | [`scrutinize`](review/scrutinize/SKILL.md) | Outsider end-to-end review of a produced PR/diff/design doc: question intent → trace the real code path → verify the claim → severity-ordered findings + one verdict. Read-only (hands off edits to `simplify`/`slop-cleanup`). |
-| [`grill-me`](review/grill-me/SKILL.md) | Relentlessly interview you about a plan until shared understanding (greenfield / no codebase to grill against). |
-| [`grill-with-docs`](review/grill-with-docs/SKILL.md) | Grill a plan against your codebase's domain model + ADRs, sharpening terminology inline (brownfield). |
+| [`grill-with-docs`](review/grill-with-docs/SKILL.md) | Grill a plan against your codebase's domain model + ADRs, sharpening terminology inline (brownfield). The codebase-agnostic counterpart is [`grill-me`](../meta/grill-me/SKILL.md) in `meta/`. |
 | [`receiving-code-review`](review/receiving-code-review/SKILL.md) | Evaluate review feedback with rigor — verify each claim, push back when wrong, implement what holds up. |
 | [`slop-cleanup`](review/slop-cleanup/SKILL.md) | Detect and remove characteristic AI-generated slop from a diff, behavior-preserving. |
 
