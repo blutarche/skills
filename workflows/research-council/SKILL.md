@@ -1,0 +1,26 @@
+---
+name: research-council
+description: "Cross-examine a research answer — your own, a deep-research tool's, or any draft that carries sources — with an adversarial outside model (e.g. Codex) that re-checks every citation, attacks overclaims and staleness, names the missing angles, and adjudicates contradictions, before you trust it. Use after you've researched something that's too important to ship unchecked and want a *different* model to try to break it. It reviews research; it does not orchestrate it — bring your own (run a deep-research tool or the `research` skill first if you still need the material)."
+---
+
+# Research Council
+
+A synthesis you trust is a synthesis you haven't cross-examined. One model believes its own work — it can't see the angle it never considered or the citation it half-remembered. A *different* model, handed the same answer cold, doesn't share those blind spots or that memory. This skill is that second model, pointed at your answer with orders to break it.
+
+It does one thing: **review.** It does not fan out researchers or run a deep-research pipeline — it reviews research someone else gathered: the answer already in this conversation (in a one-shot `/research /research-council` chain, you review what `research` just produced, in the *same turn*), a deep-research tool's output, or a pasted report. If there's nothing in hand yet, do a quick [`research`](../../meta/research/SKILL.md) pass yourself and council that — still one turn. Never hand back to the user to "go research and come back"; that round-trip is the experience to avoid.
+
+## What to do
+
+**Put the answer under review.** Take the synthesis and the sources behind it — whatever you're about to trust. If it carries no citations to check, run a quick `research` pass yourself to get them and continue — in this same turn, not by handing the user back to do it.
+
+**Convene the council — an outside adversary.** The answer must be attacked by a model from a *different family* than the one that wrote it, told to attack rather than approve: re-check that each citation resolves and actually says what's claimed, challenge anything asserted past its evidence or gone stale, name the angles that are missing, and adjudicate contradictions by which source is more authoritative. A rubber-stamp council is worse than none — it manufactures false confidence, so give it license to be harsh and default to skepticism.
+
+> **Run your own citation review, then convene the [`council`](../../meta/council/SKILL.md) skill.** *This* skill owns the **research methodology** (the citation, staleness, missing-angle, and contradiction checks above). `council` owns the **cross-model mechanism** (the `codex exec` invocation, two-sandbox handling, top-level-only, degrade ladder), so this skill doesn't restate it: hand it the answer + sources and it convenes Codex **blind** to attack independently — Codex runs its own web searches; independent verification is the point — then runs the disbelieve-it-back adjudication of Codex's findings against yours. The reconcile-and-report below is the research-specific shape of that adjudication.
+
+**Reconcile and report.** Treat each council challenge as a claim to verify, not an order to obey — the council can be confidently wrong, fabricated citation and all. Confirm every challenge against its source before accepting it, and reject — out loud — the ones that don't hold. Resolve a factual disagreement by evidence, not by who sounds surer: each side names its source and how it got there, and the weaker-sourced side concedes — but only after checking the other's source *itself*, weighing authority and directness over mere recency (a faster-updating mirror doesn't beat the canonical source). Often the two are really answering different questions (e.g. "latest *published* version" vs "what the docs currently endorse") — then state both and reframe, don't crown one. Surface a conflict in the final answer only when authoritative sources are genuinely irreconcilable — rarely, and in one line with a recommended pick. Deliver the corrected answer, and below it a short **"What the council changed"** section — each challenge it raised and how you resolved it (verified as-is, corrected, or downgraded) — so the review is visible, not silent. An invisible cross-examination earns no more trust than no review at all; showing what got caught is the proof it was real. Keep an explicit "unverified / still open" list (including any gaps the council named — this skill names the hole, it doesn't chase it; researching further is the user's call), and note who reviewed (which model).
+
+## Rules
+
+- **The council disbelieves you — so disbelieve it back.** Don't pre-soften the answer to please it, don't wave away its objections without re-opening the source — and don't fold to them without re-opening the source either. A confidently wrong outsider is still wrong; the source decides, never the louder voice.
+- **Honesty over completeness.** A smaller answer that's all true beats a comprehensive one with one confident wrong claim buried in it.
+- **No outside model, no pretending.** If you fall back to your own model, say so in the report — a same-family review is weaker on the blind spots you share, and the reader deserves to know.

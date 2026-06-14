@@ -1,0 +1,19 @@
+# OMC / Claude Code runtime state — not part of the skills collection
+.omc/
+.claude/
+
+# macOS
+.DS_Store
+
+# Editor/OS cruft
+*.swp
+*~
+.idea/
+.vscode/
+
+# Python bytecode (skill scripts generate this)
+__pycache__/
+*.pyc
+
+# Skill eval scaffolding / run artifacts — not part of the collection
+research-workspace/
