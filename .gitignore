@@ -1,6 +1,9 @@
-# OMC / Claude Code runtime state — not part of the skills collection
+# OMC / Claude Code runtime state — not part of the skills collection.
+# Track the repo's own working config (project skills + shared settings); ignore the rest.
 .omc/
-.claude/
+.claude/*
+!.claude/skills/
+!.claude/settings.json
 
 # macOS
 .DS_Store

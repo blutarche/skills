@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./install.sh --dry-run)",
+      "Bash(./install.sh --dry-run:*)",
+      "Bash(./scripts/validate-skills.sh)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(ls:*)"
+    ]
+  }
+}

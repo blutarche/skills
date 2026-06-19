@@ -133,7 +133,7 @@ while IFS= read -r -d '' skill_md; do
     [ "$seen" -eq 0 ] && SKIPPED+=("$top")
   fi
 done < <(find "$REPO" \
-  -type d \( -name node_modules -o -name deprecated -o -name .git -o -name .omc \) -prune -o \
+  -type d \( -name node_modules -o -name deprecated -o -name .git -o -name .omc -o -name .claude \) -prune -o \
   -type f -name SKILL.md -print0 | sort -z)
 
 if [ "${#SKIPPED[@]}" -gt 0 ]; then
