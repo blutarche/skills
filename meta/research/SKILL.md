@@ -25,6 +25,8 @@ What counts as time/version-sensitive (assume yes when unsure): latest/current v
 4. **Quote the load-bearing bit.** Capture the exact sentence/snippet that supports the claim, plus the URL and the date you accessed it. If you can't quote it, you can't claim it.
 5. **Separate fact from reading.** Distinguish "the source says X" (cited) from "so I infer Y" (your interpretation, labelled). Don't let interpretation inherit the source's authority.
 
+**Fan out the independent fetches.** When the question splits into **independent sub-questions**, or you already have a set of distinct sources/claims to fetch-and-verify, those fetches don't depend on each other — dispatch **one read-only sub-agent per sub-question (or per source cluster)** if the host supports it, each fetching and quoting under the rules above, then merge their citations. Keep **iterative deepening serial** — when the *next* search depends on what you just read, follow the thread yourself rather than guessing it in parallel. If you can't fan out, sweep them in one pass and don't pretend it was broader.
+
 ## Source credibility
 
 Prefer sources in this order, and name which tier a claim rests on when it matters:

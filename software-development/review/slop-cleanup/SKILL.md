@@ -44,7 +44,9 @@ Run the cleanup as a regression-safe sequence, not a single sweeping edit.
    - **Boundary violations** — misplaced responsibilities, wrong-layer imports, hidden coupling or side effects.
    - **Missing tests** — behavior left unprotected, weak coverage, untested edge cases.
 
-4. **One pass per smell.** Make a single focused pass at a time, each addressing one category plus the slop patterns above. Prefer deletion over rewriting. Reuse existing utilities before adding anything. Don't bundle unrelated refactors into the same edit.
+   On a **large, multi-file** diff the per-file *scan* is read-only, so you may **fan out one read-only sub-agent per file (non-overlapping scopes) to harvest candidates** — faster slop-spotting. But a per-file pass only sees **file-local** smells; the **cross-file** ones (duplication, boundary violations, missing tests) are invisible from inside one file, so follow the fan-out with **one global classification pass** (step 3 above) over the merged candidates before any edit. The editing below does **not** parallelize. (On a small diff, just scan it yourself — the coordination isn't worth it.)
+
+4. **One pass per smell.** Make a single focused pass at a time, each addressing one category plus the slop patterns above. Prefer deletion over rewriting. Reuse existing utilities before adding anything. Don't bundle unrelated refactors into the same edit. **Apply serially — never parallel writers** (concurrent edits to the same tree conflict, and each pass must clear the verify gate before the next).
 
 5. **Verify after every pass.** Re-run the regression tests, plus the relevant lint, type check, and unit/integration checks for the area. If a gate fails, fix it or back the risky change out — never force it through.
 

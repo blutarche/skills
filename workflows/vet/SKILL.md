@@ -7,7 +7,7 @@ description: "Deliberate cross-model review of a branch, diff, or PR, then a gat
 
 Takes a finished change — working tree, a diff against a base ref, or a PR — and drives it through a cross-model review and a gated fix loop to a shippable state.
 
-This is a **linear playbook**, deliberately **thin**: it sequences existing skills. `scrutinize` owns the in-family review methodology; `council` owns the cross-model machinery (convene the outside model, adjudicate disbelieve-back); the fixer skills own the edits. Vet runs `scrutinize`, then has `council` cross-examine the **same diff** — `council` convenes the cross-model judge **blind** (the diff only, never `scrutinize`'s findings) and adjudicates the council's findings against `scrutinize`'s. Vet then adds the **gated fix loop**. If you find yourself writing review or edit logic here, push it back into the leaf skill.
+This is a **linear playbook**, deliberately **thin**: it sequences existing skills. `scrutinize` owns the in-family review methodology; `council` owns the cross-model machinery (convene the outside model, adjudicate disbelieve-back); the fixer skills own the edits. Vet runs `scrutinize` and council's cross-model **convene** on the **same diff** *concurrently* — the convene is **blind** (the diff only, never `scrutinize`'s findings) no matter the order — then, once both are in, `council` **adjudicates** the two sets, reconciling its findings against `scrutinize`'s. Vet then adds the **gated fix loop**. If you find yourself writing review or edit logic here, push it back into the leaf skill.
 
 ## When to use this vs a single skill
 
@@ -23,8 +23,8 @@ Run in order. Finish each gate before the next.
    Fix what's under review: the working tree, a `--base <ref>` diff, or a PR. State it explicitly so both reviews look at the same thing.
    *Gate:* the artifact and its boundaries are pinned.
 
-2. **Review — `scrutinize` then `council`** (both read-only)
-   First run **`scrutinize`** (intent → trace → verify → severity-ordered findings + verdict) — the in-family pass. Then invoke **`council`** on the same diff: it convenes the cross-model judge **blind** (the diff alone, never `scrutinize`'s findings — kept blind, from the **top-level session**, a subagent can't reach it) and adjudicates the two sets disbelieve-it-back, returning **disagreement-first** findings + a "what the council changed" note. Add `/security-review` when the change touches untrusted input/authz/secrets; `/review` for a PR.
+2. **Review — `scrutinize` ∥ `council`** (both read-only, run concurrently)
+   The two passes are **independent** — `council` stays blind to `scrutinize`'s findings either way — so don't serialize them. On a wide or risky diff, **launch `council`'s cross-model CLI as a background top-level call and run `scrutinize` concurrently** (which itself fans its lenses out to read-only subagents); then **join at adjudication**, where `council` reconciles the two blind sets disbelieve-it-back and returns **disagreement-first** findings + a "what the council changed" note. (`council` convenes from the **top-level session** — a subagent can't reach the CLI; only `scrutinize`'s lenses fan out.) On a small/low-risk diff the overlap earns nothing — run them inline in either order. Add `/security-review` when the change touches untrusted input/authz/secrets; `/review` for a PR.
    *Gate:* `council` has returned the adjudicated findings (or has degraded — see below).
 
 3. **Decide which to apply** (the gate)
@@ -45,7 +45,7 @@ If no outside model is reachable, `council` degrades down its ladder (fresh-suba
 
 ## Rules
 
-- **Thin by design.** Vet sequences `scrutinize` → `council` → fix loop; it never reimplements review methodology, and never edits *inline*. Editing happens only in the fix stage, *after* the decision gate, by handing off to the fixer skills — vet drives them, it doesn't do the edits itself. The composed skills stay atomic and unaware of this sequence.
+- **Thin by design.** Vet sequences review (`scrutinize` ∥ `council`) → decision → fix loop; it never reimplements review methodology, and never edits *inline*. Editing happens only in the fix stage, *after* the decision gate, by handing off to the fixer skills — vet drives them, it doesn't do the edits itself. The composed skills stay atomic and unaware of this sequence.
 - **Disbelieve the council back.** A confident outsider is still wrong; the code decides, never the louder voice. (`council` enforces this in its adjudication; don't undo it.)
 - **Agreement is weak signal; disagreement is the payload.** Lead with where the two models differ.
 - **Separate review from fixing — don't apply blindly.** The caller decides what to apply: a human in interactive use, the **controller** in an autonomous loop. The gate is "verify before applying," *not* "halt for a human" — never stall an autonomous run waiting on a prompt.

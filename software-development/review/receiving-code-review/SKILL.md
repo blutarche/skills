@@ -87,6 +87,8 @@ IF it conflicts with a prior decision by the project owner:
 
 Treat external feedback as suggestions to evaluate, not orders to follow. Be skeptical, but check carefully.
 
+**Verifying many items — fan out the independent ones.** Most items verify **independently** — a read-only check against the codebase — so on a multi-item review don't grind them one by one. But **group the coupled items first**: where one comment invalidates another, shares its code path, or hinges on which fix you'll pick, those aren't independent — keep each such group together and verify it as a unit. Then dispatch **one read-only sub-agent per independent item or group** if the host supports it — each runs the five checks above and reports back, never editing — collect the verdicts, and **reconcile the coupled ones yourself** before responding. Only VERIFY parallelizes; RESPOND and IMPLEMENT stay **serial** on the main thread (one fix at a time, tested each — see Implementation Order), and clarifying unclear items still comes first. If you can't fan out, sweep them yourself in one pass and say the verification was single-threaded.
+
 ## YAGNI Check for "Do It Properly" Requests
 
 ```

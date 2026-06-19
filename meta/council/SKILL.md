@@ -24,6 +24,10 @@ The concrete per-tool invocation — which CLI to auto-detect, the exact flags, 
 
 **Cross-context — keep the council blind.** Hand over the artifact and its context, **never your preferred answer, your reasoning, or your own review's findings** — that's the anti-sycophancy lever; an anchored second model isn't independent. Your in-family findings meet the council's only at adjudication, never as the council's input. Give it license to be harsh; a rubber-stamp council manufactures false confidence. Tier reasoning effort by stakes (high for a decision or a `vet` pass; a frequent low-stakes caller, e.g. an autonomous in-loop judge, sets its own lower tier — see references for the per-tool flag), and pin a non-Claude model where the CLI can run several (a Cursor agent left on a Claude model is not cross-family).
 
+## Run it concurrently — the convene is the long pole
+
+The convene is a slow, top-level Bash call; the caller's own in-family review (`scrutinize` over a diff, a citation re-check over a research answer) is **independent** of it — the council is **blind** to those findings either way, so there is no reason to serialize the two. **Launch the convene asynchronously and run the in-family review while it works; join at adjudication**, where the two blind sets finally meet. Only the in-family leg may fan out into read-only subagents; the cross-model leg stays at the **top level** — a subagent can't disable the sandbox to spawn the CLI (above). For a trivial artifact where the convene is cheap, skip the overlap and run inline; it earns nothing.
+
 ## Adjudicate — disbelieve it back
 
 The council convenes against *you*, so disbelieve it back. Reconcile its findings with the caller's in-family findings:
@@ -36,11 +40,11 @@ The council convenes against *you*, so disbelieve it back. Reconcile its finding
 ## How callers use it
 
 - **A decision** (no external artifact): state 2–4 concrete options (order randomized, your lean withheld), brief the council to "argue the strongest case against each and name the angle missed," then adjudicate → `My lean: X · Council (blind): Y · Where we differ + why · Recommendation`. Present a decision aid; don't adopt the council's view silently.
-- **A diff / document / research answer:** the caller first runs its *own* in-family review (`vet`→`scrutinize`; `research-council`→re-check citations and staleness; a plan→critical read), then convenes the council **blind on the artifact** (brief: "examine this independently; challenge every claimed property; find what a first reviewer would miss"), then adjudicates the two sets. Council does not run the caller's methodology — it convenes and reconciles.
+- **A diff / document / research answer:** the caller runs its *own* in-family review (`vet`→`scrutinize`; `research-council`→re-check citations and staleness; a plan→critical read) while the council **convenes concurrently** on the artifact **blind** (brief: "examine this independently; challenge every claimed property; find what a first reviewer would miss") — launch the convene in the background, since it's independent of the in-family pass (see *Run it concurrently*) — then, once both are in, adjudicates the two sets. Council does not run the caller's methodology — it convenes and reconciles.
 
 ## When no cross-model CLI can be reached — degrade down a ladder, disclose the rung
 
-If no cross-model CLI is reachable (none installed or authed, or you're in a subagent), fall back to your own model — but say which rung you used. **Best:** run the caller's in-family review (`scrutinize`, etc.) in a **fresh subagent** (fresh context is what makes it a real *second* look). **If subagents are unavailable too:** run it **inline** — the weakest rung (same model, same context, least independent). Never fail the review for lack of isolation; just **say so** — name the rung and that the cross-model lens (and, if inline, the fresh-context lens) was lost, so the reader weights it accordingly.
+If no cross-model CLI is reachable (none installed or authed, you're in a subagent, or the convene **wedged past its wall-clock bound** — every convene is time-bounded, never an unbounded wait), fall back to your own model — but say which rung you used. **Best:** run the caller's in-family review (`scrutinize`, etc.) in a **fresh subagent** (fresh context is what makes it a real *second* look). **If subagents are unavailable too:** run it **inline** — the weakest rung (same model, same context, least independent). Never fail the review for lack of isolation; just **say so** — name the rung and that the cross-model lens (and, if inline, the fresh-context lens) was lost, so the reader weights it accordingly.
 
 ## Prerequisites
 

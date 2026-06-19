@@ -106,7 +106,7 @@ Tasks run **serially** — never dispatch implementer subagents in parallel. For
 
 3. **Stage 1 — spec-compliance review, run by the controller (Claude), no cross-model CLI.** Holding the task text, the controller independently verifies the `BASE_SHA..HEAD_SHA` diff built **exactly** the task — nothing missing, nothing extra — by reading the actual code, not trusting the report (adapt superpowers' `spec-reviewer-prompt`). This is a comparison against a *known spec*, not a blindspot-prone judgment call, so it needs no outside model and carries no cross-model-CLI hang risk. If issues: the implementer fixes, then re-review. Do not start Stage 2 until Stage 1 is clean.
 
-4. **Stage 2 — code-quality / correctness review, run by the controller.** On the `BASE_SHA..HEAD_SHA` diff, the controller runs `scrutinize` (in-family), then `council` on the same diff (cross-model, blind) — `council` adjudicates the two. This is the blindspot-prone judgment where the cross-model judge earns its cost; it replaces superpowers' `code-reviewer.md` (absent here) with `scrutinize` + `council`. If issues: the implementer fixes, then re-review.
+4. **Stage 2 — code-quality / correctness review, run by the controller.** On the `BASE_SHA..HEAD_SHA` diff, the controller runs `scrutinize` (in-family) and `council` (cross-model, blind) concurrently on the same diff — `council` adjudicates the two. This is the blindspot-prone judgment where the cross-model judge earns its cost; it replaces superpowers' `code-reviewer.md` (absent here) with `scrutinize` + `council`. If issues: the implementer fixes, then re-review.
 
 5. **Next task** once both stages are clean.
 
