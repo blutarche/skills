@@ -282,4 +282,3 @@ Use `--force` removal only on the Option 4 discard path.
 - Clean up the worktree for Options 1 and 4 only
 - `cd` to the main repo root before removing a worktree
 - Run `git worktree prune` after removal
-```
