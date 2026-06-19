@@ -5,17 +5,17 @@ description: "Cross-examine a research answer — your own, a deep-research tool
 
 # Research Council
 
-A synthesis you trust is a synthesis you haven't cross-examined. One model believes its own work — it can't see the angle it never considered or the citation it half-remembered. A *different* model, handed the same answer cold, doesn't share those blind spots or that memory. This skill is that second model, pointed at your answer with orders to break it.
+A synthesis you trust is a synthesis you haven't cross-examined. This skill is that second model, pointed at your answer with orders to break it.
 
-It does one thing: **review.** It does not fan out researchers or run a deep-research pipeline — it reviews research someone else gathered: the answer already in this conversation (in a one-shot `/research /research-council` chain, you review what `research` just produced, in the *same turn*), a deep-research tool's output, or a pasted report. If there's nothing in hand yet, do a quick [`research`](../../meta/research/SKILL.md) pass yourself and council that — still one turn. Never hand back to the user to "go research and come back"; that round-trip is the experience to avoid.
+It does one thing: **review.** It does not fan out researchers or run a deep-research pipeline — it reviews research someone else gathered: the answer already in this conversation (in a one-shot `/research /research-council` chain, you review what `research` just produced, in the *same turn*), a deep-research tool's output, or a pasted report. If there's nothing in hand yet, do a quick [`research`](../../meta/research/SKILL.md) pass yourself and council that — still one turn. Never hand the user back to "go research and come back"; that round-trip is the experience to avoid.
 
 ## What to do
 
-**Put the answer under review.** Take the synthesis and the sources behind it — whatever you're about to trust. If it carries no citations to check, run a quick `research` pass yourself to get them and continue — in this same turn, not by handing the user back to do it.
+**Put the answer under review.** Take the synthesis and the sources behind it — whatever you're about to trust. If it carries no citations to check, run a quick `research` pass yourself to get them and continue — in this same turn.
 
 **Convene the council — an outside adversary.** The answer must be attacked by a model from a *different family* than the one that wrote it, told to attack rather than approve: re-check that each citation resolves and actually says what's claimed, challenge anything asserted past its evidence or gone stale, name the angles that are missing, and adjudicate contradictions by which source is more authoritative. A rubber-stamp council is worse than none — it manufactures false confidence, so give it license to be harsh and default to skepticism.
 
-> **Run your own citation review — fan out the fetch-checks — and convene the [`council`](../../meta/council/SKILL.md) skill alongside it.** *This* skill owns the **research methodology** (the citation, staleness, missing-angle, and contradiction checks above). Only *part* of it parallelizes: the **per-citation** leg — does this source resolve, and does it actually say what the claim attributes to it — is independent, so **fan that out: one read-only subagent per citation (or per cluster of related claims), each re-fetching its source and testing its own claim against it.**
+> **Run your own citation review — fan out the fetch-checks — and convene the [`council`](../../meta/council/SKILL.md) skill alongside it.** Of the methodology checks above, only *part* parallelizes: the **per-citation** leg — does this source resolve, and does it actually say what the claim attributes to it — is independent, so **fan that out: one read-only subagent per citation (or per cluster of related claims), each re-fetching its source and testing its own claim against it.**
 >
 > The **cross-citation** judgments are not independent — staleness ranking, contradiction between sources, whether several citations *together* carry one claim, and which angles are missing are **global**, so do them yourself in **one pass over the returned results**, never inside the fan-out.
 >
