@@ -37,6 +37,7 @@ build on, not a phase. Each skill does one job and is unaware of the others — 
 | [`de-flaking-tests`](engineering/de-flaking-tests/SKILL.md) | Make flaky tests deterministic (condition-based waiting) and kill tests that pass for the wrong reason (mock theater, incomplete mocks). |
 | [`git-commit`](engineering/git-commit/SKILL.md) | Turn a working tree into clean, atomic, bisect-safe commits — Conventional-Commit messages, no co-author trailer, push left to the user. |
 | [`git-worktree`](engineering/git-worktree/SKILL.md) | Create/enter an isolated feature worktree and bootstrap-or-surface its environment (setup), then remove/prune it (teardown). Use when starting or wrapping up isolated agentic work. |
+| [`delegate-coding`](engineering/delegate-coding/SKILL.md) | When the plan is clear enough for a cheaper agent to execute, delegate the coding to a headless executor CLI — `cursor-agent`, `codex`, or a cheaper `claude` — while your expensive "brain" model only plans, verifies, and owns the merge. Executor self-loops on env-independent checks in its worktree; you own env-dependent checks post-merge; bounded retries, then you finish. Per-tool invocation in `references/`. |
 
 ## verification — prove work is actually done
 
