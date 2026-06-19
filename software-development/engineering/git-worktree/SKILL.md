@@ -3,7 +3,7 @@ name: git-worktree
 description: "Create/enter an isolated feature worktree and bootstrap-or-surface its environment (setup), and remove/prune it (teardown). Use when starting isolated agentic work (e.g. autonomous execute) or wrapping it up (finish)."
 ---
 
-# Git Worktree (atomic skill)
+# Git Worktree
 
 Two operations on a git worktree: **setup** (create + enter + make it runnable) and **teardown** (remove + prune). This is one mechanism so callers don't each reinvent it — `execute` (autonomous mode) calls setup; `finish` calls teardown.
 
@@ -51,9 +51,3 @@ A worktree is an isolated checkout of the same repo on its own branch, so an age
    git worktree remove "$WT"           # add --force ONLY on an explicit discard
    git worktree prune                  # clear any stale registrations
    ```
-
-## Notes
-
-- One thing well: this skill owns the worktree lifecycle mechanism. The *decisions* (which branch, when to tear down, merge vs discard) live in the calling workflow.
-- `--force` removal only on an explicit discard path — never to paper over uncommitted work you didn't expect.
-- Run `git worktree prune` after every removal so stale registrations don't accumulate.

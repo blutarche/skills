@@ -26,7 +26,7 @@ sleep(50ms)
 result = getResult()
 assert result is defined
 
-// AFTER: waiting for the condition (illustrative — adapt to your test runner)
+// AFTER: waiting for the condition
 waitFor(() => getResult() is defined)
 result = getResult()
 assert result is defined
@@ -47,7 +47,6 @@ assert result is defined
 Most test frameworks ship a `waitFor` / `eventually` / `until` helper — use theirs. If none exists, the shape is:
 
 ```
-// illustrative — adapt to your test runner
 function waitFor(condition, description, timeoutMs = 5000):
     start = now()
     loop:
@@ -73,7 +72,6 @@ Only when you are testing timed behavior itself (debounce, throttle, a component
 3. Comment why the number is what it is.
 
 ```
-// illustrative — adapt to your test runner
 waitFor(() => toolStarted)   // 1. wait for the trigger
 sleep(200ms)                 // 2. tool ticks every 100ms; 200ms = 2 ticks (documented)
 ```

@@ -53,7 +53,7 @@ Frontier models cost several times more per token than small models and are slow
 
 - **Classify, then route.** Use a small/cheap model (or plain code/heuristics) to judge difficulty or category first, then send only the hard cases to the frontier model. A regex, length check, or confidence threshold is free — use code for the routing decision, not a model, wherever code can answer.
 - **Escalate, don't default high.** Start cases on the cheap model; escalate to the expensive one only on low confidence, parse failure, or a quality gate miss. For structured task-extraction and summarization, the small tier handles the bulk of well-formed inputs.
-- **Know the tradeoff.** Vendors publish tiers spanning roughly an order of magnitude in price (a small/fast tier vs. a frontier reasoning tier), with latency tracking cost. Pull current per-tier prices from the pricing pages rather than memorizing them.
+- **Know the tradeoff.** Vendors publish tiers spanning roughly an order of magnitude in price (a small/fast tier vs. a frontier reasoning tier), with latency tracking cost.
 
 **Never downgrade a model without an eval.** Build a held-out set of representative inputs with known-good outputs, measure quality on both tiers, and only downgrade where the cheap tier clears your quality bar. A model swap that saves 60% but silently corrupts 5% of extractions is a regression, not a win.
 

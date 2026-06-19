@@ -73,12 +73,3 @@ Use these blocks in order. **Summary, Root cause, Fix, Validation are mandatory*
 2. Confirm the destination (PR description, `docs/postmortems/<id>.md`, ticket comment, wiki). The shape is the same; only the wrapping changes.
 3. Produce the draft as one block.
 4. **Get sign-off before posting anywhere external.** Print-only output needs no approval.
-
-## Rules
-
-- Refuse to draft without all four required inputs (bug-fix mode) / confirmed timeline and evidence (incident mode).
-- Never invent root cause, owner, validation runs, or action items — if a section's facts aren't there, ask.
-
-## The Bottom Line
-
-Confirm it's actually fixed and validated, then write the mechanism down clearly enough that the next engineer recovers the whole picture without a meeting — and honestly enough that "what we didn't test" is on the page.

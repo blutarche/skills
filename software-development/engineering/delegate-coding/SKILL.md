@@ -7,7 +7,7 @@ description: "Execute an approved implementation spec by delegating the coding t
 
 Take an approved, self-contained implementation spec and drive it to verified code by handing the **coding** to a cheaper/faster headless agent CLI — `cursor-agent`, `codex`, or similar — while you (the main agent) keep the parts where your judgment earns its cost: planning, verifying, and owning the merge.
 
-The point is the asymmetry: a cheap, fast executor for the mechanical edits; a smart verifier for the gate. That only pays off if the verify gate is real, so the gate is the non-negotiable core of this skill, not an afterthought. Like the `git-worktree` capability, this is a building block a workflow (e.g. `execute`) can pull in — it owns *how to delegate coding safely*, not where it sits in any pipeline.
+The point is the asymmetry: a cheap, fast executor for the mechanical edits; a smart verifier for the gate. That only pays off if the verify gate is real, so the gate is the non-negotiable core of this skill, not an afterthought.
 
 **The decision rule — delegate the middle band.** Your expensive "brain" (e.g. Opus) is for the work only it can do: shaping the plan and verifying the result. Route by the task, not by reflex:
 
@@ -19,14 +19,7 @@ The point is the asymmetry: a cheap, fast executor for the mechanical edits; a s
 
 The tell for (b): if you catch yourself hand-waving a step, that step is the brain's job. Fix the plan or do that part inline; don't outsource the hand-wave.
 
-**Know *why* you're delegating — cost and diversity pull opposite directions.** These two motivations need different specs; conflating them wastes the benefit:
-
-- **Delegate for cost** (shift token generation off the expensive brain): write a **tight, fully-determined spec** — exact files, signatures, behavior — so the executor is essentially a stenographer. Any executor works, including the cheaper-`claude`. You get *no* independent-thinking benefit and you don't want one; you want cheap, faithful typing. (If your spec is so complete it's basically the patch, ask whether you've already paid the expensive cost — see the net-savings note below.)
-- **Delegate for diversity** (a different family may solve it better or catch what you'd miss): write a **looser spec** — constraints, interfaces, and the acceptance gate, but *not* the implementation — and pin a **non-Claude family** (cursor/codex, never the cheaper-`claude`). Let it solve independently; the value is in the difference.
-
-You can't maximize both at once: the tighter the spec, the less diversity; the looser, the higher the retry risk. Pick one per task and spec accordingly.
-
-> **Net-savings caveat (measure, don't assume).** The cost case is *spec + review* on the expensive brain vs the brain *writing everything*, with generation offloaded to a cheap/bundled executor (e.g. Cursor Composer, ~free on a cursor plan). It should **break even on tiny tasks and win as tasks grow** (inline cost scales with generation+iteration; delegate brain-cost stays ~spec+review). Two things erase the win if you're sloppy: a **bloated review** (keep it a quick gate-check on already-green code, not an open-ended audit), and **tiny tasks** where *specifying ≈ doing* — just inline those. Measured on a real repo (small task, fair lean review): inline $0.46 vs delegate spec $0.36 + review $0.17 ≈ **break-even (−$0.07)** — because at small scale *specifying ≈ doing*, and Composer (the generation) is ~free, so it doesn't offset the brain's spec+review. The crossover to a real win is at larger/generation-heavy tasks. The *durable* reasons to delegate are **diversity** (cross-family catches what you'd miss) and **parallelism/wall-clock**; cost is a real but task-size-dependent bonus.
+Cost breaks even on small tasks and wins as they grow; the durable reasons to delegate are cross-family diversity and parallelism.
 
 **This file is the tool-agnostic method.** The per-tool invocation (preflight, headless flags, worktree, resume, output parsing) lives in `references/<tool>.md` — read the one for your executor when you reach Stage 3. Pick the executor that fits your intent — cheapest for a cost play, a different family for diversity:
 
@@ -37,8 +30,6 @@ You can't maximize both at once: the tighter the spec, the less diversity; the l
 | `claude` | [`references/claude.md`](references/claude.md) | via the `git-worktree` skill | Headless `claude -p` on a cheaper model (Haiku/Sonnet). For in-process subagent orchestration with cross-model review, use `execute` instead. |
 
 ## Operational guardrails
-
-The trivial / sweet-spot / too-hard split is the decision rule above. Two operational rules on top of it:
 
 - **No plan yet?** Don't delegate raw input — shape it first (`plan`, `writing-plans`), then come back. Delegation executes a spec; it doesn't author one.
 - **Fall back to `execute`** if no executor CLI is installed or authenticated (see Preflight) — don't simulate the delegation.
@@ -124,11 +115,4 @@ Run the env-dependent verification where the env actually lives: integration/e2e
 ### 8. Review pass, then report
 Keep authoring and review separate — don't self-approve in the same breath. Run `slop-cleanup` over the diff (behavior-preserving) to strip characteristic AI slop, which a cheap executor tends to produce more of. If you get review feedback, apply `receiving-code-review` to weigh it with rigor. Then report what was implemented, which files changed, the Tier-1 evidence from the executor, and your Tier-2 evidence. **The skill stops here** — the natural follow-on is `finish` (which can also tear down the worktree).
 
-## Rules
-
-- **The gate is the product.** A cheap executor is only safe behind a real verify gate. Tier-1 must pass on fresh evidence before merge; Tier-2 before done. "Should work" is not done.
-- **Env-independent gate for the executor, always.** Never ask the worktree to verify something that needs `.env`/services — that's how you get false greens. Push env-dependent checks to post-merge.
-- **Surgical scope.** Delegate exactly the spec. A weaker model drifts into adjacent edits; the prompt and your diff review are where you hold the line.
-- **Bounded retry, then you finish.** Cap executor retries (default 3) on the cheap pre-merge loop; past that, take over. The exits matter more than the loop.
-- **Degrade visibly.** No executor CLI / not authenticated → say so and fall back to `execute`; don't pretend to delegate.
-- **Compose, don't reimplement.** Lean on existing skills — `verification-before-completion` at the gates, `diagnose` / `de-flaking-tests` when Tier-2 turns up trouble, `slop-cleanup` / `receiving-code-review` at the review pass, `plan` / `writing-plans` upstream. Soft references: use the named skill if installed, apply the same discipline inline if not.
+Soft references throughout: use the named skill if installed, apply the same discipline inline if not.

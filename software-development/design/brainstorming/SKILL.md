@@ -12,23 +12,6 @@ Start by understanding the current project context, then ask questions one at a 
 
 > **Hard gate:** Do not invoke any implementation skill, write any code, scaffold any project, or take any implementation action until you have presented a design and the user has approved it. This applies to every project regardless of perceived simplicity.
 
-## Anti-Pattern: "This Is Too Simple To Need A Design"
-
-"Simple" projects are where unexamined assumptions cause the most wasted work. The design can be short (a few sentences for truly simple projects), but you must present it and get approval.
-
-## Steps
-
-Work through these steps in order:
-
-1. **Explore project context** — check files, docs, recent commits
-2. **Ask clarifying questions** — one at a time, understand purpose/constraints/success criteria
-3. **Propose 2-3 approaches** — with trade-offs and your recommendation
-4. **Present design** — in sections scaled to their complexity, get user approval after each section
-5. **Write design doc** — save to `docs/specs/YYYY-MM-DD-<topic>-design.md` (commit only after the user approves it in step 7)
-6. **Spec self-review** — quick inline check for placeholders, contradictions, ambiguity, scope (see below)
-7. **User reviews written spec** — ask user to review the spec file before proceeding
-8. **Done** — the approved, committed design doc is this skill's output; stop here
-
 ## The Process
 
 **Understanding the idea:**
@@ -40,6 +23,7 @@ Work through these steps in order:
 - Prefer multiple choice questions when possible, but open-ended is fine too
 - Only one question per message - if a topic needs more exploration, break it into multiple questions
 - Focus on understanding: purpose, constraints, success criteria
+- Apply YAGNI ruthlessly — keep unnecessary features out of the design
 
 **Exploring approaches:**
 
@@ -49,24 +33,12 @@ Work through these steps in order:
 
 **Presenting the design:**
 
-- Once you believe you understand what you're building, present the design
+- Once you believe you understand what you're building, present the design (it can be short — a few sentences for truly simple projects — but you must present it and get approval)
 - Scale each section to its complexity: a few sentences if straightforward, up to 200-300 words if nuanced
 - Get the user's approval after each section before moving on
 - Cover: architecture, components, data flow, error handling, testing
 - Be ready to go back and clarify if something doesn't make sense
-
-**Design for isolation and clarity:**
-
-- Break the system into smaller units that each have one clear purpose, communicate through well-defined interfaces, and can be understood and tested independently
-- For each unit, you should be able to answer: what does it do, how do you use it, and what does it depend on?
-- Can someone understand what a unit does without reading its internals? Can you change the internals without breaking consumers? If not, the boundaries need work.
-- Smaller, well-bounded units are also easier for you to work with - you reason better about code you can hold in context at once, and your edits are more reliable when files are focused. When a file grows large, that's often a signal that it's doing too much.
-
-**Working in existing codebases:**
-
-- Explore the current structure before proposing changes. Follow existing patterns.
-- Where existing code has problems that affect the work (e.g., a file that's grown too large, unclear boundaries, tangled responsibilities), include targeted improvements as part of the design - the way a good developer improves code they're working in.
-- Don't propose unrelated refactoring. Stay focused on what serves the current goal.
+- Break the system into smaller units with one clear purpose and well-defined interfaces; in existing codebases follow existing patterns and don't propose unrelated refactoring
 
 ## After the Design
 
@@ -74,7 +46,7 @@ Work through these steps in order:
 
 - Write the validated design (spec) to `docs/specs/YYYY-MM-DD-<topic>-design.md`
   - (User preferences for spec location override this default)
-- After the user approves the spec at the User Review Gate (step 7), commit the design document to git.
+- After the user approves the spec at the User Review Gate, commit the design document to git.
 
 **Spec Self-Review:**
 After writing the spec document, look at it with fresh eyes:
@@ -96,12 +68,3 @@ Wait for the user's response. If they request changes, make them and re-run the 
 **Next step (advisory):**
 
 - The approved design doc is this skill's output. A typical next step is turning it into an implementation plan — e.g. the `writing-plans` skill — but that sequencing is owned by the workflow or user that invoked this skill (see the `plan` workflow). Don't auto-invoke it.
-
-## Key Principles
-
-- **One question at a time** - Don't overwhelm with multiple questions
-- **Multiple choice preferred** - Easier to answer than open-ended when possible
-- **YAGNI ruthlessly** - Remove unnecessary features from all designs
-- **Explore alternatives** - Always propose 2-3 approaches before settling
-- **Incremental validation** - Present design, get approval before moving on
-- **Be flexible** - Go back and clarify when something doesn't make sense

@@ -101,18 +101,6 @@ IF a reviewer suggests "implementing this properly":
 
 Do not add capability that nothing needs, even when asked to make something "professional".
 
-## When To Push Back
-
-Push back when the suggestion:
-- Breaks existing functionality
-- Comes from a reviewer lacking full context
-- Adds an unused feature (YAGNI)
-- Is technically incorrect for this stack
-- Ignores legacy/compatibility constraints
-- Conflicts with an established architectural decision
-
-**How to push back:** Use technical reasoning, not defensiveness. Ask specific questions. Reference the working tests or code that prove your point.
-
 ## When Your Pushback Was Wrong
 
 ```
