@@ -25,13 +25,15 @@ from stdin; write it to a file and have the agent read it (file reads are allowe
 read-only `ask` mode):
 
 ```sh
-{ printf '%s\n\n' "<attack brief>"; git diff <range>; } > "$TMPDIR/council.txt"
+# mktemp (not a fixed $TMPDIR/council.txt): a predictable name races concurrent runs; trap cleans up.
+art="$(mktemp -t council.XXXXXX)"; trap 'rm -f "$art"' EXIT
+{ printf '%s\n\n' "<attack brief>"; git diff <range>; } > "$art"
 cursor-agent -p --output-format text --mode ask --trust --model gpt-5.5-high \
-  "Read $TMPDIR/council.txt and review the artifact in it, per the brief at the top." < /dev/null
+  "Read $art and review the artifact in it, per the brief at the top." < /dev/null
 ```
 
 (`< /dev/null` keeps the durable "never leave stdin open" rule — the artifact goes in via
-the file, not stdin. Verified: `ask` mode reads an absolute `$TMPDIR` path fine.)
+the file, not stdin. Verified: `ask` mode reads an absolute `mktemp` path fine.)
 
 ## Flags
 

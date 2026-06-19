@@ -17,9 +17,12 @@ Large diff / PR-scale — pass via a **file on stdin** (the file's EOF prevents 
 *and* sidesteps argv length + shell-quoting limits):
 
 ```sh
-{ printf '%s\n\n' "<attack brief>"; git diff <range>; } > "$TMPDIR/council.txt"
+# mktemp (not a fixed $TMPDIR/council.txt): a predictable name races concurrent runs and can
+# be read stale; trap removes it on exit.
+art="$(mktemp -t council.XXXXXX)"; trap 'rm -f "$art"' EXIT
+{ printf '%s\n\n' "<attack brief>"; git diff <range>; } > "$art"
 codex exec --skip-git-repo-check -c model_reasoning_effort="high" \
-  "Review the artifact provided on stdin, per the brief at the top of it." < "$TMPDIR/council.txt"
+  "Review the artifact provided on stdin, per the brief at the top of it." < "$art"
 ```
 
 Read stdout as the verdict.

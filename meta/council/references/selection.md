@@ -32,7 +32,7 @@ detection silently fails. This works in both bash and zsh:
 
 ```sh
 council_candidates() {                       # prints reachable CLIs, in order, one per line
-  if [ -n "$COUNCIL_CLI" ]; then set -- "$COUNCIL_CLI"; else set -- codex cursor-agent; fi
+  if [ -n "${COUNCIL_CLI:-}" ]; then set -- "$COUNCIL_CLI"; else set -- codex cursor-agent; fi  # ${..:-} so set -u doesn't trip on an unset override
   for cli in "$@"; do
     "$cli" --version >/dev/null 2>&1 && echo "$cli"
   done
@@ -41,8 +41,11 @@ council_candidates() {                       # prints reachable CLIs, in order, 
 # convene with auth/model fallback:
 verdict=""
 for cli in $(council_candidates); do
-  verdict=$(run_council "$cli" "$artifact_file") && break   # run_council: the per-CLI recipe; non-zero on auth/model error
-  verdict=""                                                 # this candidate failed → try the next
+  # run_council MUST return non-zero ONLY on an auth/model-selection failure (match the known
+  # signatures) and surface any other error itself — otherwise a genuinely broken primary CLI
+  # gets silently skipped here. That contract is what makes this `&& break` correct.
+  verdict=$(run_council "$cli" "$artifact_file") && break   # success → use it
+  verdict=""                                                 # auth/model miss → try the next candidate
 done
 [ -n "$verdict" ] || : # none worked → degrade down the ladder (see SKILL.md)
 ```
