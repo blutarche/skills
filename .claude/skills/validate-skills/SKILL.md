@@ -1,6 +1,7 @@
 ---
 name: validate-skills
-description: Check this repo's skill invariants and fix any violations — name==folder==kebab-case, leaf names unique repo-wide, and every skill listed in its area README. Use before committing skill changes or before running install.sh, or when install.sh aborts on a duplicate/name error.
+description: Check this repo's skill invariants (name==folder==kebab-case, unique leaf names, every skill in its area README) and fix violations.
+disable-model-invocation: true
 ---
 
 # Validate this repo's skills
