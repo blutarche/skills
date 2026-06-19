@@ -36,7 +36,12 @@ for f in "${SKILL_MDS[@]:-}"; do
   dir="$(dirname "$f")"
   folder="$(basename "$dir")"
   rel="${f#"$REPO"/}"
-  name="$(awk -F':' '/^name:/{sub(/^[ \t]+/,"",$2); sub(/[ \t]+$/,"",$2); print $2; exit}' "$f")"
+  # Read name: only from inside the leading `---` frontmatter block, so a stray body line
+  # starting "name:" can't satisfy the check when real frontmatter is missing.
+  name="$(awk '
+    /^---[[:space:]]*$/ { fm++; if (fm==2) exit; next }
+    fm==1 && /^name:/ { sub(/^name:[[:space:]]*/,""); sub(/[[:space:]]+$/,""); print; exit }
+  ' "$f")"
 
   if [ -z "$name" ]; then
     echo "FAIL  ${f#"$REPO"/}: no 'name:' in frontmatter" >&2; errors=$((errors+1))
