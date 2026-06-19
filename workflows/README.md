@@ -21,6 +21,7 @@ A **research lane** runs alongside: [`research`](../meta/research/SKILL.md) (gat
 | vet | [`vet`](vet/SKILL.md) | Deliberate cross-model review + gated fix loop on a finished change. Runs `scrutinize` (Claude's outsider pass) concurrently with `council` (cross-model attack, which adjudicates the two disagreement-first), **stops** for a decision, then hands fixes to `receiving-code-review` → `/simplify` / `slop-cleanup` and re-reviews until clean. |
 | finish | [`finish`](finish/SKILL.md) | Wrap up a finished branch: verify tests → **drain the council** (hard block on pending reviews) → present merge / open-PR / keep / discard → execute → tear down the worktree via the `git-worktree` skill. |
 | (research lane) | [`research-council`](research-council/SKILL.md) | Cross-examine a research answer: run your own citation/staleness review (per-citation fetch-checks fanned out) concurrently with `council` (cross-model attack + adjudication). The research analog of `vet` — same composer shape; pairs with the `research` skill in `meta/`. |
+| (plan lane) | [`grill-with-docs`](grill-with-docs/SKILL.md) | Grill a plan *and* maintain the domain model as you go. Thin composer of `grill-me` (the interview, in `meta/`) and `domain-modeling` (glossary + ADRs, in `software-development/`). The brownfield counterpart to running `grill-me` alone. |
 
 ## Three composition principles
 

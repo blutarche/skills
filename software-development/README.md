@@ -11,6 +11,7 @@ build on, not a phase. Each skill does one job and is unaware of the others — 
 | Skill | What it does |
 |-------|--------------|
 | [`brainstorming`](design/brainstorming/SKILL.md) | Turn a brief or vague idea into an approved design doc via one-question-at-a-time dialogue. |
+| [`domain-modeling`](design/domain-modeling/SKILL.md) | Actively build and sharpen the project's domain model — challenge terms against the glossary, sharpen fuzzy language, and write `CONTEXT.md` + ADRs inline as decisions crystallise. Composed by the [`grill-with-docs`](../workflows/grill-with-docs/SKILL.md) workflow. |
 
 ## planning — turn a design/spec into an actionable plan
 
@@ -23,7 +24,6 @@ build on, not a phase. Each skill does one job and is unaware of the others — 
 | Skill | What it does |
 |-------|--------------|
 | [`scrutinize`](review/scrutinize/SKILL.md) | Outsider end-to-end review of a produced PR/diff/design doc: question intent → trace the real code path → verify the claim → severity-ordered findings + one verdict. Read-only (hands off edits to `simplify`/`slop-cleanup`). |
-| [`grill-with-docs`](review/grill-with-docs/SKILL.md) | Grill a plan against your codebase's domain model + ADRs, sharpening terminology inline (brownfield). The codebase-agnostic counterpart is [`grill-me`](../meta/grill-me/SKILL.md) in `meta/`. |
 | [`receiving-code-review`](review/receiving-code-review/SKILL.md) | Evaluate review feedback with rigor — verify each claim, push back when wrong, implement what holds up. |
 | [`slop-cleanup`](review/slop-cleanup/SKILL.md) | Detect and remove characteristic AI-generated slop from a diff, behavior-preserving. |
 
