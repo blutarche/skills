@@ -1,13 +1,13 @@
 ---
 name: vet
-description: "Deliberate cross-model review of a branch, diff, or PR, then a gated fix loop. Runs `scrutinize` (Claude's outsider pass) and `council` (a Codex cross-model attack on the same diff), which adjudicates the two disagreement-first; then drives accepted fixes through the fixer skills and re-reviews until clean. Use when you want a finished change vetted before it ships — review plus follow-through, not just a report."
+description: "Deliberate cross-model review of a branch, diff, or PR, then a gated fix loop. Runs `scrutinize` (Claude's outsider pass) and `council` (a cross-model attack on the same diff, e.g. Codex), which adjudicates the two disagreement-first; then drives accepted fixes through the fixer skills and re-reviews until clean. Use when you want a finished change vetted before it ships — review plus follow-through, not just a report."
 ---
 
 # Vet (workflow)
 
 Takes a finished change — working tree, a diff against a base ref, or a PR — and drives it through a cross-model review and a gated fix loop to a shippable state.
 
-This is a **linear playbook**, deliberately **thin**: it sequences existing skills. `scrutinize` owns the in-family review methodology; `council` owns the cross-model machinery (convene Codex, adjudicate disbelieve-back); the fixer skills own the edits. Vet runs `scrutinize`, then has `council` cross-examine the **same diff** — `council` convenes Codex **blind** (the diff only, never `scrutinize`'s findings) and adjudicates Codex's findings against `scrutinize`'s. Vet then adds the **gated fix loop**. If you find yourself writing review or edit logic here, push it back into the leaf skill.
+This is a **linear playbook**, deliberately **thin**: it sequences existing skills. `scrutinize` owns the in-family review methodology; `council` owns the cross-model machinery (convene the outside model, adjudicate disbelieve-back); the fixer skills own the edits. Vet runs `scrutinize`, then has `council` cross-examine the **same diff** — `council` convenes the cross-model judge **blind** (the diff only, never `scrutinize`'s findings) and adjudicates the council's findings against `scrutinize`'s. Vet then adds the **gated fix loop**. If you find yourself writing review or edit logic here, push it back into the leaf skill.
 
 ## When to use this vs a single skill
 
@@ -24,7 +24,7 @@ Run in order. Finish each gate before the next.
    *Gate:* the artifact and its boundaries are pinned.
 
 2. **Review — `scrutinize` then `council`** (both read-only)
-   First run **`scrutinize`** (intent → trace → verify → severity-ordered findings + verdict) — the in-family pass. Then invoke **`council`** on the same diff: it convenes Codex **blind** (the diff alone, never `scrutinize`'s findings — kept blind, from the **top-level session**, a subagent can't reach it) and adjudicates the two sets disbelieve-it-back, returning **disagreement-first** findings + a "what the council changed" note. Add `/security-review` when the change touches untrusted input/authz/secrets; `/review` for a PR.
+   First run **`scrutinize`** (intent → trace → verify → severity-ordered findings + verdict) — the in-family pass. Then invoke **`council`** on the same diff: it convenes the cross-model judge **blind** (the diff alone, never `scrutinize`'s findings — kept blind, from the **top-level session**, a subagent can't reach it) and adjudicates the two sets disbelieve-it-back, returning **disagreement-first** findings + a "what the council changed" note. Add `/security-review` when the change touches untrusted input/authz/secrets; `/review` for a PR.
    *Gate:* `council` has returned the adjudicated findings (or has degraded — see below).
 
 3. **Decide which to apply** (the gate)

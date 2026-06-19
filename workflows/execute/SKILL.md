@@ -103,25 +103,25 @@ Tasks run **serially** — never dispatch implementer subagents in parallel. For
 
 2. **Implementer subagent.** Dispatch a fresh subagent with the task's full text and scene-setting context (adapt superpowers' `implementer-prompt`: implement exactly the task, write/keep tests, verify, **commit**, self-review, report status DONE / DONE_WITH_CONCERNS / BLOCKED / NEEDS_CONTEXT). Answer its questions before it proceeds; handle non-DONE statuses (more context, a more capable model, smaller pieces, or escalate to the human) rather than forcing a retry unchanged.
 
-3. **Stage 1 — spec-compliance review, run by the controller (Claude), no Codex.** Holding the task text, the controller independently verifies the `BASE_SHA..HEAD_SHA` diff built **exactly** the task — nothing missing, nothing extra — by reading the actual code, not trusting the report (adapt superpowers' `spec-reviewer-prompt`). This is a comparison against a *known spec*, not a blindspot-prone judgment call, so it needs no outside model and carries no Codex hang risk. If issues: the implementer fixes, then re-review. Do not start Stage 2 until Stage 1 is clean.
+3. **Stage 1 — spec-compliance review, run by the controller (Claude), no cross-model CLI.** Holding the task text, the controller independently verifies the `BASE_SHA..HEAD_SHA` diff built **exactly** the task — nothing missing, nothing extra — by reading the actual code, not trusting the report (adapt superpowers' `spec-reviewer-prompt`). This is a comparison against a *known spec*, not a blindspot-prone judgment call, so it needs no outside model and carries no cross-model-CLI hang risk. If issues: the implementer fixes, then re-review. Do not start Stage 2 until Stage 1 is clean.
 
 4. **Stage 2 — code-quality / correctness review, run by the controller.** On the `BASE_SHA..HEAD_SHA` diff, the controller runs `scrutinize` (in-family), then `council` on the same diff (cross-model, blind) — `council` adjudicates the two. This is the blindspot-prone judgment where the cross-model judge earns its cost; it replaces superpowers' `code-reviewer.md` (absent here) with `scrutinize` + `council`. If issues: the implementer fixes, then re-review.
 
 5. **Next task** once both stages are clean.
 
-**Crucial — both review stages run at the controller / top level.** A subagent cannot reach Codex: it can't disable the sandbox (verified in `research-council` — `bypassPermissions` doesn't fix it, the harness rejects the sandbox-disable before the command runs). So **only the implementer is a subagent**; both Stage 1 and Stage 2 are controller work. (Stage 1 is at the controller because it's the controller that holds the spec; Stage 2 *must* be at the controller because that's the only place `council`'s `codex exec` can run.)
+**Crucial — both review stages run at the controller / top level.** A subagent cannot reach the cross-model CLI: it can't disable the sandbox (verified in `research-council` — `bypassPermissions` doesn't fix it, the harness rejects the sandbox-disable before the command runs). So **only the implementer is a subagent**; both Stage 1 and Stage 2 are controller work. (Stage 1 is at the controller because it's the controller that holds the spec; Stage 2 *must* be at the controller because that's the only place `council`'s cross-model CLI can run.)
 
 After the loop completes, the natural follow-on is the `finish` workflow — which drains any pending background reviews and tears down the worktree (via the `git-worktree` skill).
 
 ## Degrade visibly (autonomous)
 
-- **Codex absent / not reachable:** `council` degrades down its own ladder (a fresh-subagent `scrutinize` pass, or inline as the weakest rung) and discloses which rung — Stage 2 takes whatever it returns; don't define a separate fallback here. The loop still runs, but it has **lost the cross-model property** and must say so — a same-family review is blind to the shared blind spots.
+- **No cross-model CLI reachable:** `council` degrades down its own ladder (a fresh-subagent `scrutinize` pass, or inline as the weakest rung) and discloses which rung — Stage 2 takes whatever it returns; don't define a separate fallback here. The loop still runs, but it has **lost the cross-model property** and must say so — a same-family review is blind to the shared blind spots.
 - **Subagents unavailable in this host:** don't simulate them — drop to **interactive-gated** mode and tell the user the autonomous path isn't available here.
 
 ## Rules (autonomous-subagent)
 
 - **Serial implementers only** — never parallel; concurrent edits conflict.
 - **Two stages, in order** — spec-compliance (controller) before code-quality (controller-run `scrutinize` + `council`); never the reverse, never skip one.
-- **Both reviews at the top level** — subagents can't reach Codex; only the implementer is a subagent.
+- **Both reviews at the top level** — subagents can't reach the cross-model CLI; only the implementer is a subagent.
 - **Continuous, but honest** — run without check-in prompts between tasks, but stop on an unresolvable BLOCKED or genuine ambiguity rather than guess. Mark a task done only on its verification's real evidence.
 - **Degrade out loud** — name when the cross-model lens or subagents weren't available.
