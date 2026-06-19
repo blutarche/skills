@@ -41,22 +41,49 @@ council_candidates() {                       # prints reachable CLIs, in order, 
 # convene with auth/model fallback:
 verdict=""
 for cli in $(council_candidates); do
-  # run_council MUST return non-zero ONLY on an auth/model-selection failure (match the known
-  # signatures) and surface any other error itself — otherwise a genuinely broken primary CLI
-  # gets silently skipped here. That contract is what makes this `&& break` correct.
-  verdict=$(run_council "$cli" "$artifact_file") && break   # success → use it
-  verdict=""                                                 # auth/model miss → try the next candidate
+  # run_council prints the verdict on stdout (rc 0); any non-zero — auth/model miss, timeout, or
+  # the CLI erroring — means "no verdict from this CLI", so try the next. That makes `&& break`
+  # correct.
+  verdict=$(run_council "$cli" "$artifact_file") && break   # success → verdict on stdout
+  verdict=""                                                 # any failure → try the next candidate
 done
 [ -n "$verdict" ] || : # none worked → degrade down the ladder (see SKILL.md)
 ```
 
-Fall through **only** on auth/model-selection errors — not on every non-zero exit, or a
-genuinely broken primary CLI gets silently skipped and council looks healthy when it isn't.
-Match the known auth/model failure signatures; on an unrecognized error, surface it rather
-than swallowing it. `COUNCIL_CLI` is honored **strictly**: if set but unreachable or
+Any non-success — an auth/model-selection miss, a **timeout**, or the CLI erroring — means this
+candidate produced no verdict, so the loop clears `$verdict` and tries the next; if every
+candidate fails, degrade down the ladder. `run_council` must **wall-clock-bound** its CLI call so
+a convene can never wedge — the shape is below. `COUNCIL_CLI` is honored **strictly**: if set but unreachable or
 unauthed, council degrades rather than silently falling back to another family. The auth check itself is per tool
 (e.g. `cursor-agent --list-models` → "No models available for this account" means
 installed-but-not-authed).
+
+## `run_council` — bound the convene, emit the verdict
+
+`run_council` wraps **the per-tool convene command** (from that CLI's own file — `codex.md`,
+`cursor-agent.md`, …) so the loop above stays tool-agnostic and *every* CLI is bounded, not
+just one. It must: run the command wall-clock-bounded — `timeout(1)` isn't portable (absent on
+stock macOS), so use a background-kill watchdog that escalates **TERM→KILL** if the CLI ignores
+TERM; capture stderr (never `2>/dev/null` — a swallowed error reads as a silent hang); emit the
+verdict on **stdout** on success; and return non-zero on any failure (a timeout or a CLI error)
+so the loop drops the candidate:
+
+```bash
+run_council() {                       # $1=cli, $2=artifact file → prints verdict on stdout, rc 0
+  out="$(mktemp -t verdict.XXXXXX)"
+  # `convene` = the CLI's own command (replace it — see that CLI's ref file, e.g. codex.md). It
+  # reads $2 and handles its own stdin (codex needs `< /dev/null` or `< "$art"`), writing stdout:
+  convene "$1" "$2" > "$out" 2>&1 &
+  cpid=$!
+  # bound it; the >/dev/null 2>&1 is load-bearing — without it the watchdog inherits the
+  # verdict=$(…) capture pipe and a fast success blocks for the full COUNCIL_TIMEOUT. Keep it.
+  { sleep "${COUNCIL_TIMEOUT:-300}"; kill -TERM "$cpid" 2>/dev/null
+    sleep 5; kill -KILL "$cpid" 2>/dev/null; } >/dev/null 2>&1 &
+  wpid=$!
+  wait "$cpid"; rc=$?; kill "$wpid" 2>/dev/null            # reap the watchdog
+  cat "$out"; rm -f "$out"; return "$rc"                   # stdout = verdict (rc 0); non-zero → loop tries next
+}
+```
 
 ## Keep it cross-family
 

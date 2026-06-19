@@ -27,6 +27,11 @@ codex exec --skip-git-repo-check -c model_reasoning_effort="high" \
 
 Read stdout as the verdict.
 
+**Bounding lives in `run_council`** (see [`selection.md`](selection.md)) — this command is its
+`convene` placeholder; run_council wraps it in the wall-clock watchdog and captures its output,
+so it isn't repeated per tool. Keep the `< /dev/null` (or `< "$art"` for the file form) here:
+without it `codex exec` hangs on stdin EOF *before* any watchdog could fire.
+
 ## Flags
 
 - `-m <model>` — pin the model/family.
