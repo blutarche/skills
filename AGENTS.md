@@ -42,5 +42,4 @@ Use the global `/skill-creator` for the authoring craft itself (drafting, evals,
 
 ## Commits
 
-Conventional Commits (`feat:`, `fix:`, `refactor:`, `docs:`, …). **No `Co-Authored-By` trailer**
-— matches the existing history; do not add one.
+Conventional Commits (`feat:`, `fix:`, `refactor:`, `docs:`, …).
