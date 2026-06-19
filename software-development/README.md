@@ -36,6 +36,7 @@ build on, not a phase. Each skill does one job and is unaware of the others — 
 | [`post-mortem`](engineering/post-mortem/SKILL.md) | Write the canonical record of a fixed bug (or resolved incident) — root cause, mechanism, fix, validation, how it slipped through. Refuses until the fix is validated; blameless. Pairs with `diagnose`. |
 | [`de-flaking-tests`](engineering/de-flaking-tests/SKILL.md) | Make flaky tests deterministic (condition-based waiting) and kill tests that pass for the wrong reason (mock theater, incomplete mocks). |
 | [`git-commit`](engineering/git-commit/SKILL.md) | Turn a working tree into clean, atomic, bisect-safe commits — Conventional-Commit messages, no co-author trailer, push left to the user. |
+| [`git-worktree`](engineering/git-worktree/SKILL.md) | Create/enter an isolated feature worktree and bootstrap-or-surface its environment (setup), then remove/prune it (teardown). Use when starting or wrapping up isolated agentic work. |
 
 ## verification — prove work is actually done
 
