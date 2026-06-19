@@ -8,6 +8,19 @@ license: MIT
 
 A discipline for hard bugs and performance regressions. Work the phases in order. Skip a phase only when you can explicitly justify why it does not apply.
 
+## Phase 0 — Localise (only when the bug's locus is unknown)
+
+Phase 1 assumes you know *where* to point a loop. When the symptom is real but the responsible subsystem is unknown or ambiguous — a crash with a shallow trace, a regression with no obvious culprit, "it's slow somewhere" — spend a short, **read-only** pass localising before you build the loop. Skip this phase entirely when the locus is already obvious.
+
+Assemble the smallest useful packet first: symptom, expected vs actual, repro steps if any, scope of impact, and whatever evidence exists (logs, traces, failing tests, recent diffs). Then investigate along four angles. **Run them as parallel read-only sub-agents if the host supports it; otherwise sweep them yourself in one pass** (degrade visibly — say which you did). Keep every investigator read-only: no edits, no new instrumentation, no commits yet.
+
+1. **Reproduction & scope** — the narrowest reliable trigger; conditions that make it appear/disappear; whether it's local, cross-cutting, deterministic, or flaky.
+2. **Code path & failure seam** — the likely execution path and the seam where behavior diverges: state transitions, caller/callee assumption mismatches, data/control-flow breaks.
+3. **Recent change & regression** — diffs, config/flag/dependency/schema drift correlating with the symptom's timing; partial updates where several sites should have changed together.
+4. **Proof & observability** — the smallest existing test or non-mutating command that should already fail; the most useful current logs/traces/metrics; what evidence is missing.
+
+Synthesise into **ranked candidate loci** + the fastest non-mutating proof step for the top one. That ranking is the input to Phase 1 (build the loop at the leading locus) and a head start on Phase 4. If the evidence is too thin to rank, say so and name the leading open questions rather than forcing a guess.
+
 ## Phase 1 — Build a fast, deterministic feedback loop
 
 **This is the core of the skill. Do it before hypothesising about causes.**
