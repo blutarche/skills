@@ -103,15 +103,22 @@ REASON:  <the single most important factor>
 
 No finding without a consequence. No verdict without a reason.
 
-## Optional: specialist lenses
+## Specialist lenses
 
-For a wide or risky change, sweep the trace through three lenses before reporting — either yourself, or as parallel sub-agents if the host runtime supports them (default to a single pass for portability across agents):
+Sweep the trace through these five lenses before reporting. The lens *set* is the coverage floor — **name every lens and say what you found, even if "nothing"**; silently dropping a lens is how a security or contract regression ships unreviewed. What scales is *how* you run them, not *whether*:
 
-- **Correctness** — edge cases, error handling, concurrency, the inputs the happy path ignores.
-- **Security** — untrusted input, authz, secrets, injection, the failure mode an attacker chooses.
-- **Simplification** — over-engineering, speculative generality, abstraction that earns nothing.
+- **Small or low-risk diff** — one deliberate pass covering all five yourself.
+- **Wide or risky change** — run the lenses as **parallel read-only sub-agents if the host runtime supports them**, each with the same scope and intent; otherwise a single pass, lens by lens. Sub-agents inspect and report findings back only — they never edit, stage, or commit. (Degrade is visible: if you cannot fan out, say the review was single-pass.)
 
-Consolidate: if two lenses flag the same issue, it is one finding, ranked by its worst consequence.
+| Lens | What it hunts |
+|---|---|
+| **Correctness & regression** | edge cases, error handling, concurrency, unintended behavior drift outside the stated scope, broken fallback paths, contract drift between caller and callee. |
+| **Security & privacy** | untrusted input, missing/weakened authz, secrets or sensitive-data exposure, injection, risky defaults, trust of unverified data. |
+| **Performance & reliability** | duplicate work or redundant I/O, new cost on a hot/startup/render path, leaks, missing cleanup, retry storms, ordering/race/failure-handling fragility. |
+| **Contracts & coverage** | API/schema/type/config/flag mismatches, migration or backward-compat fallout, missing or weak tests for the changed behavior, missing logs/metrics/assertions that would catch a regression. |
+| **Simplification** | over-engineering, speculative generality, abstraction that earns nothing. |
+
+Consolidate: if two lenses flag the same issue, it is one finding, ranked by its worst consequence. Report only what materially affects correctness, security, reliability, compatibility, or confidence — a missed nit beats burying the real findings in noise.
 
 ## Common Mistakes
 
