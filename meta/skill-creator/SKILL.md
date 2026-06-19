@@ -54,6 +54,12 @@ file; the same folder works in Claude Code, Codex CLI, and Cursor). When you cre
 a skill **in this repo**, follow these conventions — they override the generic packaging
 advice further down:
 
+For the *craft* of writing a skill well — the vocabulary and design principles behind
+predictability (invocation vs context load, the information hierarchy, leading words, the
+failure-mode catalog), consult [`writing-great-skills`](../writing-great-skills/SKILL.md) (run
+`/writing-great-skills`). This skill owns the draft → eval → iterate *loop*; that one owns the
+design theory the loop edits toward.
+
 - **Placement decides the install unit.** A skill goes in exactly one of:
   - `<domain>/<group>/<name>/` — an atomic, domain-specific skill (e.g. `software-development/review/<name>/`).
   - `workflows/<name>/` — a *playbook* that composes several atomic skills into an end-to-end process.
