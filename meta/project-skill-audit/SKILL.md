@@ -1,6 +1,7 @@
 ---
 name: project-skill-audit
-description: "Audit a project's real recurring work — from session history, persistent memory, and existing skills — then recommend the highest-value skills to create or update, preferring updates over duplicates. Use when asked what skills a project needs, for skill ideas grounded in real usage (not brainstorming), or to review whether existing project-local skills are stale or redundant."
+description: "Audit a project's real recurring work (session history, persistent memory, existing skills) and recommend the highest-value skills to create or update."
+disable-model-invocation: true
 ---
 
 # Project Skill Audit
@@ -40,7 +41,7 @@ You need two stores: **session history** (what was actually done) and **persiste
 
 ### 3. Read history targeted, not bulk
 
-If a memory summary is already in context, start there. Then search the memory index (`rg` the repo name, basename, and `cwd`) and open only the **1–3 most relevant** summaries or transcripts — those whose path/keywords match this project. Fall back to raw session logs only when a summary is missing a concrete detail (an exact command, a failure string, a diff). **Do not bulk-load all history.**
+If a memory summary is already in context, start there — but don't trust a single stale note if the repo has clearly moved on since. Then search the memory index (`rg` the repo name, basename, and `cwd`) and open only the **1–3 most relevant** summaries or transcripts — those whose path/keywords match this project. Fall back to raw session logs only when a summary is missing a concrete detail (an exact command, a failure string, a diff). **Do not bulk-load all history.**
 
 Extract: what was asked for repeatedly · which steps kept recurring · what broke repeatedly · which commands proved correctness · which project context had to be rediscovered.
 
@@ -62,14 +63,3 @@ A compact audit:
 2. **Suggested updates** — per candidate: skill name · why it's stale/incomplete · the single highest-value change.
 3. **Suggested new skills** — per candidate: name (short, hyphen-case, verb-led) · why it should exist · what triggers it · the core workflow it encodes · **the evidence** ("this validation sequence appeared in 4 sessions").
 4. **Priority order** — top recommendations ranked by expected value.
-
-## Failure shields
-
-Two traps the workflow above doesn't already guard against:
-
-- Don't trust a single stale memory note if the repo clearly moved on since.
-- Don't confuse the project's current implementation tasks with its reusable skill needs — a backlog item is not a skill.
-
-## Follow-up
-
-If the user wants to build or update a recommended skill, switch to [`skill-creator`](../skill-creator/SKILL.md) and implement the chosen one — this skill's job ends at the recommendation.

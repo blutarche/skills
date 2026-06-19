@@ -5,7 +5,7 @@ description: Convene an independent cross-model judge — a model of a different
 
 # Council — an independent cross-model judge
 
-A conclusion you trust is one you haven't cross-examined. One model believes its own work — it shares the blind spot it never considered. A *different* model, handed the artifact cold, doesn't. This skill is that second model, pointed at your work with orders to break it.
+A conclusion you trust is one you haven't cross-examined. This skill is a *different* model — handed your work cold, with orders to break it, because it doesn't share the blind spot you never considered.
 
 It is the **mechanism only**: convene the outside model and adjudicate. The *methodology* — what to look for — is the caller's: `scrutinize` for a code diff, citation-and-staleness checks for a research answer, plain critical reading for a decision. `vet`, `research-council`, `plan`, and autonomous `execute` all compose this skill so the cross-model machinery lives in one place.
 
@@ -26,7 +26,7 @@ The concrete per-tool invocation — which CLI to auto-detect, the exact flags, 
 
 ## Run it concurrently — the convene is the long pole
 
-The convene is a slow, top-level Bash call; the caller's own in-family review (`scrutinize` over a diff, a citation re-check over a research answer) is **independent** of it — the council is **blind** to those findings either way, so there is no reason to serialize the two. **Launch the convene asynchronously and run the in-family review while it works; join at adjudication**, where the two blind sets finally meet. Only the in-family leg may fan out into read-only subagents; the cross-model leg stays at the **top level** — a subagent can't disable the sandbox to spawn the CLI (above). For a trivial artifact where the convene is cheap, skip the overlap and run inline; it earns nothing.
+The convene is a slow, top-level Bash call; the caller's own in-family review (`scrutinize` over a diff, a citation re-check over a research answer) is **independent** of it — the council is **blind** to those findings either way, so there is no reason to serialize the two. **Launch the convene asynchronously and run the in-family review while it works; join at adjudication**, where the two blind sets finally meet. Only the in-family leg may fan out into read-only subagents; the cross-model leg stays at the **top level** (above). For a trivial artifact where the convene is cheap, skip the overlap and run inline; it earns nothing.
 
 ## Adjudicate — disbelieve it back
 
@@ -40,7 +40,7 @@ The council convenes against *you*, so disbelieve it back. Reconcile its finding
 ## How callers use it
 
 - **A decision** (no external artifact): state 2–4 concrete options (order randomized, your lean withheld), brief the council to "argue the strongest case against each and name the angle missed," then adjudicate → `My lean: X · Council (blind): Y · Where we differ + why · Recommendation`. Present a decision aid; don't adopt the council's view silently.
-- **A diff / document / research answer:** the caller runs its *own* in-family review (`vet`→`scrutinize`; `research-council`→re-check citations and staleness; a plan→critical read) while the council **convenes concurrently** on the artifact **blind** (brief: "examine this independently; challenge every claimed property; find what a first reviewer would miss") — launch the convene in the background, since it's independent of the in-family pass (see *Run it concurrently*) — then, once both are in, adjudicates the two sets. Council does not run the caller's methodology — it convenes and reconciles.
+- **A diff / document / research answer:** the caller runs its *own* in-family review (`vet`→`scrutinize`; `research-council`→re-check citations and staleness; a plan→critical read) while the council **convenes concurrently** on the artifact **blind** (brief: "examine this independently; challenge every claimed property; find what a first reviewer would miss") — launch the convene in the background (see *Run it concurrently*) — then, once both are in, adjudicates the two sets. Council does not run the caller's methodology — it convenes and reconciles.
 
 ## When no cross-model CLI can be reached — degrade down a ladder, disclose the rung
 
@@ -48,7 +48,7 @@ If no cross-model CLI is reachable (none installed or authed, you're in a subage
 
 ## Prerequisites
 
-At least one cross-model CLI installed *and authenticated* (`codex`, `cursor-agent`, or `gemini`), plus the Claude Code Bash sandbox disabled for the call. Detection order and reachability checks are in [`references/selection.md`](references/selection.md); per-tool install/auth in [`codex.md`](references/codex.md), [`cursor-agent.md`](references/cursor-agent.md), [`gemini.md`](references/gemini.md). None installed is not an error — council degrades and discloses the rung.
+At least one cross-model CLI installed *and authenticated* (`codex`, `cursor-agent`, or `gemini`); the call runs with the Claude Code Bash sandbox disabled (see *Two sandboxes*). Detection order and reachability checks are in [`references/selection.md`](references/selection.md); per-tool install/auth in [`codex.md`](references/codex.md), [`cursor-agent.md`](references/cursor-agent.md), [`gemini.md`](references/gemini.md). None installed is not an error — council degrades and discloses the rung.
 
 ## Rules
 
