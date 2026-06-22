@@ -5,7 +5,7 @@ description: "Execute an approved implementation spec by delegating the coding t
 
 # Delegate Coding
 
-Take an approved, self-contained implementation spec and drive it to verified code by handing the **coding** to a cheaper/faster headless agent CLI — `cursor-agent`, `codex`, or similar — while you (the main agent) keep the parts where your judgment earns its cost: planning, verifying, and owning the merge.
+Take an approved, self-contained implementation spec and drive it to verified code by handing the **coding** to a cheaper/faster headless agent CLI — the Cursor CLI (`agent`), `codex`, or similar — while you (the main agent) keep the parts where your judgment earns its cost: planning, verifying, and owning the merge.
 
 The point is the asymmetry: a cheap, fast executor for the mechanical edits; a smart verifier for the gate. That only pays off if the verify gate is real, so the gate is the non-negotiable core of this skill, not an afterthought.
 
@@ -25,7 +25,7 @@ Cost breaks even on small tasks and wins as they grow; the durable reasons to de
 
 | Executor | Reference | Isolation | What it is |
 |----------|-----------|-----------|-----------|
-| `cursor-agent` | [`references/cursor-agent.md`](references/cursor-agent.md) | native `--worktree` | Cursor's headless CLI; cheap default model (Composer). |
+| `agent` (Cursor CLI) | [`references/cursor-agent.md`](references/cursor-agent.md) | native `--worktree` | Cursor's headless CLI (`agent`; legacy alias `cursor-agent`); cheap default model (Composer). |
 | `codex` | [`references/codex.md`](references/codex.md) | via the `git-worktree` skill | OpenAI Codex CLI (`codex exec`). |
 | `claude` | [`references/claude.md`](references/claude.md) | via the `git-worktree` skill | Headless `claude -p` on a cheaper model (Haiku/Sonnet). For in-process subagent orchestration with cross-model review, use `execute` instead. |
 
@@ -63,7 +63,7 @@ you run Tier-2 (envs, services, /goal) in the main tree
 
 Before delegating anything, confirm the executor is actually installed **and** authenticated — the exact commands are in `references/<tool>.md`. A silent fallback to doing it yourself defeats the purpose; a silent failure is worse. If the CLI is missing or not logged in, stop, tell the user the one-time setup command (you can't auth for them), and fall back to `execute`.
 
-**Model:** inherit the executor's cheap default rather than pinning a model id per call (ids rot) — but **verify the default that governs headless runs is actually cheap**, and set it once if not. It may differ from what the CLI's model list labels "default" (e.g. cursor-agent's headless default lives in `~/.cursor/cli-config.json`, not `--list-models`). See the reference for where to set it.
+**Model:** inherit the executor's cheap default rather than pinning a model id per call (ids rot) — but **verify the default that governs headless runs is actually cheap**, and set it once if not. It may differ from what the CLI's model list labels "default" (e.g. the Cursor CLI's headless default lives in `~/.cursor/cli-config.json`, not `--list-models`). See the reference for where to set it.
 
 ## Stages
 
