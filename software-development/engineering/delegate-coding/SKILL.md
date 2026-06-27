@@ -7,7 +7,7 @@ description: "Execute an approved implementation spec by delegating the coding t
 
 Take an approved, self-contained implementation spec and drive it to verified code by handing the **coding** to a cheaper/faster headless agent CLI — the Cursor CLI (`agent`), `codex`, or similar — while you (the main agent) keep the parts where your judgment earns its cost: planning, verifying, and owning the merge.
 
-The point is the asymmetry: a cheap, fast executor for the mechanical edits; a smart verifier for the gate. That only pays off if the verify gate is real, so the gate is the non-negotiable core of this skill, not an afterthought.
+It works by asymmetry: a cheap, fast executor for the mechanical edits, a smart verifier for the gate. That only pays off if the verify gate is real — so the gate is non-negotiable, not an afterthought.
 
 **The decision rule — delegate the middle band.** Your expensive "brain" (e.g. Opus) is for the work only it can do: shaping the plan and verifying the result. Route by the task, not by reflex:
 
@@ -21,7 +21,7 @@ The tell for (b): if you catch yourself hand-waving a step, that step is the bra
 
 Cost breaks even on small tasks and wins as they grow; the durable reasons to delegate are cross-family diversity and parallelism.
 
-**This file is the tool-agnostic method.** The per-tool invocation (preflight, headless flags, worktree, resume, output parsing) lives in `references/<tool>.md` — read the one for your executor when you reach Stage 3. Pick the executor that fits your intent — cheapest for a cost play, a different family for diversity:
+The per-tool invocation (preflight, headless flags, worktree, resume, output parsing) lives in `references/<tool>.md` — read the one for your executor when you reach Stage 3. Pick the executor that fits your intent — cheapest for a cost play, a different family for diversity:
 
 | Executor | Reference | Isolation | What it is |
 |----------|-----------|-----------|-----------|

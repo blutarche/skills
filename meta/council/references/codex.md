@@ -43,5 +43,4 @@ without it `codex exec` hangs on stdin EOF *before* any watchdog could fire.
 
 Install with `npm install -g @openai/codex`, then authenticate with `codex login`
 (ChatGPT login or an API key). Verify: `codex --version` (presence) and one real
-`codex exec ... < /dev/null` call (auth). Recipe verified end-to-end on codex-cli 0.141.0
-(default model gpt-5.5, own sandbox `read-only`).
+`codex exec ... < /dev/null` call (auth).

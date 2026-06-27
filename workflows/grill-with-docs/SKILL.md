@@ -8,7 +8,7 @@ license: MIT
 
 Run a `grill-me` session, but carry the `domain-modeling` discipline alongside it: as decisions crystallise, sharpen the project's terminology and write it down inline.
 
-This is a **thin composer** — it owns no methodology of its own. `grill-me` (in `meta/`) owns the relentless interview; `domain-modeling` (in `software-development/design/`) owns the glossary/ADR discipline — `CONTEXT.md`, `docs/adr/`, and the file formats. This workflow just runs the two together; the codebase-agnostic version is `grill-me` on its own.
+`grill-me` (in `meta/`) owns the relentless interview; `domain-modeling` (in `software-development/design/`) owns the glossary/ADR discipline — `CONTEXT.md`, `docs/adr/`, and the file formats. The codebase-agnostic version is `grill-me` on its own.
 
 ## How it runs
 

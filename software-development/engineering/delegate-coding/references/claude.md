@@ -2,7 +2,7 @@
 
 Tool-specific invocation for the `delegate-coding` skill. The method (two-tier verify, merge-as-commit-point, bounded retry, escalation) lives in `../SKILL.md`; this file only covers *how to drive a headless, cheaper Claude as the executor*.
 
-The idea: your "brain" is an expensive Claude (Opus). When the spec is clear, hand the *coding* to a **cheaper** Claude — Haiku or Sonnet — running as a separate headless `claude -p` process in an isolated worktree. Same vendor, much lower cost per token, plenty capable for well-specified mechanical work.
+Your "brain" is an expensive Claude (Opus); when the spec is clear, hand the *coding* to a **cheaper** Claude — Haiku or Sonnet — running as a separate headless `claude -p` process in an isolated worktree. Same vendor, much lower cost per token, plenty capable for well-specified mechanical work.
 
 > **When NOT to use this — use `execute` instead.** If you want in-process subagent orchestration (Task-tool subagents, two-stage spec + `scrutinize`/`council` review, `/goal`-driven continuous loops), that's the `execute` workflow's autonomous-subagent mode. This reference is specifically for the *headless CLI in a worktree, for cost* path — a peer of cursor-agent/codex, not a replacement for `execute`.
 
@@ -14,7 +14,7 @@ command -v claude >/dev/null || echo "claude CLI not installed"   # → fall bac
 
 `claude` is already authenticated for the session you're in, so there's usually no separate login step. Confirm the cheaper model is available to the account (`claude --model haiku -p "say ok"` as a smoke test).
 
-> **Verified end-to-end (2026-06-19):** `claude -p --model haiku --output-format json --permission-mode bypassPermissions` in an isolated worktree — creates files, runs Tier-1, **commits successfully in the linked worktree** (unlike codex, claude isn't sandboxed away from the main repo's `.git`, so it can self-commit), and `--resume` continues the session when run with the worktree as cwd. JSON fields: `result`, `session_id`, `is_error`.
+> Unlike codex, `claude` isn't sandboxed away from the main repo's `.git`, so the executor **can self-commit in the linked worktree**. The `--output-format json` result carries `result`, `session_id`, and `is_error`.
 
 ## Isolation (no native worktree)
 
@@ -33,7 +33,7 @@ claude -p "<delegation prompt>" \
 ```
 
 - `-p / --print` — non-interactive; prints the result and exits.
-- `--model haiku` (or `sonnet`) — the cheaper executor model; this is the whole point. Don't use the brain's model here.
+- `--model haiku` (or `sonnet`) — the cheaper executor model. Don't use the brain's model here.
 - `--output-format json` — capture the result and the **session id** (for `--resume`). `stream-json` is available if you want incremental output.
 - `--permission-mode bypassPermissions` — run unattended (it's confined to a throwaway worktree). Verify the exact mode name with `claude --help`; `--add-dir` grants the worktree as a working root.
 - Run it with the worktree as cwd (or via `--add-dir`) so all edits land there, not in your main tree.

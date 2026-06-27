@@ -52,4 +52,4 @@ Run the cleanup as a regression-safe sequence, not a single sweeping edit.
 
 6. **Report.** Close with a concise summary: which files changed, what you removed or simplified, how behavior was verified, and any risks left open.
 
-Related (advisory, not auto-invoked): `karpathy-guidelines` prevents slop at write-time; this skill removes it after the fact.
+Related (advisory, not auto-invoked): `karpathy-guidelines` prevents slop at write-time.

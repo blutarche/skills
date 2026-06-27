@@ -8,9 +8,7 @@ license: Apache-2.0
 
 A skill for creating new skills and iteratively improving them.
 
-> Adapted from Anthropic's `skill-creator` (Apache-2.0; see `LICENSE.txt`). Modified for this
-> repo: added a "This repo's conventions" section and replaced `.skill` packaging with
-> `install.sh` linking as the default way to ship a skill.
+> Adapted from Anthropic's `skill-creator` (Apache-2.0; see `LICENSE.txt`).
 
 At a high level, the process of creating a skill goes like this:
 

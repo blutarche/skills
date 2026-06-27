@@ -5,7 +5,7 @@ description: "Create/enter an isolated feature worktree and bootstrap-or-surface
 
 # Git Worktree
 
-Two operations on a git worktree: **setup** (create + enter + make it runnable) and **teardown** (remove + prune). This is one mechanism so callers don't each reinvent it — `execute` (autonomous mode) calls setup; `finish` calls teardown.
+Two operations on a git worktree: **setup** (create + enter + make it runnable) and **teardown** (remove + prune). `execute` (autonomous mode) calls setup; `finish` calls teardown.
 
 A worktree is an isolated checkout of the same repo on its own branch, so an agent can work without disturbing the main tree. The trap is that a fresh worktree is **code-only**: it has no `node_modules`, no `.env`, no build cache — running tests in it before it's set up gives false failures. So setup is not just `git worktree add`; it must make the tree actually runnable, or stop and say it can't.
 

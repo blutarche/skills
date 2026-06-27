@@ -129,5 +129,3 @@ This skill's output is the saved plan file. Two things typically follow, but the
 
 - **Harden it** — a fresh plan is ideal grilling material (`grill-with-docs` against an existing codebase's domain model, or `grill-me` for greenfield / standalone plans).
 - **Execute it** — work the tasks in order, following each step exactly and running every verification. Never start implementation on `main`/`master` without explicit user consent.
-
-(The `plan` workflow chains design → plan → grill → council for you; this skill on its own just produces the plan.)

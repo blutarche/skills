@@ -6,7 +6,7 @@ cross-family and defeats the mechanism. Pick a current GPT/Gemini/Grok id from
 `--list-models` (e.g. `gpt-5.5-high`; `gpt-5` is **not** a valid id — model names rot, so
 check the list). Selected per [`selection.md`](selection.md).
 
-Headless requirements (verified): `-p` = non-interactive print mode; `--mode ask` =
+Headless requirements: `-p` = non-interactive print mode; `--mode ask` =
 read-only Q&A (council never edits); **`--trust`** is required in `-p` mode or it refuses
 on "Workspace Trust Required"; `--output-format text` (use `json` to parse structure).
 Read stdout as the verdict.
@@ -33,7 +33,7 @@ cursor-agent -p --output-format text --mode ask --trust --model gpt-5.5-high \
 ```
 
 (`< /dev/null` keeps the durable "never leave stdin open" rule — the artifact goes in via
-the file, not stdin. Verified: `ask` mode reads an absolute `mktemp` path fine.)
+the file, not stdin. `ask` mode reads an absolute `mktemp` path fine.)
 
 ## Flags
 
