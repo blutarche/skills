@@ -7,6 +7,7 @@ invocation lives in a file of its own:
 - [`codex.md`](codex.md) — OpenAI Codex (GPT family)
 - [`cursor-agent.md`](cursor-agent.md) — Cursor agent (pin a non-Claude model)
 - [`gemini.md`](gemini.md) — Google Gemini (opt-in via `COUNCIL_CLI=gemini`; recipe unverified)
+- GLM (Zhipu — an independent 4th family) — **deferred, not wired.** No recipe yet; to enable, add a `glm.md` recipe and a `COUNCIL_CLI=glm` path.
 
 The durable principles — convene blind, attack-not-approve, top-level-only, the two
 sandboxes, never leave stdin open, disbelieve-it-back — live in `SKILL.md` and do not

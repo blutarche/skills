@@ -90,6 +90,8 @@ If you cannot state the prediction, the hypothesis is a guess — sharpen or dis
 
 If a person with domain knowledge is available, share the ranked list before testing; they may re-rank it instantly or point out hypotheses already ruled out. Do not block on this — proceed with your own ranking if no one responds.
 
+For an **ambiguous, cross-layer** bug where several hypotheses stay plausible, gather evidence in parallel instead of anchoring on the top one: one read-only subagent per hypothesis, each collecting evidence for its own and trying to disprove the others — the hypothesis that survives the cross-attack is your leading cause. (Hosts with agent teams can run this as a live debate; worth the extra cost only when disproving one hypothesis bears on the others.) After the survivor emerges, resume at Phase 5 — confirm it with real probes before fixing.
+
 ## Phase 5 — Instrument
 
 Each probe must map to a specific prediction from Phase 4. **Change one variable at a time.**
