@@ -69,6 +69,13 @@ Copy [`docs/skill-template.md`](docs/skill-template.md) into a kebab-case folder
 the area's README, and run `./scripts/validate-skills.sh` until it's clean. In Claude Code,
 [`/add-skill`](.claude/skills/add-skill/SKILL.md) does all of that for you.
 
+## Companion: agents
+
+The companion [`agents`](https://github.com/blutarche/agents) repo's subagent definitions reference
+skills from here by name (`scrutinize`, `karpathy-guidelines`, `brainstorming`, `writing-plans`,
+`verification-before-completion`, `de-flaking-tests`). Install skills first so those agents get the
+methodology they expect.
+
 ## License
 
 Original skills are MIT ([`LICENSE`](LICENSE)); adapted ones are credited in
