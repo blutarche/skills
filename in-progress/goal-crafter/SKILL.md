@@ -1,69 +1,53 @@
 ---
 name: goal-crafter
-description: Craft a robust, context-rich goal prompt from a rough task description, ready to paste into /goal.
+description: Craft a clear /goal condition for Claude Code's autonomous mode from a rough task description.
 disable-model-invocation: true
 ---
 
 # Goal Crafter
 
-Turn a rough task into a **dense** goal for `/goal`. Do the **legwork** — gather context,
-resolve **forks** — then output a ready-to-paste end-state description. No reasoning, no
-commentary, just the goal.
+Turn a rough task into a `/goal` condition — a done-check that a small fast model
+evaluates from conversation output after each turn.
 
-A goal describes **what done looks like**, not how to get there. The executing agent owns
-the plan, the approach, and the implementation — the goal gives it an end state, constraints,
-and the quality bar.
+## How /goal works (write for this)
 
-## 1. Legwork
+After each turn an evaluator model reads the conversation and decides yes/no on the
+condition. It **cannot run commands or read files** — it only judges what Claude has
+already printed. So the condition must name things Claude will surface: test output it
+ran and showed, a `git status` it printed, a grep result it displayed.
 
-Gather what the executing agent will need but won't discover on its own. Read, don't guess:
+Write checks as **"Claude has shown X"**, not **"X is true"** — the evaluator can only
+verify what appeared in the transcript.
 
-- **Conversation** — decisions made, constraints discussed, prior failures in this session
-- **Codebase** — what the task touches, current patterns, project conventions
-- **Git** — branch, recent commits, uncommitted changes, what's in-flight
-- **Skills** — scan the skill README tables (each area's README.md) and any project-level or
-  agent-level skill directories to build a map of what's available
-- **Memory** — user preferences, project context, prior feedback
-- **Project config** — CLAUDE.md, AGENTS.md, settings that constrain how work should be done
+## What to do
 
-The purpose is to understand scope and constraints, not to pre-analyze the implementation.
-Stop when you can state what the task touches and what binds it. The executing agent will
-do its own codebase exploration — don't duplicate that work.
+1. **If the task is ambiguous, ask one question and stop.** A goal built on the wrong
+   interpretation drives autonomous mode toward the wrong outcome — that's worse than
+   pausing. Ambiguity triggers: subjective verbs without a measurable end state (clean up,
+   improve, refactor, modernize, fix), missing scope boundary, unknown verification command.
+   Output exactly one clarifying question and nothing else. If the task is concrete, skip
+   this step.
 
-## 2. Forks
+2. **Write the condition.** A goal has three parts, folded into one or two sentences:
+   - **End state** — what done looks like, measurable
+   - **Stated check** — how Claude proves it in the transcript (e.g. "Claude runs
+     `npm test` and the output shows all passing", "Claude prints `git diff --stat` showing
+     only the intended files"). Use only commands you know exist in the project; if you don't
+     know the test command, ask
+   - **Constraints** — what must not change, if anything
 
-A **fork** is where two reasonable agents would interpret the task differently, producing
-materially different outcomes. After the legwork:
+   Don't add implementation guidance, skill references, or approach suggestions — the
+   executing agent owns all of that.
 
-- If you find a fork, ask at most 2 questions using the host's native question tool
-  (e.g. `AskUserQuestion`). Each question resolves a fork — it's not an interview.
-- If no forks exist, skip this step entirely. Most well-scoped tasks have no forks.
+3. **Print the goal.** Nothing else — no preamble, no explanation.
 
-## 3. Output
+## What a good goal looks like
 
-Write the goal and print it — nothing else. No preamble ("Here's your goal:"), no explanation
-of your choices, no follow-up suggestions.
+Short. The official example: `all tests in test/auth pass and the lint step is clean`.
 
-The goal includes:
-- **End state** — what done looks like, with a verifiable check (test command exits 0, build
-  passes, specific behavior is observable). "It works" is not a done-condition
-- **Scope** — what to do, and what not to touch if the task could sprawl. Agents expand scope
-  by default — boundaries prevent drift
-- **Constraints** — project rules, decisions, and conventions the agent wouldn't find through
-  normal exploration. Not implementation details — which API to call, which pattern to use,
-  or how to structure the code are approach choices that belong to the executing agent
-- **Stop-if** — when to halt and ask instead of guessing. Include only when the task has
-  expensive-to-reverse boundaries (e.g. public API surface, shared contracts, security
-  semantics). Not every goal needs one
-- **Skills** — from the skills map, name the skills that serve this task and when to use
-  them. Tell the agent *what* to invoke (e.g. "run `/vet` before landing", "finish through
-  `/finish`"), not the skill's internals. Only include skills that earn their place; not
-  every goal needs a review pass
+A more constrained one: `config/ is split into config/parser.py and config/schema.py,
+Claude runs pytest -q and shows all passing, and git diff --stat shows changes only in
+config/.`
 
-The goal is a **short paragraph** — 3 to 6 sentences. Every word must earn its place. Fold
-the end state, scope, constraints, and skills into flowing prose rather than separate
-sections. Headers, bullet lists, and structured blocks are overhead — write a directive,
-not a document.
-
-**Dense** means: if removing a sentence wouldn't change the agent's behavior, delete it.
-Describe the end state; don't pre-solve the path to it.
+Tight means: if removing a clause wouldn't change the evaluator's yes/no decision, cut it.
+Max 4,000 characters, but most goals are under 200.
