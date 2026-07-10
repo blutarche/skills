@@ -44,9 +44,14 @@ Start by understanding the current project context, then ask questions one at a 
 
 **Documentation:**
 
-- Write the validated design (spec) to `docs/specs/YYYY-MM-DD-<topic>-design.md`
-  - (User preferences for spec location override this default)
-- After the user approves the spec at the User Review Gate, commit the design document to git.
+- Write the validated design to `docs/plans/YYYY-MM-DD-<topic>-design.md`. `docs/plans/`
+  holds working designs and plans (often gitignored, local-only); `docs/specs/` is
+  reserved for *finalized* specs only. A design coming out of brainstorming is a working
+  plan, so it belongs in `docs/plans/`, not `docs/specs/`.
+  - (User preferences for location override this default)
+- If (and only if) the target directory is tracked by git, commit the design after the
+  User Review Gate. If it's gitignored (as `docs/plans/` often is), skip the commit — the
+  doc stays local. Check before assuming you can commit.
 
 **Spec Self-Review:**
 After writing the spec document, look at it with fresh eyes:
@@ -61,7 +66,9 @@ Fix any issues inline. No need to re-review — just fix and move on.
 **User Review Gate:**
 After the self-review checklist is complete, ask the user to review the written spec before proceeding:
 
-> "Spec written to `<path>` (not yet committed). Please review it and let me know if you want any changes; I'll commit it once you approve, before we start the implementation plan."
+> "Design written to `<path>`. Please review it and let me know if you want any changes[, then I'll commit it]. We'll start the implementation plan once you approve."
+
+(Include the commit clause only if the directory is git-tracked; omit it for gitignored/local-only locations.)
 
 Wait for the user's response. If they request changes, make them and re-run the self-review checklist. Only proceed once the user approves.
 
