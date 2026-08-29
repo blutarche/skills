@@ -19,6 +19,13 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLAUDE_DIR="$HOME/.claude/skills"
 AGENTS_DIR="$HOME/.agents/skills"   # Codex + Cursor
 CONF="$REPO/install.conf"
+HERMES_BIN=""
+HERMES_CONFIG=""
+HERMES_EXTERNAL_ROOT=""
+HERMES_SELECTED=0
+HERMES_ARG=0
+HERMES_SOURCE_MARKER=".agent-skills-source"
+HERMES_PYTHON="python3"
 
 usage() {
   cat <<'EOF'
@@ -33,6 +40,7 @@ Usage:
   ./install.sh --cursor     ~/.agents/skills only   (Cursor reads it)
   ./install.sh --copy       copy instead of symlink (edits won't sync back)
   ./install.sh --force      overwrite an existing FOREIGN skill of the same name
+  ./install.sh --hermes     configure Hermes only (when Hermes is installed)
   ./install.sh --uninstall  remove only the links pointing back into this repo
   ./install.sh --dry-run    preview, change nothing
   ./install.sh -h | --help
@@ -61,6 +69,7 @@ while [ $# -gt 0 ]; do
     --cursor)    add_target "$AGENTS_DIR"; SELECTED=1 ;;
     --copy)      COPY=1 ;;
     --force)     FORCE=1 ;;
+    --hermes)    HERMES_SELECTED=1; SELECTED=1; HERMES_ARG=1 ;;
     --uninstall) UNINSTALL=1 ;;
     --dry-run|-n) DRY_RUN=1 ;;
     -h|--help)   usage 0 ;;
@@ -71,12 +80,90 @@ done
 
 if [ "$SELECTED" -eq 0 ]; then
   TARGETS=("$CLAUDE_DIR" "$AGENTS_DIR")
+  HERMES_SELECTED=1
 fi
+
+# Hermes reads skills from ~/.hermes/skills/ plus configured external skill
+# directories. Keep this repository as the source of truth instead of copying
+# every skill into Hermes' managed directory. The small staging directory below
+# contains only symlinks/copies for the allow-listed domains, so project-local
+# .claude helpers are not accidentally exposed to Hermes.
+detect_hermes() {
+  [ "$HERMES_SELECTED" -eq 1 ] || return 0
+  if ! HERMES_BIN="$(command -v hermes 2>/dev/null || true)"; then
+    HERMES_BIN=""
+  fi
+  if [ -z "$HERMES_BIN" ]; then
+    # Silent on the default run (most users have no Hermes); explicit --hermes
+    # still reports it so a typo'd install is not mistaken for success.
+    [ "$HERMES_ARG" -eq 1 ] && echo "  ! Hermes not found; skipping Hermes installation" >&2
+    return 0
+  fi
+
+  HERMES_CONFIG="$("$HERMES_BIN" config path 2>/dev/null || true)"
+  if [ -z "$HERMES_CONFIG" ]; then
+    if [ -n "${HERMES_HOME:-}" ]; then
+      HERMES_CONFIG="$HERMES_HOME/config.yaml"
+    else
+      HERMES_CONFIG="$HOME/.hermes/config.yaml"
+    fi
+  fi
+
+  # Only canonicalize when the parent exists. A fresh Hermes install can point
+  # at a parent that doesn't; `cd`-ing into it fails silently under `set -e`'s
+  # command-substitution exemption, collapsing the path to "/config.yaml" and
+  # HERMES_HOME to "/".
+  config_parent="$(dirname "$HERMES_CONFIG")"
+  resolved_parent="$(cd "$config_parent" 2>/dev/null && pwd || true)"
+  if [ -n "$resolved_parent" ]; then
+    HERMES_CONFIG="$resolved_parent/$(basename "$HERMES_CONFIG")"
+  fi
+  HERMES_HOME="$(dirname "$HERMES_CONFIG")"
+
+  if [ -z "$HERMES_HOME" ] || [ "$HERMES_HOME" = "/" ]; then
+    echo "  ! Hermes config path resolved to '$HERMES_HOME' (unsafe); skipping Hermes installation" >&2
+    HERMES_EXTERNAL_ROOT=""
+    return 0
+  fi
+
+  HERMES_EXTERNAL_ROOT="$HERMES_HOME/external-skills/$(basename "$REPO")"
+
+  # Probe for a Python that can actually `import yaml`: the hermes wrapper's
+  # own bin/ dir rarely ships a python3, so a bare fallback silently picks up
+  # whatever system python3 is on PATH, which usually lacks PyYAML.
+  declare -a py_candidates=(
+    "$HERMES_HOME/hermes-agent/venv/bin/python"
+    "$HERMES_HOME/hermes-agent/venv/bin/python3"
+  )
+  if [ -f "$HERMES_BIN" ]; then
+    wrapper_python="$(grep -Im1 -Eo 'exec "[^"]*/python3?"' "$HERMES_BIN" 2>/dev/null \
+      | sed -E 's/^exec "//; s/"$//' || true)"
+    [ -n "$wrapper_python" ] && py_candidates+=("$wrapper_python")
+  fi
+  py_candidates+=("$(dirname "$HERMES_BIN")/python3" "python3")
+
+  HERMES_PYTHON=""
+  for cand in "${py_candidates[@]}"; do
+    [ -n "$cand" ] || continue
+    "$cand" -c 'import yaml' >/dev/null 2>&1 || continue
+    HERMES_PYTHON="$cand"
+    break
+  done
+
+  if [ -z "$HERMES_PYTHON" ]; then
+    echo "  ! no Python with PyYAML found for Hermes (tried: ${py_candidates[*]}); skipping Hermes installation" >&2
+    HERMES_EXTERNAL_ROOT=""
+    return 0
+  fi
+}
+
+detect_hermes
 
 # --- uninstall: remove only links that point back into this repo ---------------
 if [ "$UNINSTALL" -eq 1 ]; then
   removed=0
-  for dest in "${TARGETS[@]}"; do
+  for dest in "${TARGETS[@]:-}"; do
+    [ -n "$dest" ] || continue
     [ -d "$dest" ] || continue
     echo "==> $dest"
     for entry in "$dest"/*; do
@@ -93,6 +180,28 @@ if [ "$UNINSTALL" -eq 1 ]; then
       esac
     done
   done
+
+  if [ -n "$HERMES_EXTERNAL_ROOT" ]; then
+    if [ "$DRY_RUN" -eq 1 ]; then
+      echo "  would remove Hermes external skill registration for $HERMES_EXTERNAL_ROOT"
+    else
+      "$HERMES_PYTHON" "$REPO/scripts/manage-hermes-external-dir.py" \
+        --config "$HERMES_CONFIG" \
+        --external-dir "$HERMES_EXTERNAL_ROOT" \
+        --action uninstall
+      owner=""
+      if [ -f "$HERMES_EXTERNAL_ROOT/$HERMES_SOURCE_MARKER" ]; then
+        owner="$(<"$HERMES_EXTERNAL_ROOT/$HERMES_SOURCE_MARKER")"
+      fi
+      if [ "$owner" = "$REPO" ]; then
+        rm -rf "$HERMES_EXTERNAL_ROOT"
+        rmdir "$(dirname "$HERMES_EXTERNAL_ROOT")" 2>/dev/null || true
+        echo "  removed Hermes external skill staging directory"
+      else
+        echo "  ! leaving Hermes staging directory: ownership marker is missing or differs" >&2
+      fi
+    fi
+  fi
   echo
   echo "Done: removed $removed link(s) belonging to this repo."
   [ "$DRY_RUN" -eq 1 ] && echo "(dry run — nothing changed)"
@@ -197,7 +306,8 @@ link_one() { # src target_dir
 }
 
 LINKED=0
-for dest in "${TARGETS[@]}"; do
+for dest in "${TARGETS[@]:-}"; do
+  [ -n "$dest" ] || continue
   # Safety: refuse to write into a dir that is itself a symlink back into this repo
   # (would scatter per-skill links inside the working copy).
   if [ -L "$dest" ]; then
@@ -218,8 +328,61 @@ for dest in "${TARGETS[@]}"; do
   done
 done
 
+install_hermes() {
+  [ -n "$HERMES_EXTERNAL_ROOT" ] || return 0
+
+  if [ "$DRY_RUN" -eq 1 ]; then
+    echo "==> $HERMES_EXTERNAL_ROOT (Hermes external skills)"
+    for src in "${SKILL_DIRS[@]}"; do
+      echo "  would link $(basename "$src") -> $HERMES_EXTERNAL_ROOT/$(basename "$src")"
+    done
+    echo "  would register $HERMES_EXTERNAL_ROOT in Hermes skills.external_dirs"
+    return 0
+  fi
+
+  if [ -e "$HERMES_EXTERNAL_ROOT" ] || [ -L "$HERMES_EXTERNAL_ROOT" ]; then
+    marker="$HERMES_EXTERNAL_ROOT/$HERMES_SOURCE_MARKER"
+    owner=""
+    if [ -f "$marker" ]; then
+      owner="$(<"$marker")"
+    fi
+    if [ "$owner" != "$REPO" ] && [ "$FORCE" -eq 0 ]; then
+      echo "  ! refusing Hermes staging directory: $HERMES_EXTERNAL_ROOT exists and isn't ours — pass --force to overwrite" >&2
+      REFUSED=$((REFUSED + 1))
+      return 0
+    fi
+    rm -rf "$HERMES_EXTERNAL_ROOT"
+  fi
+
+  mkdir -p "$HERMES_EXTERNAL_ROOT"
+  printf '%s' "$REPO" > "$HERMES_EXTERNAL_ROOT/$HERMES_SOURCE_MARKER"
+  for src in "${SKILL_DIRS[@]}"; do
+    name="$(basename "$src")"
+    target="$HERMES_EXTERNAL_ROOT/$name"
+    if [ "$COPY" -eq 1 ]; then
+      cp -R "$src" "$target"
+      echo "  copied $name -> $target (Hermes)"
+    else
+      ln -s "$src" "$target"
+      echo "  linked $name -> $target (Hermes)"
+    fi
+  done
+
+  "$HERMES_PYTHON" "$REPO/scripts/manage-hermes-external-dir.py" \
+    --config "$HERMES_CONFIG" \
+    --external-dir "$HERMES_EXTERNAL_ROOT" \
+    --action install
+}
+
+install_hermes
+
 echo
-echo "Done: ${#SKILL_DIRS[@]} skill(s) into ${#TARGETS[@]} target(s)."
+target_count=0
+for dest in "${TARGETS[@]:-}"; do
+  [ -n "$dest" ] && target_count=$((target_count + 1))
+done
+[ -n "$HERMES_EXTERNAL_ROOT" ] && target_count=$((target_count + 1))
+echo "Done: ${#SKILL_DIRS[@]} skill(s) into $target_count target(s)."
 [ "$REFUSED" -gt 0 ] && echo "Refused $REFUSED existing foreign skill(s); re-run with --force to overwrite." >&2
 [ "$DRY_RUN" -eq 1 ] && echo "(dry run — nothing changed)"
 exit 0

@@ -1,7 +1,7 @@
 # skills
 
 My personal, curated collection of [agent skills](https://docs.claude.com/en/docs/claude-code/skills).
-`SKILL.md` is an open standard, so the same folder works in **Claude Code, Codex CLI, and Cursor**.
+`SKILL.md` is an open standard, so the same folder works in **Claude Code, Codex CLI, Cursor, and Hermes Agent**.
 Some are original; many build on community prior art, credited in [`CREDITS.md`](CREDITS.md).
 
 ## Layout
@@ -34,29 +34,42 @@ A skill's `SKILL.md` is the source of truth.
 ## Install
 
 ```bash
-./install.sh            # link every configured domain into all supported agents
+./install.sh            # link every configured domain into all detected agents
 ```
 
-The standard is shared, but each agent reads a different directory — two cover all three (paths
-verified 2026-05-30 against the Claude Code, Codex, and Cursor docs; recheck if those tools move):
+The standard is shared, but each agent reads a different directory. The installer links the
+configured domains into Claude Code and Codex/Cursor, and—when `hermes` is installed—registers a
+repo-owned staging directory with Hermes through its `skills.external_dirs` setting:
 
 | Directory | Read by |
 |-----------|---------|
 | `~/.claude/skills/` | **Claude Code** (only this) |
 | `~/.agents/skills/` | **Codex CLI** (only this), **Cursor** (this + the Claude dir) |
+| `~/.hermes/external-skills/<repo-dir-name>/` | **Hermes Agent** (via `skills.external_dirs`) |
 
-By default, `install.sh` links into both. Edit a skill here and every agent sees the change; once
-linked, each one triggers on its `description:` or runs as `/<name>`.
+By default, `install.sh` links into the first two targets and adds the Hermes target when Hermes is
+available. The Hermes staging directory contains symlinks back to this repository, so edits here
+remain the source of truth. Hermes exposes external skills in its index, `skill_view`, and slash
+commands; the symlinked staging directory is not a write-protection boundary, so an agent-directed
+edit to one of these skills can modify the repository. If Hermes is absent, the installer skips it
+without failing.
 
 ```bash
 ./install.sh --claude     # only ~/.claude/skills  (Claude Code)
 ./install.sh --codex      # only ~/.agents/skills  (Codex CLI)
 ./install.sh --cursor     # only ~/.agents/skills  (Cursor)
+./install.sh --hermes     # only configure Hermes (when installed)
 ./install.sh --copy       # copy instead of symlink — use if an agent ignores symlinks (won't sync back)
 ./install.sh --force      # overwrite a foreign skill of the same name
 ./install.sh --uninstall  # remove only the links into this repo
 ./install.sh --dry-run    # preview, change nothing
 ```
+
+`--uninstall` removes this repository's links and, when Hermes is installed, removes only this
+repository's external-directory registration and staging directory. It leaves unrelated Hermes
+skills and configuration entries untouched. If a same-named skill already exists in Hermes's
+primary `~/.hermes/skills/` directory, Hermes's local skill takes precedence over the external
+copy; the installer does not overwrite that skill.
 
 Installation is **default-deny** — only the domains in [`install.conf`](install.conf) link, so a new
 domain stays out of your agents until you opt it in. Each leaf `SKILL.md` becomes a `/command` named for its
