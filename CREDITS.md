@@ -9,3 +9,4 @@ Skills here draw on prior art from the agent-skills community. Thanks to:
 - [Alexander-Tyagunov/magician](https://github.com/Alexander-Tyagunov/magician)
 - [anthropics/skills](https://github.com/anthropics/skills)
 - [dimillian/skills](https://github.com/dimillian/skills)
+- [cathrynlavery/diagram-design](https://github.com/cathrynlavery/diagram-design)
