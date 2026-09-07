@@ -25,7 +25,7 @@ The per-tool invocation (preflight, headless flags, worktree, resume, output par
 
 | Executor | Reference | Isolation | What it is |
 |----------|-----------|-----------|-----------|
-| `agent` (Cursor CLI) | [`references/cursor-agent.md`](references/cursor-agent.md) | native `--worktree` | Cursor's headless CLI (`agent`; legacy alias `cursor-agent`); cheap default model (Composer). |
+| `agent` (Cursor CLI) | [`references/cursor-agent.md`](references/cursor-agent.md) | native `--worktree` | Cursor's headless CLI (`agent`; legacy alias `cursor-agent`); default = latest Cursor-subsidized model (see reference). |
 | `codex` | [`references/codex.md`](references/codex.md) | via the `git-worktree` skill | OpenAI Codex CLI (`codex exec`). |
 | `claude` | [`references/claude.md`](references/claude.md) | via the `git-worktree` skill | Headless `claude -p` on a cheaper model (Haiku/Sonnet). For in-process subagent orchestration with cross-model review, use `execute` instead. |
 
