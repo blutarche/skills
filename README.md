@@ -62,6 +62,7 @@ without failing.
 ./install.sh --copy       # copy instead of symlink — use if an agent ignores symlinks (won't sync back)
 ./install.sh --force      # overwrite a foreign skill of the same name
 ./install.sh --uninstall  # remove only the links into this repo
+./install.sh --prune-only # remove only stale links to skills removed from this repo; link nothing
 ./install.sh --dry-run    # preview, change nothing
 ```
 
@@ -69,7 +70,10 @@ without failing.
 repository's external-directory registration and staging directory. It leaves unrelated Hermes
 skills and configuration entries untouched. If a same-named skill already exists in Hermes's
 primary `~/.hermes/skills/` directory, Hermes's local skill takes precedence over the external
-copy; the installer does not overwrite that skill.
+copy; the installer does not overwrite that skill. Every install also removes any link it
+previously created for a skill that no longer exists in the repo; `--prune-only` does just that
+without linking anything. A link to the repo's *previous* path after a move isn't recognized as
+ours — run `--force` to relink under the new path, then remove the leftover old link by hand.
 
 Installation is **default-deny** — only the domains in [`install.conf`](install.conf) link, so a new
 domain stays out of your agents until you opt it in. Each leaf `SKILL.md` becomes a `/command` named for its

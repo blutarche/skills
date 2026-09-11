@@ -42,8 +42,12 @@ Usage:
   ./install.sh --force      overwrite an existing FOREIGN skill of the same name
   ./install.sh --hermes     configure Hermes only (when Hermes is installed)
   ./install.sh --uninstall  remove only the links pointing back into this repo
+  ./install.sh --prune-only remove only stale links this installer created; link nothing
   ./install.sh --dry-run    preview, change nothing
   ./install.sh -h | --help
+
+Set SKILLS_TARGET_DIR to replace the target list with that single directory and
+disable Hermes (testing only).
 EOF
   exit "${1:-0}"
 }
@@ -54,6 +58,8 @@ COPY=0
 DRY_RUN=0
 FORCE=0
 UNINSTALL=0
+PRUNE_ONLY=0
+PRUNED=0
 SELECTED=0
 
 add_target() { # dedupe
@@ -71,12 +77,19 @@ while [ $# -gt 0 ]; do
     --force)     FORCE=1 ;;
     --hermes)    HERMES_SELECTED=1; SELECTED=1; HERMES_ARG=1 ;;
     --uninstall) UNINSTALL=1 ;;
+    --prune-only) PRUNE_ONLY=1 ;;
     --dry-run|-n) DRY_RUN=1 ;;
     -h|--help)   usage 0 ;;
     *) echo "unknown option: $1" >&2; usage 1 ;;
   esac
   shift
 done
+
+if [ -n "${SKILLS_TARGET_DIR:-}" ]; then
+  TARGETS=("$SKILLS_TARGET_DIR")
+  HERMES_SELECTED=0
+  SELECTED=1
+fi
 
 if [ "$SELECTED" -eq 0 ]; then
   TARGETS=("$CLAUDE_DIR" "$AGENTS_DIR")
@@ -158,6 +171,51 @@ detect_hermes() {
 }
 
 detect_hermes
+
+# Stale link: a symlink this installer created (points at $REPO or $REPO/*) whose
+# target no longer exists — i.e. the skill was removed/renamed in the repo. Real
+# directories, --copy'd trees, and symlinks pointing anywhere else are untouched.
+prune_stale() { # dir
+  local dir="$1" entry name tgt
+  [ -d "$dir" ] || return 0
+  for entry in "$dir"/*; do
+    [ -L "$entry" ] || continue
+    tgt="$(readlink "$entry" 2>/dev/null || true)"
+    case "$tgt" in
+      "$REPO"|"$REPO"/*)
+        [ -e "$entry" ] && continue   # target still exists: live link, keep
+        name="$(basename "$entry")"
+        if [ "$DRY_RUN" -eq 1 ]; then
+          echo "  would prune $name (stale link to removed skill)"
+        else
+          rm -f "$entry"
+          echo "  pruned $name (stale link to removed skill)"
+        fi
+        PRUNED=$((PRUNED + 1)) ;;
+    esac
+  done
+}
+
+# --- prune-only: scan targets (and Hermes staging dir) for stale links, exit ---
+if [ "$PRUNE_ONLY" -eq 1 ]; then
+  for dest in "${TARGETS[@]:-}"; do
+    [ -n "$dest" ] || continue
+    [ -d "$dest" ] || continue
+    echo "==> $dest"
+    prune_stale "$dest"
+  done
+
+  if [ -n "$HERMES_EXTERNAL_ROOT" ] && [ -f "$HERMES_EXTERNAL_ROOT/$HERMES_SOURCE_MARKER" ] \
+     && [ "$(<"$HERMES_EXTERNAL_ROOT/$HERMES_SOURCE_MARKER")" = "$REPO" ]; then
+    echo "==> $HERMES_EXTERNAL_ROOT"
+    prune_stale "$HERMES_EXTERNAL_ROOT"
+  fi
+
+  echo
+  echo "Done: pruned $PRUNED stale link(s)."
+  [ "$DRY_RUN" -eq 1 ] && echo "(dry run — nothing changed)"
+  exit 0
+fi
 
 # --- uninstall: remove only links that point back into this repo ---------------
 if [ "$UNINSTALL" -eq 1 ]; then
@@ -326,6 +384,7 @@ for dest in "${TARGETS[@]:-}"; do
     link_one "$src" "$dest"
     [ "$DRY_RUN" -eq 1 ] || LINKED=$((LINKED + 1))
   done
+  prune_stale "$dest"
 done
 
 install_hermes() {
@@ -351,6 +410,7 @@ install_hermes() {
       REFUSED=$((REFUSED + 1))
       return 0
     fi
+    prune_stale "$HERMES_EXTERNAL_ROOT"
     rm -rf "$HERMES_EXTERNAL_ROOT"
   fi
 
@@ -383,6 +443,7 @@ for dest in "${TARGETS[@]:-}"; do
 done
 [ -n "$HERMES_EXTERNAL_ROOT" ] && target_count=$((target_count + 1))
 echo "Done: ${#SKILL_DIRS[@]} skill(s) into $target_count target(s)."
+[ "$PRUNED" -gt 0 ] && echo "Pruned $PRUNED stale link(s)."
 [ "$REFUSED" -gt 0 ] && echo "Refused $REFUSED existing foreign skill(s); re-run with --force to overwrite." >&2
 [ "$DRY_RUN" -eq 1 ] && echo "(dry run — nothing changed)"
 exit 0
