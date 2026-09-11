@@ -1,6 +1,6 @@
 ---
 name: council
-description: Convene an independent cross-model judge — a model of a different family (e.g. Codex/GPT, Gemini, or a Cursor agent pinned to a non-Claude model), whichever CLI is installed — to cross-examine an artifact (a decision, a diff, a document, or a research answer) and adjudicate its findings disbelieve-it-back. This is the cross-model *mechanism*; the caller brings the artifact and its own in-family review. Use via `vet` (code), `research-council` (research), `plan` (a design decision), or directly when you want a second opinion from a model that doesn't share your blind spots. It reviews; it never edits.
+description: Convene a cross-model judge (Codex/GPT, Gemini, or a non-Claude Cursor model) to attack a decision, diff, document, or research answer and adjudicate the findings. Reviews, never edits. Use for a second opinion from outside the Claude family.
 ---
 
 # Council — an independent cross-model judge

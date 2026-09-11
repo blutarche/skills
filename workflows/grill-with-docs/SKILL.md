@@ -1,6 +1,7 @@
 ---
 name: grill-with-docs
-description: A grilling session that also builds the project's domain model as it goes — challenging terminology against the glossary and recording decisions as ADRs the moment they crystallise. Use when you want to stress-test a plan against your project's documented language and decisions (brownfield).
+disable-model-invocation: true
+description: Grill session that also maintains the project's glossary and ADRs as decisions crystallise (brownfield).
 license: MIT
 ---
 

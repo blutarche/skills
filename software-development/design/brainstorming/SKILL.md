@@ -1,6 +1,6 @@
 ---
 name: brainstorming
-description: "Use before any creative/build work — adding features, building components, new functionality, or changing behavior. Turns a brief or vague idea into an approved design doc through one-question-at-a-time dialogue. Does NOT write code until the design is approved. Output is the design doc; the next step is owned by the caller."
+description: Turn a vague idea or feature brief into an approved design doc through one-question-at-a-time dialogue; no code until approved. Use before adding features or changing behavior.
 license: MIT
 ---
 

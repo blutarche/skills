@@ -1,6 +1,7 @@
 ---
 name: plan
-description: "End-to-end planning workflow — take a raw brief, feature request, or app idea and drive it to a hardened, execution-ready implementation plan. Use when you want the full pipeline (design → plan → stress-test), not just one step. Composes the brainstorming, writing-plans, grill, and council skills in order. Does NOT write production code."
+disable-model-invocation: true
+description: "Brief → hardened, execution-ready plan: brainstorm, write plan, grill, council. Writes no code."
 ---
 
 # Plan (workflow)

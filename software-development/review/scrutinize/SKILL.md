@@ -1,6 +1,6 @@
 ---
 name: scrutinize
-description: "Outsider-perspective end-to-end review that produces a written findings report. Questions intent and whether a simpler approach (including doing nothing) achieves the goal, traces the actual code path — not just the diff — to verify the change does what it claims, then reports severity-ordered findings with one verdict (ship / fix-then-ship / rework / reject). Read-only: it flags issues, it does not edit. Use on /scrutinize, or when asked to review, audit, sanity-check, or get a second opinion on a PR, diff, design doc, or completed code change. For interactive plan-hardening dialogue use grill-me; to apply simplifications use simplify; to strip AI slop use slop-cleanup."
+description: Outsider end-to-end review of a diff, PR, or design doc — questions intent, traces the real code path, reports severity-ordered findings with one verdict (ship / fix-then-ship / rework / reject). Read-only. Use when asked to review, audit, or sanity-check a change.
 ---
 
 # Scrutinize

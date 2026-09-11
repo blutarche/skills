@@ -1,6 +1,6 @@
 ---
 name: research
-description: Research a question and answer it from sources fetched right now, with a citation behind every claim — never from memory, never a guess dressed as a fact. Use when the answer is version- or time-sensitive ("what's the current/latest X", "is this still true", "which version introduced Y", "what does the docs/spec say"), when a wrong answer is costly, or whenever you catch yourself about to state something you only "remember." When you've researched something important and want a *different* model to try to break it before you trust it, follow up with the `research-council` skill.
+description: Answer from sources fetched now with a citation per claim, never from memory. Use for version- or time-sensitive questions ("latest/current X", "is this still true", "what do the docs say") or when a wrong answer is costly.
 ---
 
 # Research

@@ -1,6 +1,7 @@
 ---
 name: vet
-description: "Deliberate cross-model review of a branch, diff, or PR, then a gated fix loop. Runs `scrutinize` (Claude's outsider pass) and `council` (a cross-model attack on the same diff, e.g. Codex), which adjudicates the two disagreement-first; then drives accepted fixes through the fixer skills and re-reviews until clean. Use when you want a finished change vetted before it ships — review plus follow-through, not just a report."
+disable-model-invocation: true
+description: Cross-model review of a branch, diff, or PR (scrutinize + council), then a gated fix loop until clean.
 ---
 
 # Vet (workflow)

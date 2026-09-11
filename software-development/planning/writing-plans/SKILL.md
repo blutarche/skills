@@ -1,6 +1,6 @@
 ---
 name: writing-plans
-description: Use when you have a spec or requirements for a multi-step task, before touching code. Produces a bite-sized, TDD-shaped implementation plan with exact files, code, and commands. Output is the plan; hardening and execution are separate steps owned by the caller.
+description: Turn a spec into a bite-sized, TDD-shaped implementation plan with exact files, code, and commands. Use when requirements exist for a multi-step task, before touching code.
 license: MIT
 ---
 

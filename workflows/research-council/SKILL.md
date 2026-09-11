@@ -1,6 +1,7 @@
 ---
 name: research-council
-description: "Cross-examine a research answer — your own, a deep-research tool's, or any draft that carries sources — with an adversarial outside model (e.g. Codex) that re-checks every citation, attacks overclaims and staleness, names the missing angles, and adjudicates contradictions, before you trust it. Use after you've researched something that's too important to ship unchecked and want a *different* model to try to break it. It reviews research; it does not orchestrate it — bring your own (run a deep-research tool or the `research` skill first if you still need the material)."
+disable-model-invocation: true
+description: Cross-examine a research answer with an outside model — citations, overclaims, staleness, missing angles.
 ---
 
 # Research Council

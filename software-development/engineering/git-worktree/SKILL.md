@@ -1,6 +1,6 @@
 ---
 name: git-worktree
-description: "Create/enter an isolated feature worktree and bootstrap-or-surface its environment (setup), and remove/prune it (teardown). Use when starting isolated agentic work (e.g. autonomous execute) or wrapping it up (finish)."
+description: Create and bootstrap an isolated feature worktree, or tear one down. Use when starting or wrapping up isolated agentic work.
 ---
 
 # Git Worktree

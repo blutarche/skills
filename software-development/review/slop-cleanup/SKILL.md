@@ -1,6 +1,6 @@
 ---
 name: slop-cleanup
-description: Detect and remove characteristic AI-generated "slop" from code, scoped to a diff by default. Use when cleaning up AI-generated code, removing slop, or tidying a diff before review.
+description: Strip AI-generated slop from code, scoped to a diff by default. Use when cleaning up generated code or tidying a diff before review.
 license: MIT
 ---
 

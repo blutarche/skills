@@ -1,6 +1,6 @@
 ---
 name: delegate-coding
-description: "Execute an approved implementation spec by delegating the coding to a cheaper/faster headless agent CLI (cursor-agent, codex, or a cheaper claude) while the main agent plans, verifies, and owns the merge. Use when you have a clear, self-contained task or plan and want another agent to write the code instead of doing it inline — for cross-family diversity, parallelism, or cost on large/repetitive work — e.g. 'have cursor do this', 'delegate this to cursor-agent', 'let codex implement this', 'let the cheap model write it', or any time the implementation is well-specified and mechanical enough to hand off. Also invoke explicitly as /delegate-coding. Does NOT write the plan; pair it with `plan` / `writing-plans` upstream."
+description: Hand an approved, self-contained spec to a headless coding CLI (cursor-agent, codex, cheaper claude) while the main agent plans, verifies, and merges. Use on "have cursor/codex do it" or bulk mechanical work.
 ---
 
 # Delegate Coding

@@ -1,6 +1,6 @@
 ---
 name: receiving-code-review
-description: Evaluate code-review feedback with technical rigor — verify each claim against the codebase, push back with reasons when the reviewer is wrong, then implement what is valid. Use when receiving code-review feedback, before acting on suggestions, especially when feedback seems unclear or technically questionable.
+description: Verify each review claim against the code, push back with reasons where wrong, implement what is valid. Use when acting on code-review feedback.
 license: MIT
 ---
 

@@ -1,6 +1,7 @@
 ---
 name: post-mortem
-description: Write the canonical engineering record of a fixed bug or resolved incident — root cause, mechanism, fix, validation, and how it slipped through — for other engineers and future-you. Refuses to draft until the bug is fixed and the fix is validated. Use after a debug/diagnose session lands a verified fix (pairs with diagnose), or when asked to write a post-mortem / postmortem / RCA / root-cause analysis, document a fix, or close out a bug with a writeup. For a customer-visible outage it switches to incident mode (timeline, 5 Whys, severity, action items). Blameless throughout.
+disable-model-invocation: true
+description: Engineering record of a fixed bug or incident — root cause, mechanism, fix, validation, how it slipped through. Blameless.
 ---
 
 # Post-mortem

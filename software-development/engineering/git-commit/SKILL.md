@@ -1,6 +1,6 @@
 ---
 name: git-commit
-description: "Create clean, atomic, bisect-safe git commits — one logical change each, messages in the repo's commit convention (Conventional Commits by default), and a neutral Co-Authored-By trailer that credits the agent, not the model. Use whenever about to commit: staging changes, writing a commit message, or asked to \"commit this\"."
+description: Make atomic, bisect-safe commits with messages in the repo's convention. Use whenever staging or committing changes.
 license: MIT
 ---
 

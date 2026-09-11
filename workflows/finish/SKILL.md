@@ -1,6 +1,7 @@
 ---
 name: finish
-description: Cleanly wrap up a finished development branch — verify tests pass, detect repo/worktree state, present a merge / open-PR / keep / discard choice, then before any integration drive the whole branch through a comprehensive cross-model review until it is clean, execute the chosen path, and clean up. Use when implementation is complete, tests pass, and you need to integrate or retire the work.
+disable-model-invocation: true
+description: "Wrap up a finished branch: verify, cross-model review loop, merge / PR / keep / discard, cleanup."
 license: MIT
 ---
 

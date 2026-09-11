@@ -1,6 +1,6 @@
 ---
 name: grill-me
-description: Interview the user relentlessly about a plan or design until reaching shared understanding, resolving each branch of the decision tree. Use when the user wants to stress-test a plan before building, get grilled on a design, or uses any 'grill' trigger phrase.
+description: Interview the user one question at a time until a plan or design has no unresolved branches. Use on any "grill" phrase or to stress-test a plan before building.
 license: MIT
 ---
 

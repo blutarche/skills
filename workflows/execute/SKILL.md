@@ -1,6 +1,7 @@
 ---
 name: execute
-description: "Execute an approved implementation plan (or a maintained task list) to verified code. Picks a mode: interactive-gated (main agent, one task at a time, surface blockers) or autonomous-subagent (fresh implementer subagent per task + two-stage controller review). Use when you have a plan or backlog and need to turn it into working code. Does NOT write the plan."
+disable-model-invocation: true
+description: Drive an approved plan to verified code — interactive-gated or autonomous-subagent mode.
 license: MIT
 ---
 
