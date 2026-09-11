@@ -9,6 +9,7 @@ Run from the skill directory:
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -338,13 +339,66 @@ class BuildTourTest(unittest.TestCase):
         self.assertIn("renamed", page)
 
     # ---------------------------------------------------------------- 11
-    def test_prose_field_rejects_script_tag(self) -> None:
-        spec = valid_spec(self.base, self.head)
-        spec["overview"] = "<p>Fine.</p><script>alert(1)</script>"
-        r = self.build(spec)
-        self.assertEqual(r.returncode, 1)
-        self.assertIn("overview", r.stderr)
-        self.assertIn("script", r.stderr.lower())
+    def test_prose_sanitizer_allowlist(self) -> None:
+        """Sanitizing never fails the build; it strips. Six cases from the second adversarial
+        pass, including the everythingElse[].why hole and the entity-obscured href bypass."""
+        with self.subTest("script tag dropped, its text kept"):
+            spec = valid_spec(self.base, self.head)
+            spec["overview"] = "<p>Fine.</p><script>alert(1)</script>"
+            r = self.build(spec)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            page = self.out.read_text(encoding="utf-8")
+            self.assertIn("<p>Fine.</p>alert(1)", page)
+
+        with self.subTest("img onerror in everythingElse why is stripped"):
+            spec = valid_spec(self.base, self.head)
+            spec["everythingElse"][0]["why"] = "<img src=x onerror=alert(1)>"
+            r = self.build(spec)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            page = self.out.read_text(encoding="utf-8")
+            self.assertNotIn("<img", page.lower())
+            self.assertNotIn("onerror", page.lower())
+
+        with self.subTest("entity-obscured javascript: href is dropped"):
+            spec = valid_spec(self.base, self.head)
+            spec["overview"] = '<a href="&#x6a;avascript:alert(1)">click</a>'
+            r = self.build(spec)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            page = self.out.read_text(encoding="utf-8")
+            self.assertIn("<a>click</a>", page)
+            self.assertNotIn("javascript", page.lower())
+
+        with self.subTest("a hash href survives"):
+            spec = valid_spec(self.base, self.head)
+            spec["overview"] = '<a href="#ch-core">jump</a>'
+            r = self.build(spec)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            page = self.out.read_text(encoding="utf-8")
+            self.assertIn('<a href="#ch-core">jump</a>', page)
+
+        with self.subTest("config=prod is not an on*= handler"):
+            spec = valid_spec(self.base, self.head)
+            spec["overview"] = (
+                "<p>Run it with <code>config=prod</code> and the <code>monkey=patch</code> trick.</p>"
+            )
+            r = self.build(spec)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            page = self.out.read_text(encoding="utf-8")
+            self.assertIn("config=prod", page)
+            self.assertIn("monkey=patch", page)
+
+        with self.subTest("base and form are stripped"):
+            spec = valid_spec(self.base, self.head)
+            spec["overview"] = (
+                '<base href="https://evil.example/">'
+                '<form action="https://evil.example/x" method="post"></form>'
+            )
+            r = self.build(spec)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            page = self.out.read_text(encoding="utf-8")
+            self.assertNotIn("<base", page.lower())
+            self.assertNotIn("<form", page.lower())
+            self.assertNotIn("evil.example", page)
 
     # ---------------------------------------------------------------- 12
     def test_low_coverage_notice(self) -> None:
@@ -356,8 +410,18 @@ class BuildTourTest(unittest.TestCase):
         stats = json.loads(self.stats.read_text(encoding="utf-8"))
         self.assertLess(stats["coveragePercent"], 30)
         page = self.out.read_text(encoding="utf-8")
-        self.assertIn("This tour shows", page)
-        self.assertIn(f'{stats["coveragePercent"]}%', page)
+        self.assertEqual(
+            stats["linesUnshownInOpenedFiles"] + stats["linesUnshownInUnopenedFiles"],
+            stats["linesChanged"] - stats["linesShown"],
+        )
+        # big.py never gets a hunk, so all of its lines land in the "listed by name only" bucket
+        self.assertGreaterEqual(stats["linesUnshownInUnopenedFiles"], 50)
+        self.assertIn(
+            f'This tour shows {stats["coveragePercent"]}% of changed lines: '
+            f'{stats["linesUnshownInOpenedFiles"]} lines not shown sit in files that are opened above, '
+            f'{stats["linesUnshownInUnopenedFiles"]} in files listed by name only.',
+            page,
+        )
 
     # ---------------------------------------------------------------- 13
     def test_verify_row_missing_cwd_rejected(self) -> None:
@@ -380,10 +444,21 @@ class BuildTourTest(unittest.TestCase):
         r = self.build(spec)
         self.assertEqual(r.returncode, 0, r.stderr)
         page = self.out.read_text(encoding="utf-8")
-        self.assertIn('<span class="chip exit-ok">0</span>', page)
-        self.assertIn('<span class="chip exit-bad">1</span>', page)
-        self.assertIn('<span class="chip">0</span>', page)
-        self.assertIn('<td class="col-cwd"><code>.</code></td>', page)
+
+        def chip_texts(cls: str) -> list[str]:
+            # matches the literal class value, not the surrounding markup shape
+            return [
+                re.sub(r"<[^>]+>", "", m).strip()
+                for m in re.findall(rf'class="{re.escape(cls)}">(.*?)</span>', page)
+            ]
+
+        self.assertEqual(chip_texts("chip exit-ok"), ["0"])
+        self.assertEqual(chip_texts("chip exit-bad"), ["1"])
+        self.assertEqual(chip_texts("chip"), ["0"])  # the ok-unspecified row gets the bare chip
+
+        m = re.search(r'<td class="col-cwd">(.*?)</td>', page, re.S)
+        self.assertIsNotNone(m)
+        self.assertEqual(re.sub(r"<[^>]+>", "", m.group(1)).strip(), ".")
 
     # ---------------------------------------------------------------- 15
     def test_html_file_yields_no_entity_chips(self) -> None:

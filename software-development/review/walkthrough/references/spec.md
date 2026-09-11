@@ -3,18 +3,23 @@
 The walkthrough spec. All prose lives here; the agent never edits the HTML. The build reads
 this file, checks every claim against `git diff`, and renders the page from it.
 
-Fields marked HTML are rendered as-is (`<p>`, `<code>`, `<a>`, `<b>`). Everything else is plain
-text and is escaped.
+Fields marked HTML are sanitized against the tag allowlist in Trust boundary below, then embedded
+as HTML (`<p>`, `<code>`, `<a>`, `<b>`). Everything else is plain text and is escaped.
 
 ## Trust boundary
 
 Ranges, counts, and coverage are validated against `git`; the agent cannot fake a line number or
 a file that is not in the diff. Prose (`overview`, `intuition`, `background`, `focus` items,
-chapter `overview`, file `why`, hunk `why`, `verify.ran` summaries, and `verify.manual` items) is
-the agent's own words, rendered as HTML with no further check beyond a blocklist on the handful
-of tags that can run script: `<script>`, `<iframe>`, `<object>`, `<embed>`, `javascript:`,
-`on*=` handlers, `<style>`, `<link>`, `<meta>`. A prose field that matches one of these fails the
-build by name. The reader grades the prose; the build only keeps it from executing.
+chapter `overview`, file `why` in both chapters and `everythingElse`, hunk `why`, `verify.ran`
+summaries, and `verify.manual` items) is the agent's own words, and every one of these fields is
+passed through an allowlist sanitizer before it reaches the page. Only `<p> <br> <b> <strong> <i>
+<em> <code> <pre> <a> <ul> <ol> <li> <span>` survive; on `<a>`, only `href` survives, and only
+when it is a `#` fragment, an absolute `http://` or `https://` URL, or a scheme-less relative
+path. Everything else, tag or attribute, is stripped: the tag disappears but the text inside it
+is kept, so a `<script>` block still shows its source as inert text rather than vanishing or
+running. Sanitizing never fails the build; a hostile or malformed field is a page that reads a
+little oddly, not a build error. The reader grades the prose; the build only keeps it from
+executing.
 
 ```json
 {
@@ -81,28 +86,31 @@ Required: `title`, `base`, `head`, `overview`, `chapters`. Everything else is op
 - Every `verify.ran` row needs `cwd`, a repo-root-relative path (`"."` for the repo root). A row
   missing it fails, naming its index.
 - `verify.ran[].ok`, when present, must be `true` or `false`.
-- Every prose field is checked against the tag blocklist in Trust boundary above.
 
-A failure prints `build_tour: <the defect>` on stderr, exits 1, and writes nothing, so a failed
+Prose fields are sanitized, never rejected; see Trust boundary above. A failure prints `build_tour: <the defect>` on stderr, exits 1, and writes nothing, so a failed
 build leaves the previous page in place. Fix the spec, never the page.
 
 ## What the build derives
 
 - Per file: status (`A`, `M`, `D`, `R`, `C`, `T`, or binary), added and removed line counts, and
   the names the added lines introduce (declarations, class methods, `describe` and `it` titles,
-  Python `def` and `class`, Go and Rust declarations, shell functions). Skipped entirely for
-  `.html`, `.htm`, `.css`, `.md`, `.json`, and `.txt`. Names under 3 characters, and names made only
-  of `$` or `_`, are dropped; the whole list is suppressed for a file when more than a third of
-  what is left is still under 4 characters. A file spanning several chapters lists only the names
-  its own hunks introduce.
+  Python `def` and `class`, Go and Rust declarations, shell functions, Markdown headings). Skipped
+  entirely for `.html`, `.htm`, `.css`, `.json`, and `.txt`. Names under 3 characters, and names
+  made only of `$` or `_`, are dropped; the whole list is suppressed for a file when more than a
+  third of what is left is still under 4 characters. A file spanning several chapters lists only
+  the names its own hunks introduce.
 - Per hunk: the rendered rows with `+`, `-`, and context markers and real line numbers, a
   "Copy as prompt" payload (repo when set, revision, `path:start-end`, chapter title, hunk text),
   and a blob link when `repo` is set and the side has a commit to link to.
 - Stats: `filesChanged`, `filesPlaced`, `everythingElse`, `linesAdded`, `linesRemoved`,
-  `linesShown`, `linesChanged`, `coveragePercent`, `hunksShown`, `chapters`, `attentionChapters`.
-  `linesShown` counts distinct changed lines actually rendered by a hunk, on either side;
-  `coveragePercent` is `linesShown` over `linesChanged`. Below 30% the page adds a one-line notice
-  under the stats strip. `--data-out` writes the stats as JSON.
+  `linesShown`, `linesChanged`, `coveragePercent`, `linesUnshownInOpenedFiles`,
+  `linesUnshownInUnopenedFiles`, `hunksShown`, `chapters`, `attentionChapters`. `linesShown`
+  counts distinct changed lines actually rendered by a hunk, on either side; `coveragePercent` is
+  `linesShown` over `linesChanged`. `linesUnshownInOpenedFiles` counts unshown changed lines in
+  files that have at least one hunk on the page; `linesUnshownInUnopenedFiles` counts the rest, in
+  files that are never opened (no hunk in any chapter, or listed in `everythingElse`). Below 30%
+  the page adds a one-line notice under the stats strip naming both counts. `--data-out` writes
+  the stats as JSON.
 - The "Changed lines only" toggle is hidden when no rendered hunk holds a context row, since
   there is nothing for it to hide.
 

@@ -25,6 +25,7 @@ import subprocess
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime
+from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import quote
 
@@ -223,7 +224,7 @@ def entity_of(suffix: str, text: str) -> str | None:
     return f"{m.group(1)} {m.group(2)}" if m else None
 
 
-SKIP_ENTITY_SUFFIXES = {".html", ".htm", ".css", ".md", ".json", ".txt"}
+SKIP_ENTITY_SUFFIXES = {".html", ".htm", ".css", ".json", ".txt"}
 
 
 def derive_entities(fd: FileDiff, only: set[int] | None = None) -> list[str]:
@@ -303,31 +304,85 @@ def render_range(fd: FileDiff, side: str, start: int, end: int) -> tuple[str, st
 # ---------------------------------------------------------------- validation
 
 
-FORBIDDEN_PROSE = re.compile(
-    r"<script|<iframe|<object|<embed|javascript:|on[a-z]+\s*=|<style|<link|<meta",
-    re.IGNORECASE,
-)
+PROSE_ALLOWED_TAGS = {"p", "br", "b", "strong", "i", "em", "code", "pre", "a", "ul", "ol", "li", "span"}
+PROSE_VOID_TAGS = {"br"}
 
 
-def check_prose(value, field: str) -> None:
-    """Prose stays free-form HTML; only the small set of tags that can run script are blocked."""
-    if isinstance(value, str) and FORBIDDEN_PROSE.search(value):
-        fail(
-            f"{field} contains a disallowed tag or attribute: prose may not include "
-            "<script>, <iframe>, <object>, <embed>, javascript:, an on*= handler, <style>, "
-            "<link>, or <meta>"
-        )
+def _sanitize_href(raw: str) -> str | None:
+    """`href` survives only as a hash link, an absolute http(s) URL, or a scheme-less relative
+    path; anything else (a `javascript:` URL, entity- or control-char-obscured or not) is
+    dropped. Control and whitespace characters are removed first so a scheme cannot hide inside
+    a tab or newline the way it can in a browser's own URL parser."""
+    cleaned = "".join(ch for ch in raw if ord(ch) > 0x20 and ord(ch) != 0x7F)
+    if not cleaned:
+        return None
+    low = cleaned.lower()
+    if cleaned.startswith("#") or low.startswith("http://") or low.startswith("https://"):
+        return cleaned
+    colon = cleaned.find(":")
+    slash = cleaned.find("/")
+    if colon == -1 or (slash != -1 and slash < colon):
+        return cleaned
+    return None
+
+
+class _ProseSanitizer(HTMLParser):
+    """Rebuilds attacker-controlled prose from a small tag allowlist. Disallowed tags are
+    dropped but the text inside them survives; text and attribute values are re-escaped on
+    output. `convert_charrefs=True` makes the base parser decode entities before we ever see
+    them, so an entity-obscured `javascript:` href is caught by `_sanitize_href` like a plain
+    one."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.out: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        tag = tag.lower()
+        if tag not in PROSE_ALLOWED_TAGS:
+            return
+        if tag == "a":
+            href = None
+            for name, value in attrs:
+                if name.lower() == "href" and value is not None:
+                    href = _sanitize_href(value)
+                    break
+            self.out.append(f'<a href="{esc(href)}">' if href is not None else "<a>")
+        else:
+            self.out.append(f"<{tag}>")
+
+    def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        self.handle_starttag(tag, attrs)
+        if tag.lower() not in PROSE_VOID_TAGS:
+            self.handle_endtag(tag)
+
+    def handle_endtag(self, tag: str) -> None:
+        tag = tag.lower()
+        if tag in PROSE_ALLOWED_TAGS and tag not in PROSE_VOID_TAGS:
+            self.out.append(f"</{tag}>")
+
+    def handle_data(self, data: str) -> None:
+        self.out.append(html.escape(data, quote=False))
+
+
+def sanitize_prose(value) -> str:
+    """Allowlist-sanitize a prose field for direct embedding in the page. Never fails the
+    build: malformed or hostile markup is stripped, not rejected."""
+    if not isinstance(value, str):
+        return ""
+    parser = _ProseSanitizer()
+    try:
+        parser.feed(value)
+        parser.close()
+    except Exception:
+        return esc(value)
+    return "".join(parser.out)
 
 
 def check_spec(spec: dict) -> None:
     for key in ("title", "base", "head", "overview", "chapters"):
         if not spec.get(key):
             fail(f"spec is missing a required field: {key}")
-    check_prose(spec.get("overview"), "overview")
-    check_prose(spec.get("intuition"), "intuition")
-    check_prose(spec.get("background"), "background")
-    for i, item in enumerate(spec.get("focus", [])):
-        check_prose(item, f"focus[{i}]")
     chapters = spec["chapters"]
     if not isinstance(chapters, list) or not 1 <= len(chapters) <= 10:
         fail(f"{len(chapters)} chapters; keep between 1 and 10")
@@ -336,7 +391,6 @@ def check_spec(spec: dict) -> None:
         for key in ("id", "title", "risk", "overview"):
             if not ch.get(key):
                 fail(f"chapter {ch.get('id', '?')} is missing a required field: {key}")
-        check_prose(ch.get("overview"), f"chapter {ch['id']} overview")
         if ch["id"] in seen_ids:
             fail(f"duplicate chapter id: {ch['id']}")
         seen_ids.add(ch["id"])
@@ -345,7 +399,6 @@ def check_spec(spec: dict) -> None:
         for f in ch.get("files", []):
             if not f.get("path"):
                 fail(f"chapter {ch['id']}: a file entry has no path")
-            check_prose(f.get("why"), f"{f['path']} why")
             for h in f.get("hunks", []):
                 side = h.get("side", "new")
                 if side not in SIDES:
@@ -356,7 +409,6 @@ def check_spec(spec: dict) -> None:
                     fail(f"{f['path']}: a hunk needs integer start and end")
                 if start > end:
                     fail(f"{f['path']} {side} {start}-{end}: start is after end")
-                check_prose(h.get("why"), f"{f['path']} {side} {start}-{end} why")
 
     verify = spec.get("verify") or {}
     for i, r in enumerate(verify.get("ran", [])):
@@ -364,12 +416,9 @@ def check_spec(spec: dict) -> None:
             fail(f"verify.ran[{i}]: missing required field cwd")
         if "ok" in r and not isinstance(r["ok"], bool):
             fail(f"verify.ran[{i}]: ok must be true or false")
-        check_prose(r.get("summary"), f"verify.ran[{i}] summary")
-    for i, item in enumerate(verify.get("manual", [])):
-        check_prose(item, f"verify.manual[{i}]")
 
 
-def check_coverage(spec: dict, files: dict[str, FileDiff]) -> tuple[dict[str, list[str]], int]:
+def check_coverage(spec: dict, files: dict[str, FileDiff]) -> tuple[dict[str, list[str]], int, int, int]:
     placed: dict[str, list[str]] = {}
     for ch in spec["chapters"]:
         for f in ch.get("files", []):
@@ -387,8 +436,12 @@ def check_coverage(spec: dict, files: dict[str, FileDiff]) -> tuple[dict[str, li
 
     shown: dict[tuple[str, str, int], str] = {}
     shown_changed: set[tuple[str, str, int]] = set()
+    shown_per_file: dict[str, int] = {}
+    opened: set[str] = set()
     for ch in spec["chapters"]:
         for f in ch.get("files", []):
+            if f.get("hunks"):
+                opened.add(f["path"])
             fd = files[f["path"]]
             for h in f.get("hunks", []):
                 side = h.get("side", "new")
@@ -400,7 +453,21 @@ def check_coverage(spec: dict, files: dict[str, FileDiff]) -> tuple[dict[str, li
                     shown[key] = ch["id"]
                     if n in changed:
                         shown_changed.add(key)
-    return placed, len(shown_changed)
+                        shown_per_file[f["path"]] = shown_per_file.get(f["path"], 0) + 1
+
+    # a file the tour opens (at least one hunk) but doesn't fully cover reads differently from
+    # one that never gets a hunk at all: the reader has already seen some of the first kind
+    unshown_in_opened = 0
+    unshown_in_unopened = 0
+    for path, fd in files.items():
+        missing = len(fd.added) + len(fd.removed) - shown_per_file.get(path, 0)
+        if missing <= 0:
+            continue
+        if path in opened:
+            unshown_in_opened += missing
+        else:
+            unshown_in_unopened += missing
+    return placed, len(shown_changed), unshown_in_opened, unshown_in_unopened
 
 
 # ---------------------------------------------------------------- page
@@ -456,7 +523,7 @@ def file_card(
         out.append('<span class="nohunk">no hunk shown</span>')
     out.append("</div>")
     if f.get("why"):
-        out.append(f'<p class="why">{f["why"]}</p>')
+        out.append(f'<p class="why">{sanitize_prose(f["why"])}</p>')
     if entities:
         shown_entities = entities[:12]
         more = len(entities) - len(shown_entities)
@@ -511,7 +578,7 @@ def file_card(
             out.append(f"<figcaption>{''.join(caption)}</figcaption>")
             out.append(f'<pre class="code"><code>{rows}</code></pre>')
             if h.get("why"):
-                out.append(f'<p class="why">{h["why"]}</p>')
+                out.append(f'<p class="why">{sanitize_prose(h["why"])}</p>')
             out.append("</figure>")
         out.append("</details>")
     out.append("</div>")
@@ -525,7 +592,7 @@ def build_body(spec: dict, root: Path) -> tuple[str, dict]:
     if head != WORKTREE:
         git_bytes(root, "rev-parse", "--verify", f"{head}^{{commit}}")
     files = load_changed_files(root, base, head)
-    placed, lines_shown = check_coverage(spec, files)
+    placed, lines_shown, unshown_opened, unshown_unopened = check_coverage(spec, files)
 
     head_label = "working tree" if head == WORKTREE else head[:8]
     storage_id = revision_hash(root, base) if head == WORKTREE else head[:16]
@@ -543,6 +610,8 @@ def build_body(spec: dict, root: Path) -> tuple[str, dict]:
         "linesShown": lines_shown,
         "linesChanged": lines_changed,
         "coveragePercent": coverage_percent,
+        "linesUnshownInOpenedFiles": unshown_opened,
+        "linesUnshownInUnopenedFiles": unshown_unopened,
         "hunksShown": 0,
         "chapters": len(chapters),
         "attentionChapters": sum(1 for ch in chapters if ch["risk"] == "attention"),
@@ -562,7 +631,7 @@ def build_body(spec: dict, root: Path) -> tuple[str, dict]:
             f'<span class="chip risk-{esc(risk)}">{RISK_LABEL[risk]}</span>'
             f'<span class="progress" data-chapter-progress></span></div></div></header>'
         )
-        tour.append(f'<div class="overview">{ch["overview"]}</div>')
+        tour.append(f'<div class="overview">{sanitize_prose(ch["overview"])}</div>')
         for f in ch.get("files", []):
             tour.append(file_card(spec, files, ch["id"], ch["title"], f, risk, stats, head_label))
         tour.append("</article>")
@@ -615,7 +684,7 @@ def build_body(spec: dict, root: Path) -> tuple[str, dict]:
 
     # ---- overview
     o.append('<section id="overview"><h2>Overview</h2>')
-    o.append(spec["overview"])
+    o.append(sanitize_prose(spec["overview"]))
     o.append('<div class="strip">')
     o.append(
         f'<div class="stat"><div class="k">Revision</div><div class="v mono">{esc(head_label)}</div>'
@@ -643,8 +712,9 @@ def build_body(spec: dict, root: Path) -> tuple[str, dict]:
     o.append("</div>")
     if stats["coveragePercent"] < 30:
         o.append(
-            f'<p class="lede">This tour shows {stats["coveragePercent"]}% of changed lines. Files not '
-            "opened here are listed under each chapter with counts only.</p>"
+            f'<p class="lede">This tour shows {stats["coveragePercent"]}% of changed lines: '
+            f'{stats["linesUnshownInOpenedFiles"]} lines not shown sit in files that are opened above, '
+            f'{stats["linesUnshownInUnopenedFiles"]} in files listed by name only.</p>'
         )
     o.append("</section>")
 
@@ -653,15 +723,15 @@ def build_body(spec: dict, root: Path) -> tuple[str, dict]:
         o.append('<section id="focus"><h2>Where to focus</h2>')
         o.append('<p class="lede">Start here if you read nothing else.</p><ol class="focus">')
         # one grid cell per item: a bare text node after <b> would land in the number column
-        o.extend(f"<li><span>{item}</span></li>" for item in spec["focus"])
+        o.extend(f"<li><span>{sanitize_prose(item)}</span></li>" for item in spec["focus"])
         o.append("</ol></section>")
     if spec.get("intuition"):
         o.append('<section id="intuition"><h2>Intuition</h2>')
-        o.append(spec["intuition"])
+        o.append(sanitize_prose(spec["intuition"]))
         o.append("</section>")
     if spec.get("background"):
         o.append('<section id="background"><h2>Background</h2>')
-        o.append(spec["background"])
+        o.append(sanitize_prose(spec["background"]))
         o.append("</section>")
 
     # ---- tour
@@ -688,7 +758,7 @@ def build_body(spec: dict, root: Path) -> tuple[str, dict]:
             o.append(card_stats(fd))
             o.append("</div>")
             if f.get("why"):
-                o.append(f'<p class="why">{f["why"]}</p>')
+                o.append(f'<p class="why">{sanitize_prose(f["why"])}</p>')
             entities = derive_entities(fd)
             if entities:
                 o.append("<ul class=\"entities\">" + "".join(f"<li>{esc(e)}</li>" for e in entities[:12]) + "</ul>")
@@ -726,13 +796,14 @@ def build_body(spec: dict, root: Path) -> tuple[str, dict]:
                 o.append(
                     f'<tr><td class="col-cwd"><code>{esc(str(r.get("cwd", "")))}</code></td>'
                     f'<td class="col-command"><code>{esc(str(r.get("cmd", "")))}</code></td><td class="col-exit">{chip}</td>'
-                    f'<td>{esc(str(r.get("summary", "")))}</td><td class="col-tree"><code>{esc(str(r.get("tree", "")))}</code></td></tr>'
+                    f'<td>{sanitize_prose(str(r.get("summary", "")))}</td>'
+                    f'<td class="col-tree"><code>{esc(str(r.get("tree", "")))}</code></td></tr>'
                 )
             o.append("</tbody></table></div>")
         manual = verify.get("manual", [])
         if manual:
             o.append("<h3>Check it yourself</h3><ul class=\"plain\">")
-            o.extend(f"<li>{item}</li>" for item in manual)
+            o.extend(f"<li>{sanitize_prose(item)}</li>" for item in manual)
             o.append("</ul>")
         o.append("</section>")
 
