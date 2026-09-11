@@ -6,6 +6,16 @@ this file, checks every claim against `git diff`, and renders the page from it.
 Fields marked HTML are rendered as-is (`<p>`, `<code>`, `<a>`, `<b>`). Everything else is plain
 text and is escaped.
 
+## Trust boundary
+
+Ranges, counts, and coverage are validated against `git`; the agent cannot fake a line number or
+a file that is not in the diff. Prose (`overview`, `intuition`, `background`, `focus` items,
+chapter `overview`, file `why`, hunk `why`, `verify.ran` summaries, and `verify.manual` items) is
+the agent's own words, rendered as HTML with no further check beyond a blocklist on the handful
+of tags that can run script: `<script>`, `<iframe>`, `<object>`, `<embed>`, `javascript:`,
+`on*=` handlers, `<style>`, `<link>`, `<meta>`. A prose field that matches one of these fails the
+build by name. The reader grades the prose; the build only keeps it from executing.
+
 ```json
 {
   "title": "Names the change, not a category",
@@ -36,7 +46,9 @@ text and is escaped.
   ],
   "everythingElse": [{ "path": "changed file no chapter claims", "why": "HTML (optional)" }],
   "verify": {
-    "ran": [{ "cmd": "npm test", "exit": 0, "summary": "219 passed", "tree": "head" }],
+    "ran": [
+      { "cmd": "npm test", "cwd": ".", "exit": 0, "ok": true, "summary": "219 passed", "tree": "head" }
+    ],
     "manual": ["<HTML list item: one step and the result it should produce>"]
   }
 }
@@ -66,6 +78,10 @@ Required: `title`, `base`, `head`, `overview`, `chapters`. Everything else is op
 - `risk` is `attention`, `medium`, or `safe`. `side` is `new` or `old`. Chapter ids are unique.
   Chapters: 1 to 10. A hunk needs integer `start` and `end` with `start <= end`.
 - A binary file can hold no hunk.
+- Every `verify.ran` row needs `cwd`, a repo-root-relative path (`"."` for the repo root). A row
+  missing it fails, naming its index.
+- `verify.ran[].ok`, when present, must be `true` or `false`.
+- Every prose field is checked against the tag blocklist in Trust boundary above.
 
 A failure prints `build_tour: <the defect>` on stderr, exits 1, and writes nothing, so a failed
 build leaves the previous page in place. Fix the spec, never the page.
@@ -74,13 +90,21 @@ build leaves the previous page in place. Fix the spec, never the page.
 
 - Per file: status (`A`, `M`, `D`, `R`, `C`, `T`, or binary), added and removed line counts, and
   the names the added lines introduce (declarations, class methods, `describe` and `it` titles,
-  Python `def` and `class`, Go and Rust declarations, shell functions, Markdown headings). A file
-  spanning several chapters lists only the names its own hunks introduce.
+  Python `def` and `class`, Go and Rust declarations, shell functions). Skipped entirely for
+  `.html`, `.htm`, `.css`, `.md`, `.json`, and `.txt`. Names under 3 characters, and names made only
+  of `$` or `_`, are dropped; the whole list is suppressed for a file when more than a third of
+  what is left is still under 4 characters. A file spanning several chapters lists only the names
+  its own hunks introduce.
 - Per hunk: the rendered rows with `+`, `-`, and context markers and real line numbers, a
   "Copy as prompt" payload (repo when set, revision, `path:start-end`, chapter title, hunk text),
   and a blob link when `repo` is set and the side has a commit to link to.
 - Stats: `filesChanged`, `filesPlaced`, `everythingElse`, `linesAdded`, `linesRemoved`,
-  `hunksShown`, `chapters`, `attentionChapters`. `--data-out` writes them as JSON.
+  `linesShown`, `linesChanged`, `coveragePercent`, `hunksShown`, `chapters`, `attentionChapters`.
+  `linesShown` counts distinct changed lines actually rendered by a hunk, on either side;
+  `coveragePercent` is `linesShown` over `linesChanged`. Below 30% the page adds a one-line notice
+  under the stats strip. `--data-out` writes the stats as JSON.
+- The "Changed lines only" toggle is hidden when no rendered hunk holds a context row, since
+  there is nothing for it to hide.
 
 ## Anchors
 

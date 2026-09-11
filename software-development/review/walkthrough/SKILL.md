@@ -72,8 +72,14 @@ python3 <skill-dir>/scripts/build_tour.py \
 A failure names the defect: a range with no changed line, a file placed nowhere, a line shown
 twice. Fix the spec, never the page, and build again.
 
+Once the build prints `ok`, open the page and look before delivering it: on Claude Code, publish
+`tour.fragment.html` as an Artifact and view its preview; otherwise render a screenshot with a
+headless browser if one is available; at minimum, Read `tour.html` and confirm the focus list,
+every chapter title, and the verify table each appear once, in order.
+
 Done when: the build prints `build_tour: ok files=... placed=... else=... hunks=... chapters=...`
-and those numbers match what you expected.
+and those numbers match what you expected, AND the page was opened and the focus list, chapter
+titles, and verify table were seen rendered.
 
 ### 5. Deliver
 

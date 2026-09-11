@@ -14,11 +14,12 @@ readable with JavaScript off.
 
 - The title names the change, not a category: "Send the chat reply in one call", not "Chat API
   update".
-- `overview`: first sentence says what changed and why. 100 to 250 words. Name the trade-off you
-  took and what you deliberately left out. Counts belong in the strip the build renders, never in
-  prose.
+- `overview`: first sentence says what changed and why. 100 to 250 words. State the alternative
+  you rejected and why, in one sentence, without the words "deliberately" or "left out". Counts
+  belong in the strip the build renders, never in prose.
 - `focus`: three to five items, each naming a chapter with `<a href="#ch-id">` and saying what to
-  check there. This is where a reader who has ten minutes should spend them.
+  check there. This is where a reader who has ten minutes should spend them. Use "Check that" at
+  most twice per page; otherwise name the property directly.
 - `intuition`: the shape of the mechanism in three sentences, before any code.
 - `background`: only what the reader needs about the surrounding code to follow the chapters. Cut
   it when the change stands alone.
@@ -37,12 +38,17 @@ readable with JavaScript off.
   for contract surface and tests, `safe` for glue. The build expands hunks for attention and
   medium, and collapses them for safe.
 
-## Hunks
+## Files and hunks
 
+- A file `why` must not be a noun phrase that restates the filename or its role ("The page
+  shell.", "The diff loader."). Say what the reader learns from this file that the chapter
+  overview did not.
 - The hunk rule: show a hunk only when the prose makes a claim about it. Everything else in the
   chapter is a file card with its path, status, counts, and the names it adds.
 - Anchor to the smallest range that holds the claim.
 - A hunk `why` says why the lines matter, not what they do. The lines already say what they do.
+  If the `why` could be inferred by reading the hunk, delete it and say why the lines matter
+  instead.
 - Never type a line number from memory. Write the range, run the build, and let it reject the
   range that no longer holds a changed line.
 

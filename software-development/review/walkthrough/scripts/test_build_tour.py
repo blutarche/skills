@@ -133,7 +133,9 @@ def valid_spec(base: str, head: str) -> dict:
         ],
         "everythingElse": [{"path": "keep.txt", "why": "Dropped with its last caller."}],
         "verify": {
-            "ran": [{"cmd": "python3 -m unittest", "exit": 0, "summary": "10 passed", "tree": "head"}],
+            "ran": [
+                {"cmd": "python3 -m unittest", "cwd": ".", "exit": 0, "ok": True, "summary": "10 passed", "tree": "head"}
+            ],
             "manual": ["<b>Open the page.</b> Every chapter shows its hunks."],
         },
     }
@@ -200,6 +202,12 @@ class BuildTourTest(unittest.TestCase):
         self.assertIn('<span class="sg">+</span>', page)
         self.assertNotIn("{{", page)
         self.assertNotIn(EM_DASH, page)
+        # alpha.py's first hunk keeps context lines around the change, so the toggle stays visible
+        self.assertIn(
+            '<button type="button" class="btn" data-changed-only aria-pressed="false">'
+            "Changed lines only</button>",
+            page,
+        )
         Walk().feed(page)
 
         frag = self.fragment.read_text(encoding="utf-8")
@@ -217,6 +225,12 @@ class BuildTourTest(unittest.TestCase):
         self.assertEqual(stats["attentionChapters"], 1)
         self.assertEqual(stats["linesAdded"], 9)
         self.assertEqual(stats["linesRemoved"], 3)
+        self.assertEqual(stats["linesShown"], 7)
+        self.assertEqual(stats["linesChanged"], 12)
+        self.assertEqual(stats["coveragePercent"], 58)
+        self.assertIn("lines shown 7 / changed 12 (58%)", page)
+        self.assertIn("lines shown 7 / changed 12 (58%)", r.stdout)
+        self.assertNotIn("This tour shows", page)
 
     # ---------------------------------------------------------------- 2
     def test_changed_file_placed_nowhere(self) -> None:
@@ -322,6 +336,90 @@ class BuildTourTest(unittest.TestCase):
         page = self.out.read_text(encoding="utf-8")
         self.assertIn("docs.md", page)
         self.assertIn("renamed", page)
+
+    # ---------------------------------------------------------------- 11
+    def test_prose_field_rejects_script_tag(self) -> None:
+        spec = valid_spec(self.base, self.head)
+        spec["overview"] = "<p>Fine.</p><script>alert(1)</script>"
+        r = self.build(spec)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("overview", r.stderr)
+        self.assertIn("script", r.stderr.lower())
+
+    # ---------------------------------------------------------------- 12
+    def test_low_coverage_notice(self) -> None:
+        write(self.repo, "big.py", "\n".join(f"line_{i} = {i}" for i in range(1, 51)) + "\n")
+        spec = valid_spec(self.base, "worktree")
+        spec["everythingElse"].append({"path": "big.py", "why": "Bulk data, nothing to show line by line."})
+        r = self.build(spec)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        stats = json.loads(self.stats.read_text(encoding="utf-8"))
+        self.assertLess(stats["coveragePercent"], 30)
+        page = self.out.read_text(encoding="utf-8")
+        self.assertIn("This tour shows", page)
+        self.assertIn(f'{stats["coveragePercent"]}%', page)
+
+    # ---------------------------------------------------------------- 13
+    def test_verify_row_missing_cwd_rejected(self) -> None:
+        spec = valid_spec(self.base, self.head)
+        del spec["verify"]["ran"][0]["cwd"]
+        r = self.build(spec)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("verify.ran[0]", r.stderr)
+        self.assertIn("cwd", r.stderr)
+
+    # ---------------------------------------------------------------- 14
+    def test_verify_ok_flag_colours_exit(self) -> None:
+        spec = valid_spec(self.base, self.head)
+        spec["verify"]["ran"].append(
+            {"cmd": "flaky-check", "cwd": ".", "exit": 1, "ok": False, "summary": "failed once", "tree": "head"}
+        )
+        spec["verify"]["ran"].append(
+            {"cmd": "no-ok-field", "cwd": ".", "exit": 0, "summary": "ran, ok unspecified", "tree": "head"}
+        )
+        r = self.build(spec)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        page = self.out.read_text(encoding="utf-8")
+        self.assertIn('<span class="chip exit-ok">0</span>', page)
+        self.assertIn('<span class="chip exit-bad">1</span>', page)
+        self.assertIn('<span class="chip">0</span>', page)
+        self.assertIn('<td class="col-cwd"><code>.</code></td>', page)
+
+    # ---------------------------------------------------------------- 15
+    def test_html_file_yields_no_entity_chips(self) -> None:
+        write(self.repo, "page.html", "<html>\nfunction reallyLongName() {}\n</html>\n")
+        spec = valid_spec(self.base, "worktree")
+        spec["everythingElse"].append({"path": "page.html"})
+        r = self.build(spec)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        page = self.out.read_text(encoding="utf-8")
+        self.assertNotIn("reallyLongName", page)
+
+    # ---------------------------------------------------------------- 16
+    def test_short_and_dollar_only_names_suppressed(self) -> None:
+        js = "const $ = 1;\nconst $$ = 2;\nfunction raw() {}\nfunction process() {}\nfunction normalize() {}\n"
+        write(self.repo, "util.js", js)
+        spec = valid_spec(self.base, "worktree")
+        spec["everythingElse"].append({"path": "util.js"})
+        r = self.build(spec)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        page = self.out.read_text(encoding="utf-8")
+        self.assertNotIn("<li>$</li>", page)
+        self.assertNotIn("<li>$$</li>", page)
+        self.assertIn("<li>process</li>", page)
+
+    # ---------------------------------------------------------------- 17
+    def test_changed_only_toggle_hidden_when_no_context_rows(self) -> None:
+        spec = valid_spec(self.base, self.head)
+        spec["chapters"][0]["files"][0]["hunks"][0] = {"side": "new", "start": 2, "end": 2, "why": "The new return value."}
+        r = self.build(spec)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        page = self.out.read_text(encoding="utf-8")
+        self.assertIn(
+            '<button type="button" class="btn" data-changed-only aria-pressed="false" hidden>'
+            "Changed lines only</button>",
+            page,
+        )
 
 
 if __name__ == "__main__":

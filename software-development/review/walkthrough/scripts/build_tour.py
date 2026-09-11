@@ -223,19 +223,30 @@ def entity_of(suffix: str, text: str) -> str | None:
     return f"{m.group(1)} {m.group(2)}" if m else None
 
 
+SKIP_ENTITY_SUFFIXES = {".html", ".htm", ".css", ".md", ".json", ".txt"}
+
+
 def derive_entities(fd: FileDiff, only: set[int] | None = None) -> list[str]:
     """Names the added lines introduce, in file order, restricted to `only` when given."""
+    suffix = Path(fd.path).suffix
+    if suffix in SKIP_ENTITY_SUFFIXES:
+        return []
     out: list[str] = []
     seen: set[str] = set()
-    suffix = Path(fd.path).suffix
     for n in sorted(fd.added):
         if only is not None and n not in only:
             continue
         text = fd.new_lines[n - 1] if n - 1 < len(fd.new_lines) else ""
         label = entity_of(suffix, text)
-        if label and label not in seen:
-            seen.add(label)
-            out.append(label)
+        if not label or label in seen:
+            continue
+        if len(label) < 3 or set(label) <= {"$", "_"}:
+            continue
+        seen.add(label)
+        out.append(label)
+    # a name list dominated by short names reads as noise, not a summary
+    if out and sum(1 for n in out if len(n) < 4) > len(out) / 3:
+        return []
     return out
 
 
@@ -292,10 +303,31 @@ def render_range(fd: FileDiff, side: str, start: int, end: int) -> tuple[str, st
 # ---------------------------------------------------------------- validation
 
 
+FORBIDDEN_PROSE = re.compile(
+    r"<script|<iframe|<object|<embed|javascript:|on[a-z]+\s*=|<style|<link|<meta",
+    re.IGNORECASE,
+)
+
+
+def check_prose(value, field: str) -> None:
+    """Prose stays free-form HTML; only the small set of tags that can run script are blocked."""
+    if isinstance(value, str) and FORBIDDEN_PROSE.search(value):
+        fail(
+            f"{field} contains a disallowed tag or attribute: prose may not include "
+            "<script>, <iframe>, <object>, <embed>, javascript:, an on*= handler, <style>, "
+            "<link>, or <meta>"
+        )
+
+
 def check_spec(spec: dict) -> None:
     for key in ("title", "base", "head", "overview", "chapters"):
         if not spec.get(key):
             fail(f"spec is missing a required field: {key}")
+    check_prose(spec.get("overview"), "overview")
+    check_prose(spec.get("intuition"), "intuition")
+    check_prose(spec.get("background"), "background")
+    for i, item in enumerate(spec.get("focus", [])):
+        check_prose(item, f"focus[{i}]")
     chapters = spec["chapters"]
     if not isinstance(chapters, list) or not 1 <= len(chapters) <= 10:
         fail(f"{len(chapters)} chapters; keep between 1 and 10")
@@ -304,6 +336,7 @@ def check_spec(spec: dict) -> None:
         for key in ("id", "title", "risk", "overview"):
             if not ch.get(key):
                 fail(f"chapter {ch.get('id', '?')} is missing a required field: {key}")
+        check_prose(ch.get("overview"), f"chapter {ch['id']} overview")
         if ch["id"] in seen_ids:
             fail(f"duplicate chapter id: {ch['id']}")
         seen_ids.add(ch["id"])
@@ -312,6 +345,7 @@ def check_spec(spec: dict) -> None:
         for f in ch.get("files", []):
             if not f.get("path"):
                 fail(f"chapter {ch['id']}: a file entry has no path")
+            check_prose(f.get("why"), f"{f['path']} why")
             for h in f.get("hunks", []):
                 side = h.get("side", "new")
                 if side not in SIDES:
@@ -322,9 +356,20 @@ def check_spec(spec: dict) -> None:
                     fail(f"{f['path']}: a hunk needs integer start and end")
                 if start > end:
                     fail(f"{f['path']} {side} {start}-{end}: start is after end")
+                check_prose(h.get("why"), f"{f['path']} {side} {start}-{end} why")
+
+    verify = spec.get("verify") or {}
+    for i, r in enumerate(verify.get("ran", [])):
+        if not r.get("cwd"):
+            fail(f"verify.ran[{i}]: missing required field cwd")
+        if "ok" in r and not isinstance(r["ok"], bool):
+            fail(f"verify.ran[{i}]: ok must be true or false")
+        check_prose(r.get("summary"), f"verify.ran[{i}] summary")
+    for i, item in enumerate(verify.get("manual", [])):
+        check_prose(item, f"verify.manual[{i}]")
 
 
-def check_coverage(spec: dict, files: dict[str, FileDiff]) -> dict[str, list[str]]:
+def check_coverage(spec: dict, files: dict[str, FileDiff]) -> tuple[dict[str, list[str]], int]:
     placed: dict[str, list[str]] = {}
     for ch in spec["chapters"]:
         for f in ch.get("files", []):
@@ -341,16 +386,21 @@ def check_coverage(spec: dict, files: dict[str, FileDiff]) -> dict[str, list[str
         fail("placed files that are not in the diff: " + ", ".join(extra))
 
     shown: dict[tuple[str, str, int], str] = {}
+    shown_changed: set[tuple[str, str, int]] = set()
     for ch in spec["chapters"]:
         for f in ch.get("files", []):
+            fd = files[f["path"]]
             for h in f.get("hunks", []):
                 side = h.get("side", "new")
+                changed = fd.added if side == "new" else fd.removed
                 for n in range(int(h["start"]), int(h["end"]) + 1):
                     key = (f["path"], side, n)
                     if key in shown:
                         fail(f"{f['path']} {side} line {n} is shown twice: chapters {shown[key]} and {ch['id']}")
                     shown[key] = ch["id"]
-    return placed
+                    if n in changed:
+                        shown_changed.add(key)
+    return placed, len(shown_changed)
 
 
 # ---------------------------------------------------------------- page
@@ -435,6 +485,8 @@ def file_card(
                 )
             if not touched:
                 fail(f"{f['path']} {side} {start}-{end}: the range holds no changed line")
+            if any(n not in changed for n in range(start, end + 1)):
+                stats["hasContextRow"] = True
             stats["hunksShown"] += 1
             rows, plain = render_range(fd, side, start, end)
             where = f"In {repo} at {head_label}" if repo else f"At {head_label}"
@@ -473,20 +525,28 @@ def build_body(spec: dict, root: Path) -> tuple[str, dict]:
     if head != WORKTREE:
         git_bytes(root, "rev-parse", "--verify", f"{head}^{{commit}}")
     files = load_changed_files(root, base, head)
-    placed = check_coverage(spec, files)
+    placed, lines_shown = check_coverage(spec, files)
 
     head_label = "working tree" if head == WORKTREE else head[:8]
     storage_id = revision_hash(root, base) if head == WORKTREE else head[:16]
     chapters = spec["chapters"]
+    lines_added = sum(len(fd.added) for fd in files.values())
+    lines_removed = sum(len(fd.removed) for fd in files.values())
+    lines_changed = lines_added + lines_removed
+    coverage_percent = round(100 * lines_shown / lines_changed) if lines_changed else 100
     stats = {
         "filesChanged": len(files),
         "filesPlaced": len(placed),
         "everythingElse": len(spec.get("everythingElse", [])),
-        "linesAdded": sum(len(fd.added) for fd in files.values()),
-        "linesRemoved": sum(len(fd.removed) for fd in files.values()),
+        "linesAdded": lines_added,
+        "linesRemoved": lines_removed,
+        "linesShown": lines_shown,
+        "linesChanged": lines_changed,
+        "coveragePercent": coverage_percent,
         "hunksShown": 0,
         "chapters": len(chapters),
         "attentionChapters": sum(1 for ch in chapters if ch["risk"] == "attention"),
+        "hasContextRow": False,
     }
 
     # chapters render first: the overview strip reports the hunk count this pass derives
@@ -526,7 +586,12 @@ def build_body(spec: dict, root: Path) -> tuple[str, dict]:
     o.append('<div class="controls">')
     o.append('<span class="prog" data-progress></span>')
     o.append('<button type="button" class="btn primary" data-continue>Continue reading</button>')
-    o.append('<button type="button" class="btn" data-changed-only aria-pressed="false">Changed lines only</button>')
+    # no unchanged row exists to hide, so the toggle would do nothing
+    hidden_attr = "" if stats["hasContextRow"] else " hidden"
+    o.append(
+        f'<button type="button" class="btn" data-changed-only aria-pressed="false"{hidden_attr}>'
+        "Changed lines only</button>"
+    )
     o.append('<button type="button" class="btn" data-reset>Reset progress</button>')
     o.append('<div class="bar"><i data-bar></i></div>')
     o.append("</div></header>")
@@ -568,7 +633,20 @@ def build_body(spec: dict, root: Path) -> tuple[str, dict]:
         f'<div class="stat"><div class="k">Hunks shown</div><div class="v">{stats["hunksShown"]}</div>'
         f'<div class="s">{stats["everythingElse"]} files in everything else</div></div>'
     )
-    o.append("</div></section>")
+    coverage_line = (
+        f'lines shown {stats["linesShown"]} / changed {stats["linesChanged"]} ({stats["coveragePercent"]}%)'
+    )
+    o.append(
+        f'<div class="stat"><div class="k">Coverage</div><div class="v">{stats["coveragePercent"]}%</div>'
+        f'<div class="s">{coverage_line}</div></div>'
+    )
+    o.append("</div>")
+    if stats["coveragePercent"] < 30:
+        o.append(
+            f'<p class="lede">This tour shows {stats["coveragePercent"]}% of changed lines. Files not '
+            "opened here are listed under each chapter with counts only.</p>"
+        )
+    o.append("</section>")
 
     # ---- focus, intuition, background
     if spec.get("focus"):
@@ -630,17 +708,25 @@ def build_body(spec: dict, root: Path) -> tuple[str, dict]:
         ran = verify.get("ran", [])
         if ran:
             o.append('<p class="lede">Commands that were run against this revision, with their exit codes.</p>')
-            o.append('<div class="scroll"><table><thead><tr><th>Command</th><th>Exit</th><th>Result</th><th>Tree</th></tr></thead><tbody>')
+            o.append(
+                '<div class="scroll"><table><thead><tr><th class="col-cwd">CWD</th><th>Command</th>'
+                '<th class="col-exit">Exit</th><th>Result</th><th class="col-tree">Tree</th></tr></thead><tbody>'
+            )
             for r in ran:
                 code = r.get("exit")
+                ok = r.get("ok")
                 if code is None:
                     chip = '<span class="chip exit-none">not run</span>'
+                elif ok is True:
+                    chip = f'<span class="chip exit-ok">{int(code)}</span>'
+                elif ok is False:
+                    chip = f'<span class="chip exit-bad">{int(code)}</span>'
                 else:
-                    cls = "exit-ok" if int(code) == 0 else "exit-bad"
-                    chip = f'<span class="chip {cls}">{int(code)}</span>'
+                    chip = f'<span class="chip">{int(code)}</span>'
                 o.append(
-                    f'<tr><td><code>{esc(str(r.get("cmd", "")))}</code></td><td>{chip}</td>'
-                    f'<td>{esc(str(r.get("summary", "")))}</td><td><code>{esc(str(r.get("tree", "")))}</code></td></tr>'
+                    f'<tr><td class="col-cwd"><code>{esc(str(r.get("cwd", "")))}</code></td>'
+                    f'<td class="col-command"><code>{esc(str(r.get("cmd", "")))}</code></td><td class="col-exit">{chip}</td>'
+                    f'<td>{esc(str(r.get("summary", "")))}</td><td class="col-tree"><code>{esc(str(r.get("tree", "")))}</code></td></tr>'
                 )
             o.append("</tbody></table></div>")
         manual = verify.get("manual", [])
@@ -734,7 +820,8 @@ def main() -> None:
         Path(args.data_out).write_text(json.dumps(stats, indent=2) + "\n", encoding="utf-8")
     print(
         f"build_tour: ok files={stats['filesChanged']} placed={stats['filesPlaced']} "
-        f"else={stats['everythingElse']} hunks={stats['hunksShown']} chapters={stats['chapters']}"
+        f"else={stats['everythingElse']} hunks={stats['hunksShown']} chapters={stats['chapters']} "
+        f"lines shown {stats['linesShown']} / changed {stats['linesChanged']} ({stats['coveragePercent']}%)"
     )
 
 
