@@ -115,6 +115,7 @@ details.hunks[open] > summary::before{transform:rotate(45deg)}
 .hunk figcaption .copy{margin-left:auto;font-size:11.5px;padding:1px 8px;border:1px solid var(--line);background:var(--surface);border-radius:4px;cursor:pointer;color:var(--ink-2);font-family:var(--mono)}
 .hunk figcaption .copy:hover{color:var(--ink);border-color:var(--ink-3)}
 .hunk pre.code{margin:0;padding:6px 0;font-size:12.5px;line-height:1.45;white-space:normal;overflow-x:auto;background:transparent;tab-size:2;-moz-tab-size:2}
+.hunk pre.code > code{display:block;border:0;padding:0;background:transparent;border-radius:0}
 .hunk .row{display:flex;min-width:100%;width:max-content}
 .hunk .row .ln{width:50px;flex:0 0 50px;text-align:right;padding-right:10px;color:var(--ink-3);user-select:none}
 .hunk .row .sg{width:16px;flex:0 0 16px;text-align:center;user-select:none;color:var(--ink-3)}
@@ -124,7 +125,7 @@ details.hunks[open] > summary::before{transform:rotate(45deg)}
 .hunk .row.del{background:var(--del-bg)}
 .hunk .row.del .sg{color:var(--del-ink)}
 .hunk .row.ctx{color:var(--ink-2)}
-.hunk > .why{margin:0;padding:8px 12px;border-top:1px solid var(--line-2);font-size:13px}
+.hunk > .why{margin:0;padding:8px 12px;border-top:1px solid var(--line-2);font-size:13px;max-width:none}
 .changed-only .hunk .row.ctx{display:none}
 .scroll{overflow-x:auto;border:1px solid var(--line);border-radius:4px;background:var(--surface);margin:12px 0 18px}
 table{border-collapse:collapse;width:100%;font-size:13.5px}

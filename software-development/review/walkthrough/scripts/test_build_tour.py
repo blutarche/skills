@@ -186,10 +186,14 @@ class BuildTourTest(unittest.TestCase):
 
     # ---------------------------------------------------------------- 1
     def test_valid_spec_builds(self) -> None:
-        r = self.build(valid_spec(self.base, self.head))
+        spec = valid_spec(self.base, self.head)
+        r = self.build(spec)
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertTrue(r.stdout.startswith("build_tour: ok"), r.stdout)
         page = self.out.read_text(encoding="utf-8")
+        # each focus item owns one grid cell, so it cannot wrap into the number column
+        for item in spec["focus"]:
+            self.assertIn(f"<li><span>{item}</span></li>", page)
         self.assertIn("Alpha returns 42 and delta arrives", page)
         self.assertIn("Notes gain a section", page)
         self.assertIn("def delta():", page)

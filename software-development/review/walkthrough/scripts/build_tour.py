@@ -375,7 +375,11 @@ def file_card(
     # a file split across chapters lists only the entities its own hunks introduce
     only = None
     if hunks and sum(1 for c in spec["chapters"] for g in c.get("files", []) if g["path"] == f["path"]) > 1:
-        only = {n for h in hunks if h.get("side", "new") == "new" for n in range(int(h["start"]), int(h["end"]) + 1)}
+        new_lines_shown = {
+            n for h in hunks if h.get("side", "new") == "new" for n in range(int(h["start"]), int(h["end"]) + 1)
+        }
+        # old-side-only hunks introduce no new line: fall back to every name the file adds
+        only = new_lines_shown or None
     entities = f.get("entities") or derive_entities(fd, only)
 
     out.append(f'<div class="file" id="{fid}" data-file="{esc(f["path"])}" data-card="{fid}">')
@@ -570,7 +574,8 @@ def build_body(spec: dict, root: Path) -> tuple[str, dict]:
     if spec.get("focus"):
         o.append('<section id="focus"><h2>Where to focus</h2>')
         o.append('<p class="lede">Start here if you read nothing else.</p><ol class="focus">')
-        o.extend(f"<li>{item}</li>" for item in spec["focus"])
+        # one grid cell per item: a bare text node after <b> would land in the number column
+        o.extend(f"<li><span>{item}</span></li>" for item in spec["focus"])
         o.append("</ol></section>")
     if spec.get("intuition"):
         o.append('<section id="intuition"><h2>Intuition</h2>')
