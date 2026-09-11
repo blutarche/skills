@@ -1,0 +1,102 @@
+{
+  "title": "Retry the payment webhook instead of dropping it",
+  "repo": "acme/billing",
+  "base": "9c1f4a2b7d3e6f80a5c4b9e2d1f70a3c6b8e5d24",
+  "head": "4e7b0d19a6c25f83b1d0e7a94c62f35b8d017cae",
+  "overview": "<p>A webhook that failed on a transient database error used to be acknowledged and lost. The handler now writes the event to an outbox row before it acknowledges, and a worker drains the outbox with capped exponential backoff. The provider sees a fast <code>200</code> either way, so its own retry budget is untouched. The trade-off is a second write on the hot path, about 2 ms per event. Deliberately left out: no dead-letter UI, and no replay endpoint. After five failed attempts the row is parked with its last error and an operator has to look at it.</p>",
+  "focus": [
+    "<b><a href=\"#ch-outbox\">The outbox write</a></b> decides whether an event can ever be lost. Check that nothing acknowledges before the row is committed.",
+    "<b><a href=\"#ch-worker\">The drain loop</a></b> holds the backoff and the attempt cap. Check the parked state is reachable and observable.",
+    "<b><a href=\"#ch-tests\">The tests</a></b> pin the transient case. Check the failure they simulate is the one production sees."
+  ],
+  "intuition": "<p>Acknowledge what you have stored, not what you have processed. The handler's only job is to make the event durable; everything that can fail twice happens in the worker, where failing twice is free.</p>",
+  "background": "<p>Webhooks arrive on one Fastify route and are verified by a shared signature middleware. The provider retries a non-<code>2xx</code> up to eight times over six hours, then gives up and raises an alert on its side, which is why an early acknowledgement used to look healthy.</p>",
+  "chapters": [
+    {
+      "id": "outbox",
+      "title": "The handler stores the event before it acknowledges",
+      "risk": "attention",
+      "overview": "<p>The route now inserts a row into <code>webhook_outbox</code> and returns <code>200</code> only after the insert commits. Processing moved out of the request. The insert is idempotent on the provider's event id, so a provider retry of an event we already stored is a no-op rather than a duplicate charge. Check the ordering: the acknowledgement must be unreachable while the insert can still throw.</p>",
+      "files": [
+        {
+          "path": "src/webhooks/route.ts",
+          "why": "The ordering that makes the change safe lives in this function.",
+          "hunks": [
+            {
+              "side": "new",
+              "start": 41,
+              "end": 58,
+              "why": "The insert is awaited inside the same try block that owns the reply, so a throw skips the acknowledgement."
+            }
+          ]
+        },
+        {
+          "path": "src/webhooks/outbox.ts",
+          "why": "The idempotent insert and the row shape the worker reads back."
+        },
+        {
+          "path": "migrations/0042_webhook_outbox.sql",
+          "why": "The unique index on the provider event id is what makes the insert idempotent.",
+          "hunks": [{ "side": "new", "start": 1, "end": 14 }]
+        }
+      ]
+    },
+    {
+      "id": "worker",
+      "title": "The drain loop retries with backoff and parks after five attempts",
+      "risk": "attention",
+      "overview": "<p>A worker claims outbox rows with <code>FOR UPDATE SKIP LOCKED</code>, so two workers never take the same row. A failed attempt increments the counter and pushes <code>next_attempt_at</code> out by 2, 4, 8, 16 minutes, capped at an hour. The fifth failure parks the row with its last error instead of retrying forever. Check that the claim query cannot starve an old row behind a flood of new ones.</p>",
+      "files": [
+        {
+          "path": "src/workers/drain-outbox.ts",
+          "hunks": [
+            { "side": "new", "start": 18, "end": 34, "why": "The claim query and its ordering." },
+            { "side": "new", "start": 61, "end": 79, "why": "Backoff and the parking branch." }
+          ]
+        },
+        {
+          "path": "src/workers/index.ts",
+          "why": "Registers the worker on boot with a 5 second tick."
+        }
+      ]
+    },
+    {
+      "id": "tests",
+      "title": "Tests pin the transient failure and the parked state",
+      "risk": "medium",
+      "overview": "<p>Two tests carry the behaviour: a transient insert failure is retried and then succeeds, and a permanently failing row parks after five attempts with its error recorded. The provider client is faked at the transport boundary, so the retry path exercises the real worker code.</p>",
+      "files": [
+        {
+          "path": "test/workers/drain-outbox.test.ts",
+          "hunks": [{ "side": "new", "start": 22, "end": 47 }]
+        }
+      ]
+    },
+    {
+      "id": "glue",
+      "title": "Config, metrics, and the runbook line",
+      "risk": "safe",
+      "overview": "<p>The tick interval and the attempt cap are configuration, not constants. One counter per outcome feeds the existing dashboard. The runbook gains the query an operator runs to see parked rows.</p>",
+      "files": [
+        { "path": "src/config.ts", "hunks": [{ "side": "new", "start": 77, "end": 82 }] },
+        { "path": "docs/runbook.md" }
+      ]
+    }
+  ],
+  "everythingElse": [
+    { "path": "package.json", "why": "Adds the worker entry point to the scripts block." },
+    { "path": "src/webhooks/types.ts", "why": "The outbox row type, re-exported for the worker." }
+  ],
+  "verify": {
+    "ran": [
+      { "cmd": "npm test -- test/workers", "exit": 0, "summary": "31 passed, 0 failed", "tree": "head" },
+      { "cmd": "npm run typecheck", "exit": 0, "summary": "no errors", "tree": "head" },
+      { "cmd": "npm run test:integration", "exit": null, "summary": "not run: needs a live database", "tree": "head" }
+    ],
+    "manual": [
+      "<b>Send a webhook with the database stopped.</b> The route replies <code>500</code> and the provider retries; nothing is acknowledged.",
+      "<b>Start the database and wait one tick.</b> The row drains and the counter for delivered events moves by one.",
+      "<b>Point the worker at an endpoint that always fails.</b> After five ticks the row is parked and shows its last error."
+    ]
+  }
+}
