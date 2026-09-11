@@ -52,9 +52,9 @@ Run in order. Finish each stage's gate before the next.
    *Gate:* the changes are complete and scoped to that task.
 
 5. **Verify each task with real evidence**
-   Run the verification the task specifies (tests, build, typecheck, lint, manual check). Read the actual output. A task is done only when its verification passes on fresh evidence, not when it "should" pass. Apply the **`verification-before-completion`** skill as the gate discipline here — claim a task done only after the real command's output and exit code say so.
+   Run the verification the task specifies (tests, build, typecheck, lint, manual check). Read the actual output. A task is done only when its verification passes on fresh evidence, not when it "should" pass. Claim a task done only after the real command's output and exit code say so.
    *Gate:* verification ran and passed. Only then mark the task complete and move on.
-   *If verification surfaces a problem:* a hard bug or perf regression → use **`diagnose`**; a test that fails intermittently or passes for the wrong reason → use **`de-flaking-tests`**. Fix it, then re-verify — don't weaken the check.
+   *If verification surfaces a problem:* a hard bug, perf regression, or a test that fails intermittently or passes for the wrong reason → use **`diagnose`**. Fix it, then re-verify — don't weaken the check.
 
 6. **Stop when blocked — don't fake progress**
    Halt and surface the problem instead of guessing when you hit a blocker, the plan has a gap, or the same verification keeps failing. Report what blocked you and what you tried; ask for a decision. Never mark a task done that isn't, and never weaken or delete a check to make it pass.
@@ -79,7 +79,7 @@ It is still a **manual** loop — you drive each cycle. For *machine-driven* con
 - "Done" means every task's verification passed on fresh evidence. "Should work" is not done; skipped checks mean not done.
 - Authoring and review are separate passes — don't self-approve in the same breath.
 - Surface uncertainty loudly. A stopped-and-asked execution is correct; a silently-completed-but-broken one is not.
-- **This workflow composes the atomic skills.** It routes to `verification-before-completion` at the gate, to `diagnose` / `de-flaking-tests` when verification turns up trouble, and to `slop-cleanup` / `receiving-code-review` at the review pass. Each is a soft reference: use the named skill if it's installed; if not, apply the same discipline inline. The skills stay atomic and unaware of this sequence — the ordering lives here.
+- **This workflow composes the atomic skills.** It routes to real-evidence verification at the gate, to `diagnose` when verification turns up trouble (including flaky tests), and to `slop-cleanup` / `receiving-code-review` at the review pass. Each is a soft reference: use the named skill if it's installed; if not, apply the same discipline inline. The skills stay atomic and unaware of this sequence — the ordering lives here.
 
 ---
 

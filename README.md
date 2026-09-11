@@ -85,8 +85,7 @@ the area's README, and run `./scripts/validate-skills.sh` until it's clean. In C
 ## Companion: agents
 
 The companion [`agents`](https://github.com/blutarche/agents) repo's subagent definitions reference
-skills from here by name (`scrutinize`, `karpathy-guidelines`, `brainstorming`, `writing-plans`,
-`verification-before-completion`, `de-flaking-tests`). Install skills first so those agents get the
+skills from here by name (`scrutinize`, `brainstorming`, `writing-plans`). Install skills first so those agents get the
 methodology they expect.
 
 ## License

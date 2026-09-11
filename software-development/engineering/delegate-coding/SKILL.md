@@ -78,7 +78,7 @@ Read the entire spec/plan. You must be able to restate, in your own words, what 
 ### 2. Write the delegation prompt
 The executor gets one self-contained brief — it does not share your context. Include:
 - **The task** — spec tightness follows your intent (see cost-vs-diversity above). For **cost**: fully determined (files, signatures, behavior) so the executor just types it. For **diversity**: the contract, interfaces, and acceptance gate, with implementation deliberately left open. Either way: surgical scope, no adjacent "improvements", and the **acceptance gate is always unambiguous** — that's what catches a wrong result regardless of how it was written.
-- **Guardrails for a weaker model (vital):** embed the `karpathy-guidelines` rules directly in the prompt — surgical changes only, reuse before adding, read before writing, no speculative abstraction or defensive cruft, surface conflicts/assumptions instead of guessing, fail loud. The external executor can't load the skill, and a cheaper model drifts into slop and over-engineering without these rails — this is what keeps it from going off track. Paste the rules inline; don't just name the skill.
+- **Guardrails for a weaker model (vital):** embed surgical-execution rules directly in the prompt — surgical changes only, reuse before adding, read before writing, no speculative abstraction or defensive cruft, surface conflicts/assumptions instead of guessing, fail loud. The external executor can't load your skills, and a cheaper model drifts into slop and over-engineering without these rails — this is what keeps it from going off track. Paste the rules inline; don't just name a skill.
 - **The Tier-1 gate**: the exact commands to run and the instruction to *iterate until they pass*.
 - **Boundaries**: do **not** run integration/e2e tests or anything needing `.env`/services/DBs — those are verified later, elsewhere. If deps aren't installed in the worktree, install them first (e.g. `pnpm install`) so Tier-1 can run.
 - **Commit when green**: once Tier-1 passes, the work gets committed in the worktree so there's a clean branch to merge — by the executor, or by you if it can't commit under its sandbox (see the executor's reference).
@@ -90,7 +90,7 @@ The executor gets one self-contained brief — it does not share your context. I
 Invoke the executor **headless, in an isolated worktree**, per `references/<tool>.md`. Capture whatever that tool needs for the retry loop — typically a session/chat id (to resume) and the worktree path. Tools with no native worktree are isolated via the `git-worktree` skill, pointing the executor at that path.
 
 ### 4. Verify Tier 1 yourself — don't trust the report
-Re-run the Tier-1 checks in the worktree on fresh evidence. A weaker executor will report "done" optimistically; the gate is the actual command output and exit code, not the prose. Apply `verification-before-completion` discipline here.
+Re-run the Tier-1 checks in the worktree on fresh evidence. A weaker executor will report "done" optimistically; the gate is the actual command output and exit code, not the prose.
 ```bash
 ( cd <worktree-path> && <tier-1 commands> )
 ```
@@ -110,7 +110,7 @@ Review the merged diff once more in the main tree. Everything past this line is 
 ### 7. Tier 2 — verify in the main tree (yours), and escalate on failure
 Run the env-dependent verification where the env actually lives: integration/e2e, services, `/goal` acceptance.
 - **Pass →** done with implementation.
-- **Fail →** *you* continue the work directly in the main tree — this is the escalation the design chose ("bounded retry → main agent finishes"). It guarantees the task completes. If it's a hard bug or perf regression, use `diagnose`; a flaky/wrong-for-the-right-reason test, `de-flaking-tests`. Don't weaken the check to make it pass, and don't bounce env failures back to the executor.
+- **Fail →** *you* continue the work directly in the main tree — this is the escalation the design chose ("bounded retry → main agent finishes"). It guarantees the task completes. Use `diagnose` — for a hard bug or perf regression, or a test that's flaky or wrong-for-the-right-reason. Don't weaken the check to make it pass, and don't bounce env failures back to the executor.
 
 ### 8. Review pass, then report
 Keep authoring and review separate — don't self-approve in the same breath. Run `slop-cleanup` over the diff (behavior-preserving) to strip characteristic AI slop, which a cheap executor tends to produce more of. If you get review feedback, apply `receiving-code-review` to weigh it with rigor. Then report what was implemented, which files changed, the Tier-1 evidence from the executor, and your Tier-2 evidence. **The skill stops here** — the natural follow-on is `finish` (which can also tear down the worktree).

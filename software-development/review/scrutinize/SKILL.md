@@ -77,7 +77,7 @@ For each claim the change makes ("fixes X", "is faster", "handles Y"), find the 
 
 ```
 - Is there a test that fails without the change and passes with it? If not, why is the behaviour believed correct?
-- Run it where you can. An empirical check beats any amount of reasoning (see: verification-before-completion).
+- Run it where you can. An empirical check beats any amount of reasoning — read the real output and exit code before calling it green.
 - For each claimed property, name the observation that would confirm or refute it.
 ```
 

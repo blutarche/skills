@@ -1,9 +1,8 @@
 # software-development
 
-Atomic, single-purpose skills for building software with an agent. Most are grouped by **phase**
-(design → … → verification); the **`stack/`** group is orthogonal — knowledge tied to the tech you
-build on, not a phase. Each skill does one job and is unaware of the others — sequencing lives in
-[`workflows/`](../workflows/README.md), not here. Sources for adapted skills are in
+Atomic, single-purpose skills for building software with an agent, grouped by **phase**
+(design → planning → review → engineering). Each skill does one job and is unaware of the others —
+sequencing lives in [`workflows/`](../workflows/README.md), not here. Sources for adapted skills are in
 [`../CREDITS.md`](../CREDITS.md).
 
 ## design — shape intent into a design
@@ -31,26 +30,8 @@ build on, not a phase. Each skill does one job and is unaware of the others — 
 
 | Skill | What it does |
 |-------|--------------|
-| [`karpathy-guidelines`](engineering/karpathy-guidelines/SKILL.md) | Behavioral guidelines to reduce common LLM coding mistakes. |
-| [`diagnose`](engineering/diagnose/SKILL.md) | A feedback-loop-first loop for hard bugs and perf regressions: reproduce → minimise → hypothesise → instrument → fix → regression-test. |
+| [`diagnose`](engineering/diagnose/SKILL.md) | A feedback-loop-first loop for hard bugs and perf regressions: reproduce → minimise → hypothesise → instrument → fix → regression-test. Also covers flaky tests. |
 | [`post-mortem`](engineering/post-mortem/SKILL.md) | Write the canonical record of a fixed bug (or resolved incident) — root cause, mechanism, fix, validation, how it slipped through. Refuses until the fix is validated; blameless. Pairs with `diagnose`. |
-| [`de-flaking-tests`](engineering/de-flaking-tests/SKILL.md) | Make flaky tests deterministic (condition-based waiting) and kill tests that pass for the wrong reason (mock theater, incomplete mocks). |
 | [`git-commit`](engineering/git-commit/SKILL.md) | Turn a working tree into clean, atomic, bisect-safe commits — Conventional-Commit messages, no co-author trailer, push left to the user. |
 | [`git-worktree`](engineering/git-worktree/SKILL.md) | Create/enter an isolated feature worktree and bootstrap-or-surface its environment (setup), then remove/prune it (teardown). Use when starting or wrapping up isolated agentic work. |
 | [`delegate-coding`](engineering/delegate-coding/SKILL.md) | When the plan is clear enough for a cheaper agent to execute, delegate the coding to a headless executor CLI — `cursor-agent`, `codex`, or a cheaper `claude` — while your expensive "brain" model only plans, verifies, and owns the merge. Executor self-loops on env-independent checks in its worktree; you own env-dependent checks post-merge; bounded retries, then you finish. Per-tool invocation in `references/`. |
-
-## verification — prove work is actually done
-
-| Skill | What it does |
-|-------|--------------|
-| [`verification-before-completion`](verification/verification-before-completion/SKILL.md) | Gate before any "done / fixed / passing" claim: run the real command, read the output + exit code, then claim. |
-
-## stack — specific to the tech you work in
-
-Orthogonal to the phase groups above: knowledge tied to the technologies you build on (LLM/AI,
-frameworks, tooling) rather than a general SWE phase. Prefer **durable playbooks** (principles +
-links to official docs) over version-pinned API references, which rot.
-
-| Skill | What it does |
-|-------|--------------|
-| [`llm-cost-optimization`](stack/llm-cost-optimization/SKILL.md) | Cut token/$ cost of LLM pipelines: measure → cache → tier → trim → batch → cap → verify. |

@@ -37,6 +37,6 @@ These are why the pipeline is shaped the way it is — and the rule for adding t
    it. Soft references: use the built-in if present, apply the same discipline inline if not.
 
 3. **Compose our atomic skills.** The workflows are thin sequencers over this repo's own atomic skills
-   (`scrutinize`, `council`, `git-worktree`, `verification-before-completion`, the fixer skills,
+   (`scrutinize`, `council`, `git-worktree`, `diagnose`, the fixer skills,
    …). A workflow that starts re-implementing a skill's methodology has drifted — push it back into the
    skill and call it.

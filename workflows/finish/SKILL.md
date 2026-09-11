@@ -37,7 +37,7 @@ Tests failing (<N> failures). These must pass before finishing:
 Not proceeding to merge/PR until tests pass.
 ```
 
-Apply the **`verification-before-completion`** skill here — read the real output and exit code before calling the suite green. If a failure is an intermittent/flaky test rather than a real regression, use **`de-flaking-tests`** to make it deterministic; never paper over it to get past this gate.
+Read the real output and exit code before calling the suite green. If a failure is an intermittent/flaky test rather than a real regression, use **`diagnose`**'s flaky-tests section to make it deterministic; never paper over it to get past this gate.
 
 Do not continue until tests pass.
 

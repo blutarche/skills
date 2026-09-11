@@ -70,4 +70,4 @@ Run the cleanup as a regression-safe sequence, not a single sweeping edit.
 
 6. **Report.** Close with a concise summary: which files changed, what you removed or simplified, what you deliberately kept and why, how behavior was verified, and any risks left open. If the caller asked for a specific deliverable (a summary file, a PR comment), produce that deliverable — the chat summary supplements it, never replaces it.
 
-Related (advisory, not auto-invoked): `karpathy-guidelines` prevents slop at write-time.
+Related (advisory, not auto-invoked): surgical, read-before-write execution discipline prevents slop at write-time.

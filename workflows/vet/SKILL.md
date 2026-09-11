@@ -36,7 +36,7 @@ Run in order. Finish each gate before the next.
    For the accepted findings, hand off — don't fix inline:
    - **`receiving-code-review`** first — evaluate each accepted finding with rigor, push back with reasons where the reviewer (Claude or council) is wrong, then implement only what's valid.
    - **`/simplify`** for quality/over-engineering cleanups; **`slop-cleanup`** *only* when the finding is AI-slop-shaped.
-   - **`verification-before-completion`** (or `/verify` / `/run`) to confirm each fix on real evidence; then **`git-commit`**.
+   - Confirm each fix on real evidence (or `/verify` / `/run`) — read the real output and exit code before calling it green; then **`git-commit`**.
    - **Re-review** the fixed change (back through stage 2) until it comes back clean. If the findings amount to substantial rework, this isn't a fix loop — hand back to the `execute` workflow.
    *Gate:* the change re-reviews clean, or has been escalated back to `execute`.
 

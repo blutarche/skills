@@ -1,6 +1,6 @@
 ---
 name: diagnose
-description: A disciplined loop for hard bugs and performance regressions — reproduce, build a fast deterministic feedback loop, minimise, hypothesise, instrument, fix, and add a regression test. Use when facing a hard bug, an intermittent failure, or a performance regression.
+description: Disciplined loop for hard bugs and performance regressions — reproduce, tight feedback loop, minimise, hypothesise, instrument, fix, regression test. Use on hard, intermittent, or hard-to-reproduce failures. Also covers flaky or intermittent tests.
 license: MIT
 ---
 
@@ -121,6 +121,23 @@ If a correct seam exists:
 3. Apply the fix.
 4. Watch it pass.
 5. Re-run the Phase 1 loop against the original (un-minimised) scenario.
+
+## Flaky tests
+
+A flaky test fails for one of two reasons: it races on timing, or it lies about what it verifies.
+
+**Timing:** replace fixed delays with polling the actual condition (event fired, state reached, count reached, file written) — a delay long enough to be reliable is also slow, one short enough to be fast is also flaky. Common mistakes: polling too fast (every 1ms — wastes CPU; poll ~10ms), no timeout (bound it or it hangs forever), stale data (re-read state inside the loop, not once before it). A fixed delay is legitimate only when testing timed behavior itself (debounce, throttle, tick interval) — wait for the trigger first, then delay a documented, known multiple of the interval.
+
+**Honest tests** — four anti-patterns that make a test pass for the wrong reason:
+
+- *Testing the mock, not the code*: asserting a mock element is present tells you the mock is wired up, not that the real component works. Fix: exercise the real component and assert on behavior it actually produces.
+- *Test-only production methods*: a method (e.g. `destroy()`) that only tests ever call pollutes production with code nothing else invokes. Fix: move it into test utilities.
+- *Mocking without understanding dependencies*: over-mocking strips a side effect the test relies on (e.g. mocking away a call that also does a config write), so the test passes or fails for the wrong reason. Fix: mock only the slow/external part; if unsure what a method's side effects are, run the real implementation first and observe.
+- *Incomplete mocks*: a mock missing fields the real API returns hides structural assumptions and breaks silently downstream. Fix: mirror the complete real structure, not just the fields the current assertion touches.
+
+**Confirm the fix:** run the de-flaked test many times, under load or in parallel, and in CI-like conditions — not just once locally. Then break the production logic on purpose and confirm the test goes red; if it stays green, the assertion was lying.
+
+**Red flags:** `*-mock` test IDs in assertions; `sleep`/fixed delays in async tests; methods only ever called from test files; mock setup longer than the test logic; a test that stays green when you delete the behavior it claims to verify.
 
 ## Cleanup and post-mortem
 
