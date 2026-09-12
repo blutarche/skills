@@ -43,6 +43,7 @@ page this way.
       "id": "kebab-case",
       "title": "States its claim",
       "prose": "<p>HTML. At most 120 words. Sentences of at most 25 words.</p>",
+      "figureLayout": "row",
       "visual": {
         "mermaid": "flowchart LR\n  a[Handler] -->|writes| b[(Outbox)]",
         "caption": "One sentence, at most 25 words: what the picture shows."
@@ -63,7 +64,7 @@ page this way.
 
 Required: `title`, `kind`, `state`, `chapters`. `context` and `open` are optional. Per chapter,
 `id`, `title`, `prose` are required; exactly one of `visual` or `noVisual` is required (both or
-neither fails the build); `decisions` and `evidence` are optional arrays.
+neither fails the build); `decisions`, `evidence`, and `figureLayout` are optional.
 
 ## Figures
 
@@ -77,6 +78,12 @@ neither fails the build); `decisions` and `evidence` are optional arrays.
 Exactly one of `mermaid` or `svg` per figure, both as non-empty strings; `caption` is required on
 every figure as a non-empty string, at most 25 words. An `svg` figure's root must carry `viewBox`;
 `width`/`height` on the root are stripped, since CSS sizes the figure.
+
+A chapter's figures stack full width, one per row, by default. Set `"figureLayout": "row"` to lay
+multiple figures side by side instead; any other value fails the build naming the chapter. Use
+`row` only when every figure in the chapter is narrow, roughly `viewBox` width under 500; a wide
+figure (a swimlane, a wide flowchart) next to another figure in a row halves its width and should
+stay stacked.
 
 `svg` is checked against an **allowlist**, not a denylist: every element and every attribute has
 to be named below, or the build fails naming the chapter, the figure's index, and the offending
@@ -129,7 +136,8 @@ failed build leaves the previous page in place. Fix the spec, never the page.
 - Each chapter has `id`, `title`, `prose`.
 - Exactly one of `visual` or `noVisual` per chapter. `noVisual` must be a non-empty string.
   `visual` must be a figure object or an array of 1 to 4 figures. Each figure needs exactly one
-  of `mermaid` or `svg`, and a non-empty `caption` of at most 25 words.
+  of `mermaid` or `svg`, and a non-empty `caption` of at most 25 words. `figureLayout`, when
+  present, must be exactly `"row"`; any other value fails the build naming the chapter.
   A `mermaid` figure must be non-empty; its first non-blank line, after skipping any leading
   `---`-delimited frontmatter block and any `%%{init...}%%` directive (in either order), must
   start with one of: `flowchart`, `graph`, `sequenceDiagram`, `stateDiagram`, `stateDiagram-v2`,
@@ -184,7 +192,9 @@ any → Open items (if any) → Notes.
 ## Figure rendering
 
 Every figure, mermaid or svg, renders as `<figure class="fig">...<figcaption>` inside a chapter's
-`<div class="figs">`, so multiple figures lay out in a grid in spec order.
+`<div class="figs">`, in spec order. By default `.figs` is a single full-width column; a chapter
+with `"figureLayout": "row"` renders `<div class="figs row">` instead, which lays figures out
+side by side (`grid-template-columns:repeat(auto-fit,minmax(320px,1fr))`).
 
 - A mermaid figure's markup is unchanged: `<pre class="mermaid">`, escaped diagram source as
   inert text.

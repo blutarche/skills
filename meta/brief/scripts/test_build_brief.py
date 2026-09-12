@@ -855,6 +855,31 @@ class BuildBriefTest(unittest.TestCase, Harness):
         self.assertEqual(r.returncode, 1)
         self.assertIn("must not declare a DTD or entities", r.stderr)
 
+    # ---------------------------------------------------------------- 27: figureLayout
+    def test_default_figure_layout_has_no_row_class(self) -> None:
+        spec = valid_spec()
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        page = r.out.read_text(encoding="utf-8")
+        self.assertIn('<div class="figs">', page)
+        self.assertNotIn('<div class="figs row">', page)
+
+    def test_figure_layout_row_adds_row_class(self) -> None:
+        spec = valid_spec()
+        spec["chapters"][0]["figureLayout"] = "row"
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        page = r.out.read_text(encoding="utf-8")
+        self.assertIn('<div class="figs row">', page)
+
+    def test_figure_layout_invalid_value_fails_naming_chapter(self) -> None:
+        spec = valid_spec()
+        spec["chapters"][0]["figureLayout"] = "grid"
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn(spec["chapters"][0]["id"], r.stderr)
+        self.assertIn("figureLayout", r.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -34,19 +34,25 @@ why prose beats a picture here, not that drawing would take effort.
 
 | Need | Source | How |
 |---|---|---|
-| Flow, sequence, state, git, gantt, simple ER | mermaid | write the source into the spec |
-| Architecture, layer stack, before/after with emphasis, quadrant, Venn, fishbone, Wardley, timeline with callouts, bar, line, scatter, anything needing editorial layout | `diagram-design` skill (Claude Code) | (a) load the skill and pick the visual type from its §3 selection table; (b) load that type's own reference file before drawing; (c) follow its §6 connector rules and §7 4px grid and complexity budget; (d) run `python3 <diagram-design skill dir>/scripts/self_check.py <figure.svg>` on the saved figure and paste nothing into the spec until it prints `OK`; (e) then take the `<svg>` and paste it into `svg` |
+| Flow, sequence, state, architecture, layer stack, before/after with emphasis, timeline/swimlane, quadrant, Venn, fishbone, Wardley, bar, line, scatter, simple ER, anything needing editorial layout | `diagram-design` skill (Claude Code) | (a) load the skill and pick the visual type from its §3 selection table; (b) load that type's own reference file before drawing; (c) follow its §6 connector rules and §7 4px grid and complexity budget; (d) run `python3 <diagram-design skill dir>/scripts/self_check.py <figure.svg>` on the saved figure and paste nothing into the spec until it prints `OK`; (e) then take the `<svg>` and paste it into `svg` |
+| Flow, sequence, state, git, gantt, simple ER | mermaid | when the `diagram-design` skill is not installed, or for `gitGraph`/`gantt` where mermaid's renderer is adequate; write the source into the spec |
 | Heatmap, small multiples, stat tiles | `dataviz` skill (Claude Code) | follow it for form and palette; author inline SVG; paste into `svg` |
 | A mechanism sketch not worth a library | hand-authored inline SVG per the rules below | `viewBox`, `currentColor`, marker arrowheads, grid-aligned, 11-13px text |
 
 Hand-drawn boxes-and-lines with no type reference behind them is an anti-pattern, not a shortcut.
 On agents without those skills: use mermaid, or a hand-authored SVG following the rules below.
 `diagram-design`'s style-guide gate applies here too: if the project has no `.diagram-design`
-marker, pass the default profile; brief never prompts the user for brand tokens.
+marker, pass the default profile; brief never prompts the user for brand tokens. Mermaid renders
+only where the host loads the mermaid script (the Claude Code Artifact host, or the full document
+opened online); anywhere else, including offline, a mermaid figure shows as its source text.
 
 A chapter can carry 1 to 4 figures, mixing mermaid and svg, when more than one picture earns its
 place; each one still needs its own caption and still has to clear the bar below. More often one
-is enough. Some tells for which kind of figure a chapter wants:
+is enough. Figures stack full width by default; set `"figureLayout": "row"` on the chapter to lay
+them side by side instead, and only when every figure in the chapter is narrow, roughly `viewBox`
+width under 500 — a wide figure such as a swimlane or a wide flowchart loses half its width next
+to another figure in a row and should stay stacked. Some tells for which kind of figure a chapter
+wants:
 
 - A decisions table with three or more rows about trade-offs is often clearer as a quadrant or a
   before/after pair than as more table rows.

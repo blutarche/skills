@@ -30,16 +30,20 @@ take effort.
 
 | Need | Source | How |
 |---|---|---|
-| Flow, sequence, state, git, gantt, simple ER | mermaid | write source into the spec |
-| Architecture, layer stack, before/after with emphasis, quadrant, Venn, fishbone, Wardley, timeline with callouts, bar, line, scatter, anything needing editorial layout | `diagram-design` skill (Claude Code) | (a) load the skill and pick the visual type from its §3 selection table; (b) load that type's own reference file before drawing; (c) follow its §6 connector rules and §7 4px grid and complexity budget; (d) run `python3 <diagram-design skill dir>/scripts/self_check.py <figure.svg>` on the saved figure and paste nothing into the spec until it prints `OK`; (e) then take the `<svg>` and paste it into `svg` |
+| Flow, sequence, state, architecture, layer stack, before/after with emphasis, timeline/swimlane, quadrant, Venn, fishbone, Wardley, bar, line, scatter, simple ER, anything needing editorial layout | `diagram-design` skill (Claude Code) | (a) load the skill and pick the visual type from its §3 selection table; (b) load that type's own reference file before drawing; (c) follow its §6 connector rules and §7 4px grid and complexity budget; (d) run `python3 <diagram-design skill dir>/scripts/self_check.py <figure.svg>` on the saved figure and paste nothing into the spec until it prints `OK`; (e) then take the `<svg>` and paste it into `svg` |
+| Flow, sequence, state, git, gantt, simple ER | mermaid | when the `diagram-design` skill is not installed, or for `gitGraph`/`gantt` where mermaid's renderer is adequate; write source into the spec |
 | Heatmap, small multiples, stat tiles | `dataviz` skill (Claude Code) | follow it for form and palette; author inline SVG; paste into `svg` |
 | A mechanism sketch not worth a library | hand-authored inline SVG per `artifact-diagramming` rules | `viewBox`, `currentColor`, marker arrowheads, grid-aligned, 11-13px text |
 
 Hand-drawn boxes-and-lines with no type reference behind them is an anti-pattern, not a shortcut.
 On agents without those skills: mermaid, or hand-authored SVG following `references/authoring.md`.
 `diagram-design`'s style-guide gate applies too: if the project has no `.diagram-design` marker,
-pass the default profile; never prompt the user for brand tokens from inside brief. Full rules
-(what earns a diagram, mermaid type picker, dataviz condensation): `references/authoring.md`.
+pass the default profile; never prompt the user for brand tokens from inside brief. Mermaid
+renders only where the host loads the mermaid script (the Artifact host, or the full document
+opened online); elsewhere, including offline, a mermaid figure shows as its source text. A
+chapter's figures stack full width by default; set `"figureLayout": "row"` only when every figure
+in it is narrow, roughly `viewBox` width under 500. Full rules (what earns a diagram, mermaid type
+picker, dataviz condensation): `references/authoring.md`.
 
 Done when: each chapter has a one-line claim as its title.
 

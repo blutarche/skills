@@ -22,7 +22,8 @@ h3{font-size:17px;font-weight:600;margin:0}
 .chapter{margin:0 0 30px;padding-top:6px}
 .chapter-head{display:grid;grid-template-columns:32px 1fr;gap:12px;align-items:center;margin:0 0 12px}
 .chapter-head .num{font-family:var(--mono);font-size:13px;font-weight:600;border:1px solid var(--ink-3);border-radius:4px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:var(--surface)}
-.figs{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin:0 0 14px}
+.figs{display:grid;grid-template-columns:1fr;gap:14px;margin:0 0 14px}
+.figs.row{grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
 .fig{margin:0;border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--surface);color:var(--ink)}
 .fig pre.mermaid{margin:0;padding:14px;font-family:var(--mono);font-size:12.5px;white-space:pre-wrap;word-break:break-word;background:transparent}
 .fig .svg{padding:0}
@@ -38,7 +39,7 @@ th{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:up
 tr:last-child td{border-bottom:0}
 td code{word-break:break-all}
 th.col-exit,td.col-exit{width:64px;white-space:nowrap}
-th.col-cwd,td.col-cwd{width:120px}
+th.col-cwd,td.col-cwd{min-width:180px;width:auto;white-space:nowrap}
 .chip{display:inline-block;font-family:var(--mono);font-size:11px;padding:1px 7px;border-radius:4px;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);white-space:nowrap}
 .chip.exit-ok{border-color:var(--green);color:var(--green);background:var(--green-bg)}
 .chip.exit-bad{border-color:var(--del-ink);color:var(--del-ink);background:var(--del-bg)}

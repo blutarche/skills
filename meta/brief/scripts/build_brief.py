@@ -412,6 +412,10 @@ def check_spec(spec: dict) -> None:
                 check_figure(fig, cid, i) for i, fig in enumerate(normalize_figures(ch, cid))
             ]
 
+        figure_layout = ch.get("figureLayout")
+        if figure_layout is not None and figure_layout != "row":
+            fail(f"chapter {cid}: figureLayout must be \"row\" or absent, got {figure_layout!r}")
+
         check_word_cap(f"chapter {cid} prose", plain_text(ch["prose"]), 120)
         check_sentence_cap(f"chapter {cid} prose", plain_text(ch["prose"]))
 
@@ -553,7 +557,8 @@ def build_body(spec: dict, page_key: str) -> tuple[str, dict]:
         )
         figures = ch.get("_figures", [])
         if figures:
-            o.append('<div class="figs">')
+            figs_class = "figs row" if ch.get("figureLayout") == "row" else "figs"
+            o.append(f'<div class="{figs_class}">')
             for fig in figures:
                 o.append('<figure class="fig">')
                 if fig.get("mermaid"):
