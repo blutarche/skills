@@ -1,6 +1,6 @@
 ---
 name: brief
-description: Render the current session (a plan, an execution result, an investigation, a debug) as one self-contained visual HTML page: chapters by concept, one or more mermaid or inline-SVG figures or a stated reason per chapter, decision and evidence tables, prose capped. Use when the user asks to brief, summarise, recap, or visualise what was planned or done, or says the last output was a wall of text.
+description: Render the current session as one visual HTML page: chapters, a diagram-design SVG or mermaid figure per chapter, decision and evidence tables. Use when the user asks to brief, recap, or visualise what was planned or done, or calls the last output a wall of text.
 ---
 
 # Brief
