@@ -1,0 +1,62 @@
+{
+  "title": "Outbox retries land without touching the request path",
+  "kind": "execution",
+  "context": "<p>The webhook handler used to acknowledge a provider event and then process it inline. A transient database error during processing meant the event was already acknowledged and gone for good. The session's goal was to make delivery durable without slowing the request down. The fix moves processing into a worker. It drains a new outbox table, so the handler only has to make the event durable before it replies.</p>",
+  "state": "<p>The outbox and the drain worker are merged and covered by tests. The migration ran clean against a staging copy of the database. The alert that fires when a row parks after five attempts has no owner yet.</p>",
+  "chapters": [
+    {
+      "id": "before-the-request-returns",
+      "title": "The handler stores the event before it returns",
+      "prose": "<p>The route now inserts a row into <code>webhook_outbox</code> and replies <code>200</code> only once that insert commits. Nothing about processing happens before the reply. The insert is idempotent on the provider's event id, so a provider retry of an event already stored is a no-op. This is the one property the whole design leans on: the acknowledgement must be unreachable while the insert can still throw.</p>",
+      "visual": {
+        "mermaid": "flowchart LR\n  a[Handler] -->|insert, awaited| b[(webhook_outbox)]\n  b -->|commit ok| c[[200 to provider]]\n  b -->|insert throws| d[[500, no ack]]",
+        "caption": "The reply only reaches the provider on the far side of a committed insert."
+      },
+      "decisions": [
+        {
+          "decision": "Where the durable write happens",
+          "chosen": "Inside the request, before the reply",
+          "rejected": "Fire-and-forget after replying 200",
+          "why": "Acknowledging before the write is durable is exactly the bug being fixed."
+        }
+      ]
+    },
+    {
+      "id": "the-drain-loop",
+      "title": "A worker drains the outbox with capped backoff",
+      "prose": "<p>A worker claims rows with <code>FOR UPDATE SKIP LOCKED</code>, so two workers never race for the same row. A failed attempt pushes the next try out by 2, 4, 8, then 16 minutes, capped at an hour. The fifth failure parks the row with its last error instead of retrying forever. The claim query orders by age, so an old row cannot starve behind a flood of new ones.</p>",
+      "visual": {
+        "mermaid": "sequenceDiagram\n  participant W as Worker\n  participant O as Outbox\n  participant P as Provider\n  W->>O: claim (skip locked)\n  W->>P: deliver\n  P-->>W: failure\n  W->>O: bump attempt, backoff\n  Note over O: fifth failure parks the row",
+        "caption": "One claim, one delivery attempt, one backoff update per tick."
+      },
+      "evidence": [
+        { "cmd": "npm test -- test/workers", "cwd": ".", "exit": 0, "ok": true, "summary": "31 passed" },
+        { "cmd": "npm run test:integration", "cwd": ".", "exit": null, "summary": "not run: needs a live database" }
+      ]
+    },
+    {
+      "id": "what-changed",
+      "title": "Five files changed and one migration",
+      "prose": "<p>The route, the outbox module, the new worker, its boot registration, and the config gained the tick interval and the attempt cap. The migration adds the table and a unique index on the provider's event id, which is what makes the insert idempotent. None of this touches the signature verification middleware upstream of the route.</p>",
+      "noVisual": "A table of five file names carries no mechanism a diagram could show better.",
+      "decisions": [
+        {
+          "decision": "Tick interval and attempt cap",
+          "chosen": "Configuration values, not constants",
+          "rejected": "Hardcoded in the worker",
+          "why": "Ops needs to tune both without a deploy during an incident."
+        }
+      ]
+    },
+    {
+      "id": "open-risk",
+      "title": "The parked-row alert still needs an owner",
+      "prose": "<p>A parked row means five attempts already failed and nothing will retry it automatically. The metric exists and the dashboard shows it, but no on-call rotation currently watches that panel. Until someone owns it, a parked row is silent until a customer notices the missing webhook.</p>",
+      "noVisual": "This chapter states an unresolved question, not a mechanism; there is nothing yet to draw."
+    }
+  ],
+  "open": [
+    "<b>Assign an owner</b> for the parked-row alert before this ships to production traffic.",
+    "Decide whether a parked row should also raise a support ticket automatically."
+  ]
+}

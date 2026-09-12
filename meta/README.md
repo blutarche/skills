@@ -5,6 +5,7 @@ not tied to any one domain. Sources for adapted skills are in [`../CREDITS.md`](
 
 | Skill | What it does |
 |-------|--------------|
+| [`brief`](brief/SKILL.md) | Render the current session (a plan, an execution result, an investigation, a debug) as one self-contained visual HTML page: chapters by concept, a mermaid diagram or a stated reason per chapter, decision and evidence tables, prose capped. The wall-of-text replacement. |
 | [`research`](research/SKILL.md) | Answer a single question from sources fetched this session, with a citation behind every claim — never from memory. The evidence-discipline engine. |
 | [`grill-me`](grill-me/SKILL.md) | Relentlessly interview you about a plan or design until shared understanding, resolving each branch of the decision tree. Codebase-agnostic; the brownfield counterpart is the [`grill-with-docs`](../workflows/grill-with-docs/SKILL.md) workflow. |
 | [`wat`](wat/SKILL.md) | Type it when the agent's last message didn't land. Re-pitches with the missing premise, in plain full English and `CONTEXT.md` vocabulary — suspends any terse output style for that one reply. User-invoked only (`/wat`). Adapted from mattpocock/skills `wait-what`. |

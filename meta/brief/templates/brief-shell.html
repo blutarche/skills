@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- TITLE:START --><title>Brief</title><!-- TITLE:END -->
+<!-- STYLE:START -->
+<style>
+<!-- LIB:STYLE -->
+.strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:4px;overflow:hidden;margin:18px 0 8px}
+.stat{background:var(--surface);padding:12px 14px}
+.stat .k{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.stat .v{font-size:21px;font-weight:600;margin-top:4px}
+.stat .s{font-size:12px;color:var(--ink-2);margin-top:2px}
+section{padding:28px 0 8px;border-bottom:1px solid var(--line)}
+section:last-of-type{border-bottom:0}
+h2{font-size:20px;font-weight:600;margin:0 0 10px}
+h3{font-size:17px;font-weight:600;margin:0}
+.lede{color:var(--ink-2);margin:0 0 16px;max-width:78ch}
+.state-box{border-left:3px solid var(--accent);background:var(--wash);border-radius:4px;padding:4px 18px 18px}
+.chapter{margin:0 0 30px;padding-top:6px}
+.chapter-head{display:grid;grid-template-columns:32px 1fr;gap:12px;align-items:center;margin:0 0 12px}
+.chapter-head .num{font-family:var(--mono);font-size:13px;font-weight:600;border:1px solid var(--ink-3);border-radius:4px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:var(--surface)}
+.visual{margin:0 0 14px;border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--surface)}
+.visual pre.mermaid{margin:0;padding:14px;font-family:var(--mono);font-size:12.5px;white-space:pre-wrap;word-break:break-word;background:transparent}
+.visual figcaption{padding:8px 14px;border-top:1px solid var(--line);background:var(--paper);font-size:13px;color:var(--ink-2)}
+.prose{max-width:78ch}
+.prose p{margin:0 0 10px}
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:4px;background:var(--surface);margin:10px 0 18px}
+table{border-collapse:collapse;width:100%;min-width:520px;font-size:13.5px}
+th,td{text-align:left;vertical-align:top;padding:9px 12px;border-bottom:1px solid var(--line)}
+th{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);font-weight:500;background:var(--paper);white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td code{word-break:break-all}
+th.col-exit,td.col-exit{width:64px;white-space:nowrap}
+th.col-cwd,td.col-cwd{width:120px}
+.chip{display:inline-block;font-family:var(--mono);font-size:11px;padding:1px 7px;border-radius:4px;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);white-space:nowrap}
+.chip.exit-ok{border-color:var(--green);color:var(--green);background:var(--green-bg)}
+.chip.exit-bad{border-color:var(--del-ink);color:var(--del-ink);background:var(--del-bg)}
+.chip.exit-none{border-style:dashed}
+ul.plain{padding-left:18px;max-width:78ch}
+ul.plain li{margin:0 0 8px}
+.btn{font-size:13px;padding:4px 10px;border:1px solid var(--line);background:var(--paper);color:var(--ink-2);border-radius:4px;cursor:pointer}
+.btn:hover{color:var(--ink);border-color:var(--ink-3)}
+.btn.primary{border-color:var(--accent);color:var(--accent-deep)}
+.notes .note{margin:0 0 14px}
+.notes .note label{display:block;font-family:var(--mono);font-size:11.5px;letter-spacing:.04em;color:var(--ink-2);margin:0 0 4px}
+.notes textarea{width:100%;min-height:72px;font:inherit;font-size:14px;padding:9px 11px;border:1px solid var(--line);border-radius:4px;background:var(--surface);color:var(--ink);resize:vertical}
+.notes pre{max-height:280px;overflow:auto;font-size:12px;background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:10px 12px;white-space:pre-wrap}
+.count{font-family:var(--mono);font-size:12px;color:var(--ink-2);margin:4px 0 0}
+footer{padding-top:20px;font-family:var(--mono);font-size:11.5px;color:var(--ink-2);border-top:1px solid var(--line)}
+.sr{position:absolute;left:-9999px}
+@media (max-width:760px){
+  .wrap{padding:0 16px 56px}
+  header.top h1{font-size:23px}
+  .chapter-head{grid-template-columns:26px 1fr}
+}
+</style>
+<!-- STYLE:END -->
+</head>
+<body>
+<!-- BODY:START -->
+<!-- BODY:END -->
+<!-- SCRIPT:START -->
+<script>
+(function () {
+  "use strict";
+  var wrap = document.querySelector("[data-storage-key]");
+  if (!wrap) return;
+  var KEY = wrap.getAttribute("data-storage-key");
+  var DOC_TITLE = wrap.getAttribute("data-doc-title") || "Brief";
+
+<!-- LIB:SCRIPT -->
+
+  var chapters = $$("article.chapter");
+
+  function copyText(text, done) {
+    function ok() { if (done) done(true); }
+    function no() { if (done) done(false); }
+    function fallback() {
+      var ta = document.createElement("textarea");
+      ta.value = text; ta.className = "sr";
+      document.body.appendChild(ta); ta.select();
+      var copied = false;
+      try { copied = document.execCommand("copy"); } catch (e) { copied = false; }
+      document.body.removeChild(ta);
+      if (copied) ok(); else no();
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(ok, fallback);
+    else fallback();
+  }
+
+  $$("textarea[data-note]").forEach(function (ta) {
+    var id = ta.getAttribute("data-note");
+    if (state.notes[id]) ta.value = state.notes[id];
+    ta.addEventListener("input", function () {
+      if (ta.value.trim()) state.notes[id] = ta.value; else delete state.notes[id];
+      save();
+    });
+  });
+
+  function feedbackMarkdown() {
+    var out = ["# Feedback on " + DOC_TITLE, ""];
+    chapters.forEach(function (ch) {
+      var id = ch.getAttribute("data-chapter");
+      var note = (state.notes[id] || "").trim();
+      if (!note) return;
+      var title = $("h3", ch);
+      out.push("## " + (title ? title.textContent : id), "");
+      out.push(note, "");
+    });
+    if (out.length === 2) out.push("(no notes written)", "");
+    return out.join("\n");
+  }
+
+  var ex = $("[data-export]"), exs = $("[data-export-status]"), exp = $("[data-export-preview]");
+  if (ex) ex.addEventListener("click", function () {
+    var md = feedbackMarkdown();
+    if (exp) { exp.textContent = md; exp.hidden = false; }
+    copyText(md, function (ok) {
+      if (exs) exs.textContent = ok ? "Copied to the clipboard. Preview below." : "Clipboard blocked. Copy from the preview below.";
+    });
+  });
+})();
+</script>
+<!-- SCRIPT:END -->
+</body>
+</html>

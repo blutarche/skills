@@ -11,6 +11,7 @@ import html
 import re
 import sys
 from html.parser import HTMLParser
+from pathlib import Path
 
 TITLE_START, TITLE_END = "<!-- TITLE:START -->", "<!-- TITLE:END -->"
 STYLE_START, STYLE_END = "<!-- STYLE:START -->", "<!-- STYLE:END -->"
@@ -19,7 +20,10 @@ SCRIPT_START, SCRIPT_END = "<!-- SCRIPT:START -->", "<!-- SCRIPT:END -->"
 
 
 def fail(msg: str) -> None:
-    print(f"build_tour: {msg}", file=sys.stderr)
+    """Prefix taken from the calling script's own filename, so each skill's build reports its
+    own name (`build_tour: ...`, `build_brief: ...`) without hardcoding one skill's here."""
+    prog = Path(sys.argv[0]).stem if sys.argv and sys.argv[0] else "build_tour"
+    print(f"{prog}: {msg}", file=sys.stderr)
     sys.exit(1)
 
 
