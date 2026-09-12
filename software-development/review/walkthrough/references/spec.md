@@ -113,6 +113,7 @@ build leaves the previous page in place. Fix the spec, never the page.
   the stats as JSON.
 - The "Changed lines only" toggle is hidden when no rendered hunk holds a context row, since
   there is nothing for it to hide.
+- Hunk rows are syntax-highlighted at build time by file extension (python, js/ts, go, rust, shell, json, css, html, markdown, yaml, toml, sql, make); unknown types render plain.
 
 ## Anchors
 

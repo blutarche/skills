@@ -8,6 +8,7 @@ Run from the skill directory:
 
 from __future__ import annotations
 
+import html
 import json
 import re
 import subprocess
@@ -19,6 +20,8 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+
+import build_tour  # noqa: E402  (needs sys.path set up above)
 
 BUILD = HERE / "build_tour.py"
 EM_DASH = chr(0x2014)  # spelled by code point so this file stays free of it
@@ -495,6 +498,62 @@ class BuildTourTest(unittest.TestCase):
             "Changed lines only</button>",
             page,
         )
+
+    # ---------------------------------------------------------------- 18
+    def test_hunk_rows_carry_highlighted_spans(self) -> None:
+        """alpha.py is Python, so the fixture build's hunk rows should carry at least one token span."""
+        spec = valid_spec(self.base, self.head)
+        r = self.build(spec)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        page = self.out.read_text(encoding="utf-8")
+        self.assertRegex(page, r'class="tk-\w+"')
+
+
+class HighlightTest(unittest.TestCase):
+    def strip(self, rendered: str) -> str:
+        return re.sub(r"<[^>]+>", "", rendered)
+
+    def test_python_def_and_comment(self) -> None:
+        line = "def foo(x): # hi"
+        out = build_tour.highlight(line, "python")
+        self.assertIn('<span class="tk-kw">def</span>', out)
+        self.assertIn('<span class="tk-fn">foo</span>', out)
+        self.assertIn('<span class="tk-cm"># hi</span>', out)
+        self.assertEqual(self.strip(out), html.escape(line, quote=True))
+
+    def test_js_template_string_and_line_comment(self) -> None:
+        line = 'const x = `hi ${1}`; // done'
+        out = build_tour.highlight(line, "js")
+        self.assertIn('<span class="tk-kw">const</span>', out)
+        self.assertIn('<span class="tk-st">`hi ${1}`</span>', out)
+        self.assertIn('<span class="tk-cm">// done</span>', out)
+        self.assertEqual(self.strip(out), html.escape(line, quote=True))
+
+    def test_html_tag_and_attribute(self) -> None:
+        line = '<div class="x">'
+        out = build_tour.highlight(line, "html")
+        self.assertIn('<span class="tk-ty">div</span>', out)
+        self.assertIn('<span class="tk-at">class</span>', out)
+        self.assertIn('<span class="tk-st">&quot;x&quot;</span>', out)
+        self.assertEqual(self.strip(out), html.escape(line, quote=True))
+
+    def test_unknown_suffix_returns_plain_escape(self) -> None:
+        line = 'raw <thing> & "stuff"'
+        self.assertEqual(build_tour.highlight(line, "unknown"), html.escape(line, quote=True))
+
+    def test_markdown_line_with_script_tag_stays_escaped(self) -> None:
+        line = "See <script> for the loader."
+        out = build_tour.highlight(line, "markdown")
+        self.assertNotIn("<script", out)
+        self.assertEqual(self.strip(out), html.escape(line, quote=True))
+
+    def test_detect_lang_by_suffix_basename_and_shebang(self) -> None:
+        self.assertEqual(build_tour.detect_lang("foo.py", ""), "python")
+        self.assertEqual(build_tour.detect_lang("Makefile", ""), "makefile")
+        self.assertEqual(build_tour.detect_lang("Dockerfile", ""), "dockerfile")
+        self.assertEqual(build_tour.detect_lang("run", "#!/usr/bin/env bash"), "shell")
+        self.assertEqual(build_tour.detect_lang("run", "#!/usr/bin/env python3"), "unknown")
+        self.assertEqual(build_tour.detect_lang("weird.xyz", ""), "unknown")
 
 
 if __name__ == "__main__":

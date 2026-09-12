@@ -20,6 +20,7 @@ import argparse
 import hashlib
 import html
 import json
+import keyword
 import re
 import subprocess
 import sys
@@ -275,16 +276,285 @@ def card_stats(fd: FileDiff) -> str:
     return f'<span class="stats"><span class="plus">+{len(fd.added)}</span> <span class="minus">-{len(fd.removed)}</span></span>'
 
 
+# ---------------------------------------------------------------- syntax highlighting
+
+_PY_KW = sorted(set(keyword.kwlist) | {"match", "case", "type", "_"}, key=len, reverse=True)
+_PY_PATTERN = re.compile(
+    r"(?P<COM>#[^\n]*)"
+    r"|(?P<STR>(?:[fFrRbBuU]{1,2})?(?:'''.*?'''|\"\"\".*?\"\"\"|'(?:\\.|[^'\\])*'|\"(?:\\.|[^\"\\])*\"))"
+    r"|(?P<AT>@[A-Za-z_][\w.]*)"
+    r"|(?P<DEFKW>\bdef\b)\s+(?P<DEFNAME>[A-Za-z_]\w*)"
+    r"|(?P<CLASSKW>\bclass\b)\s+(?P<CLASSNAME>[A-Za-z_]\w*)"
+    r"|(?P<KW>\b(?:" + "|".join(_PY_KW) + r")\b)"
+    r"|(?P<NUM>\b\d[\d_]*(?:\.\d[\d_]*)?(?:[eE][+-]?\d+)?[jJ]?\b)"
+)
+_PY_CLASS = {
+    "COM": "cm", "STR": "st", "AT": "at",
+    "DEFKW": "kw", "DEFNAME": "fn", "CLASSKW": "kw", "CLASSNAME": "ty",
+    "KW": "kw", "NUM": "nu",
+}
+
+_JS_KW = sorted(
+    [
+        "const", "let", "var", "function", "return", "if", "else", "for", "while", "class", "extends",
+        "import", "export", "from", "default", "new", "this", "async", "await", "yield", "try", "catch",
+        "finally", "throw", "typeof", "instanceof", "of", "in", "null", "undefined", "true", "false",
+        "interface", "type", "enum", "implements", "readonly",
+    ],
+    key=len, reverse=True,
+)
+_JS_PATTERN = re.compile(
+    r"(?P<COM>//[^\n]*|/\*.*?\*/)"
+    r"|(?P<STR>`(?:\\.|[^`\\])*`|'(?:\\.|[^'\\])*'|\"(?:\\.|[^\"\\])*\")"
+    r"|(?P<KW>\b(?:" + "|".join(_JS_KW) + r")\b)"
+    r"|(?P<NUM>\b0[xX][0-9a-fA-F]+\b|\b\d[\d_]*(?:\.\d+)?(?:[eE][+-]?\d+)?\b)"
+)
+_JS_CLASS = {"COM": "cm", "STR": "st", "KW": "kw", "NUM": "nu"}
+
+_GO_KW = sorted(
+    [
+        "break", "case", "chan", "const", "continue", "default", "defer", "else", "fallthrough", "for",
+        "func", "go", "goto", "if", "import", "interface", "map", "package", "range", "return", "select",
+        "struct", "switch", "type", "var",
+    ],
+    key=len, reverse=True,
+)
+_GO_PATTERN = re.compile(
+    r"(?P<COM>//[^\n]*|/\*.*?\*/)"
+    r"|(?P<STR>`[^`]*`|\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*')"
+    r"|(?P<KW>\b(?:" + "|".join(_GO_KW) + r")\b)"
+    r"|(?P<NUM>\b0[xX][0-9a-fA-F]+\b|\b\d[\d_]*(?:\.\d+)?\b)"
+)
+_GO_CLASS = {"COM": "cm", "STR": "st", "KW": "kw", "NUM": "nu"}
+
+_RS_KW = sorted(
+    [
+        "as", "async", "await", "break", "const", "continue", "crate", "dyn", "else", "enum", "extern",
+        "false", "fn", "for", "if", "impl", "in", "let", "loop", "match", "mod", "move", "mut", "pub",
+        "ref", "return", "self", "Self", "static", "struct", "super", "trait", "true", "type", "unsafe",
+        "use", "where", "while",
+    ],
+    key=len, reverse=True,
+)
+_RS_PATTERN = re.compile(
+    r"(?P<COM>//[^\n]*|/\*.*?\*/)"
+    r"|(?P<STR>r?\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])')"
+    r"|(?P<KW>\b(?:" + "|".join(_RS_KW) + r")\b)"
+    r"|(?P<NUM>\b0[xX][0-9a-fA-F_]+\b|\b\d[\d_]*(?:\.\d+)?\b)"
+)
+_RS_CLASS = {"COM": "cm", "STR": "st", "KW": "kw", "NUM": "nu"}
+
+_SH_KW = sorted(
+    [
+        "if", "then", "else", "elif", "fi", "for", "while", "do", "done", "case", "esac", "function",
+        "in", "until", "select", "break", "continue", "return", "exit", "local", "export", "readonly",
+        "declare",
+    ],
+    key=len, reverse=True,
+)
+_SH_PATTERN = re.compile(
+    r"(?P<COM>#[^\n]*)"
+    r"|(?P<STR>\"(?:\\.|[^\"\\])*\"|'[^']*')"
+    r"|(?P<KW>\b(?:" + "|".join(_SH_KW) + r")\b)"
+)
+_SH_CLASS = {"COM": "cm", "STR": "st", "KW": "kw"}
+
+_JSON_PATTERN = re.compile(
+    r"(?P<STR>\"(?:\\.|[^\"\\])*\")"
+    r"|(?P<KW>\b(?:true|false|null)\b)"
+    r"|(?P<NUM>-?\b\d[\d.]*(?:[eE][+-]?\d+)?\b)"
+)
+_JSON_CLASS = {"STR": "st", "KW": "kw", "NUM": "nu"}
+
+_CSS_PATTERN = re.compile(
+    r"(?P<COM>/\*.*?\*/)"
+    r"|(?P<STR>\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*')"
+    r"|(?P<NUM>-?\b\d[\d.]*(?:%|px|em|rem|vh|vw|s|ms)?\b)"
+)
+_CSS_CLASS = {"COM": "cm", "STR": "st", "NUM": "nu"}
+
+_HTML_PATTERN = re.compile(
+    r"(?P<COM><!--.*?-->)"
+    r"|(?:</?)(?P<TAGNAME>[A-Za-z][\w:-]*)"
+    r"|(?P<STR>\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*')"
+    r"|(?P<AT>[A-Za-z_:][\w:.-]*)(?=\s*=)"
+)
+_HTML_CLASS = {"COM": "cm", "TAGNAME": "ty", "STR": "st", "AT": "at"}
+
+_MD_PATTERN = re.compile(
+    r"(?P<FENCE>^```.*$)"
+    r"|(?P<HEAD>^#{1,6}\s.*$)"
+    r"|(?P<LINK>\[[^\]]*\]\([^)]*\))"
+    r"|(?P<CODE>`[^`]*`)"
+)
+_MD_CLASS = {"FENCE": "cm", "HEAD": "kw", "LINK": "fn", "CODE": "st"}
+
+_YAML_PATTERN = re.compile(
+    r"(?P<COM>#[^\n]*)"
+    r"|(?P<STR>\"(?:\\.|[^\"\\])*\"|'(?:[^']|'')*')"
+    r"|^\s*(?P<KEY>[\w.-]+)(?=\s*:)"
+)
+_YAML_CLASS = {"COM": "cm", "STR": "st", "KEY": "at"}
+
+_TOML_PATTERN = re.compile(
+    r"(?P<COM>#[^\n]*)"
+    r"|(?P<STR>\"\"\".*?\"\"\"|'''.*?'''|\"(?:\\.|[^\"\\])*\"|'[^']*')"
+    r"|(?P<HEAD>^\s*\[[^\]]*\]\s*$)"
+    r"|^\s*(?P<KEY>[A-Za-z0-9_.-]+)(?=\s*=)"
+)
+_TOML_CLASS = {"COM": "cm", "STR": "st", "HEAD": "ty", "KEY": "at"}
+
+_SQL_KW = sorted(
+    [
+        "select", "from", "where", "insert", "into", "values", "update", "set", "delete", "create",
+        "table", "alter", "drop", "join", "left", "right", "inner", "outer", "on", "group", "by",
+        "order", "having", "limit", "as", "and", "or", "not", "null", "is", "in", "like", "distinct",
+        "union", "all", "case", "when", "then", "else", "end", "primary", "key", "foreign",
+        "references", "default", "index", "view", "with",
+    ],
+    key=len, reverse=True,
+)
+_SQL_PATTERN = re.compile(
+    r"(?P<COM>--[^\n]*|/\*.*?\*/)"
+    r"|(?P<STR>'(?:[^']|'')*')"
+    r"|(?P<KW>\b(?:" + "|".join(_SQL_KW) + r")\b)"
+    r"|(?P<NUM>\b\d[\d.]*\b)",
+    re.IGNORECASE,
+)
+_SQL_CLASS = {"COM": "cm", "STR": "st", "KW": "kw", "NUM": "nu"}
+
+_MAKE_KW = sorted(
+    ["ifeq", "ifneq", "ifdef", "ifndef", "else", "endif", "include", "export", "override", "define", "endef"],
+    key=len, reverse=True,
+)
+_MAKE_PATTERN = re.compile(
+    r"(?P<COM>#[^\n]*)"
+    r"|(?P<VAR>\$[({][^)}]*[)}])"
+    r"|(?P<TARGET>^[^\s:#][^:#]*)(?=\s*:(?!=))"
+    r"|(?P<KW>\b(?:" + "|".join(_MAKE_KW) + r")\b)"
+)
+_MAKE_CLASS = {"COM": "cm", "VAR": "at", "TARGET": "ty", "KW": "kw"}
+
+_DOCKER_KW = sorted(
+    [
+        "FROM", "RUN", "CMD", "COPY", "ADD", "ENV", "WORKDIR", "EXPOSE", "VOLUME", "USER", "ENTRYPOINT",
+        "ARG", "LABEL", "MAINTAINER", "SHELL", "ONBUILD", "STOPSIGNAL", "HEALTHCHECK",
+    ],
+    key=len, reverse=True,
+)
+_DOCKER_PATTERN = re.compile(
+    r"(?P<COM>#[^\n]*)"
+    r"|(?P<STR>\"(?:\\.|[^\"\\])*\"|'[^']*')"
+    r"|(?P<KW>^\s*(?:" + "|".join(_DOCKER_KW) + r")\b)"
+)
+_DOCKER_CLASS = {"COM": "cm", "STR": "st", "KW": "kw"}
+
+_LANG_SPECS: dict[str, tuple[re.Pattern, dict[str, str]]] = {
+    "python": (_PY_PATTERN, _PY_CLASS),
+    "js": (_JS_PATTERN, _JS_CLASS),
+    "go": (_GO_PATTERN, _GO_CLASS),
+    "rust": (_RS_PATTERN, _RS_CLASS),
+    "shell": (_SH_PATTERN, _SH_CLASS),
+    "json": (_JSON_PATTERN, _JSON_CLASS),
+    "css": (_CSS_PATTERN, _CSS_CLASS),
+    "html": (_HTML_PATTERN, _HTML_CLASS),
+    "markdown": (_MD_PATTERN, _MD_CLASS),
+    "yaml": (_YAML_PATTERN, _YAML_CLASS),
+    "toml": (_TOML_PATTERN, _TOML_CLASS),
+    "sql": (_SQL_PATTERN, _SQL_CLASS),
+    "makefile": (_MAKE_PATTERN, _MAKE_CLASS),
+    "dockerfile": (_DOCKER_PATTERN, _DOCKER_CLASS),
+}
+
+_EXT_LANG = {
+    ".py": "python", ".pyi": "python",
+    ".js": "js", ".mjs": "js", ".cjs": "js", ".jsx": "js", ".ts": "js", ".tsx": "js",
+    ".go": "go",
+    ".rs": "rust",
+    ".sh": "shell", ".bash": "shell", ".zsh": "shell",
+    ".json": "json",
+    ".css": "css",
+    ".html": "html", ".htm": "html",
+    ".md": "markdown", ".mdx": "markdown",
+    ".yml": "yaml", ".yaml": "yaml",
+    ".toml": "toml",
+    ".sql": "sql",
+}
+_BASENAME_LANG = {"Makefile": "makefile", "GNUmakefile": "makefile", "makefile": "makefile", "Dockerfile": "dockerfile"}
+
+
+def detect_lang(path: str, first_line: str) -> str:
+    name = Path(path).name
+    if name in _BASENAME_LANG:
+        return _BASENAME_LANG[name]
+    suffix = Path(path).suffix
+    if suffix in _EXT_LANG:
+        return _EXT_LANG[suffix]
+    if not suffix and first_line.startswith("#!") and "sh" in first_line:
+        return "shell"
+    return "unknown"
+
+
+def _emit_match(text: str, m: re.Match, class_of: dict[str, str]) -> str:
+    """A match may carry several named groups at once (a keyword plus the name after it); render
+    each tagged span in position order and the untagged text between them as escaped plain text."""
+    spans: list[tuple[int, int, str]] = []
+    for name in m.re.groupindex:
+        cls = class_of.get(name)
+        if not cls:
+            continue
+        s = m.start(name)
+        if s == -1:
+            continue
+        spans.append((s, m.end(name), cls))
+    spans.sort()
+    out: list[str] = []
+    cur = m.start()
+    for s, e, cls in spans:
+        if s > cur:
+            out.append(esc(text[cur:s]))
+        out.append(f'<span class="tk-{cls}">{esc(text[s:e])}</span>')
+        cur = e
+    if cur < m.end():
+        out.append(esc(text[cur:m.end()]))
+    return "".join(out)
+
+
+def highlight(text: str, lang: str) -> str:
+    """Line-based, best-effort syntax highlighting. Escaped HTML with `<span class="tk-X">`
+    wrappers around recognized tokens; everything else escaped as plain text. Never raises: an
+    unrecognized language, or a line a pattern doesn't fully parse, still comes back escaped."""
+    spec = _LANG_SPECS.get(lang)
+    if spec is None:
+        return esc(text)
+    pattern, class_of = spec
+    out: list[str] = []
+    pos = 0
+    for m in pattern.finditer(text):
+        if m.start() > pos:
+            out.append(esc(text[pos : m.start()]))
+        out.append(_emit_match(text, m, class_of))
+        pos = m.end()
+    if pos < len(text):
+        out.append(esc(text[pos:]))
+    return "".join(out)
+
+
+# ---------------------------------------------------------------- render helpers (continued)
+
+
 def render_range(fd: FileDiff, side: str, start: int, end: int) -> tuple[str, str]:
     """Rendered rows and the plain text of the same range."""
     rows: list[str] = []
     plain: list[str] = []
+    src = fd.new_lines if side == "new" else fd.old_lines
+    lang = detect_lang(fd.path, src[0] if src else "")
 
     def row(kind: str, num: str, text: str) -> None:
         sign = {"add": "+", "del": "-", "ctx": " "}[kind]
         rows.append(
             f'<span class="row {kind}"><span class="ln">{esc(num)}</span>'
-            f'<span class="sg">{sign}</span><span class="tx">{esc(text)}</span></span>'
+            f'<span class="sg">{sign}</span><span class="tx">{highlight(text, lang)}</span></span>'
         )
         plain.append(f"{sign} {text}")
 

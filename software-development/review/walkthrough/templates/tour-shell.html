@@ -12,6 +12,7 @@
   --line:#E0E3E8;--line-2:#EFF1F4;--accent:#1B5FA8;--accent-deep:#154A83;--wash:rgba(27,95,168,0.08);
   --add-bg:#E9F6EC;--add-ink:#1E6B34;--del-bg:#FBEBEA;--del-ink:#96201B;
   --amber:#8A5A00;--amber-bg:#FFF4DB;--green:#1E6B34;--green-bg:#E9F6EC;
+  --tk-cm:#6B7C6E;--tk-st:#0F6B66;--tk-kw:#3B4FA0;--tk-nu:#8A5A2B;--tk-fn:#1B4F91;--tk-ty:#6B3FA0;--tk-at:#6B6B1E;
   --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
 }
@@ -21,6 +22,7 @@
     --line:#2E333A;--line-2:#262A30;--accent:#6FA8DC;--accent-deep:#9CC4E8;--wash:rgba(111,168,220,0.12);
     --add-bg:#16301F;--add-ink:#7FD39B;--del-bg:#3A1D1C;--del-ink:#F0918A;
     --amber:#E0B25C;--amber-bg:#33270F;--green:#7FD39B;--green-bg:#16301F;
+    --tk-cm:#9FC2A0;--tk-st:#6FE0D0;--tk-kw:#AFC0FF;--tk-nu:#F0C08A;--tk-fn:#8FC7FF;--tk-ty:#D8AEFF;--tk-at:#E0DB8A;
   }
 }
 :root[data-theme="dark"]{
@@ -28,6 +30,7 @@
   --line:#2E333A;--line-2:#262A30;--accent:#6FA8DC;--accent-deep:#9CC4E8;--wash:rgba(111,168,220,0.12);
   --add-bg:#16301F;--add-ink:#7FD39B;--del-bg:#3A1D1C;--del-ink:#F0918A;
   --amber:#E0B25C;--amber-bg:#33270F;--green:#7FD39B;--green-bg:#16301F;
+  --tk-cm:#9FC2A0;--tk-st:#6FE0D0;--tk-kw:#AFC0FF;--tk-nu:#F0C08A;--tk-fn:#8FC7FF;--tk-ty:#D8AEFF;--tk-at:#E0DB8A;
 }
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
@@ -125,6 +128,15 @@ details.hunks[open] > summary::before{transform:rotate(45deg)}
 .hunk .row.del{background:var(--del-bg)}
 .hunk .row.del .sg{color:var(--del-ink)}
 .hunk .row.ctx{color:var(--ink-2)}
+.tx .tk-cm{color:var(--tk-cm)}
+.tx .tk-st{color:var(--tk-st)}
+.tx .tk-kw{color:var(--tk-kw)}
+.tx .tk-nu{color:var(--tk-nu)}
+.tx .tk-fn{color:var(--tk-fn)}
+.tx .tk-ty{color:var(--tk-ty)}
+.tx .tk-at{color:var(--tk-at)}
+.tk-cm{font-style:italic}
+.tk-kw{font-weight:600}
 .hunk > .why{margin:0;padding:8px 12px;border-top:1px solid var(--line-2);font-size:13px;max-width:none}
 .changed-only .hunk .row.ctx{display:none}
 .scroll{overflow-x:auto;border:1px solid var(--line);border-radius:4px;background:var(--surface);margin:12px 0 18px}
