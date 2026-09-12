@@ -63,7 +63,7 @@ A failure names the defect: a chapter over the prose cap, a mermaid block with n
 type, a decision row missing a field. Fix the spec, never the page, and build again.
 
 Done when it prints
-`build_brief: ok chapters=N visuals=N noVisuals=N decisions=N evidence=N/M words=N`.
+`build_brief: ok chapters=N visuals=N noVisuals=N svg=N decisions=N evidence=N/M words=N`.
 
 ### 4. Look before delivering
 

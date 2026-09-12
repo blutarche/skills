@@ -7,7 +7,7 @@ Fields marked HTML are sanitized against the tag allowlist in Trust boundary bel
 embedded as HTML (`<p>`, `<code>`, `<a>`, `<b>`). Everything else is plain text and is escaped.
 `mermaid` is neither: it is diagram source, escaped and placed inside `<pre class="mermaid">`
 as inert text, never interpreted as HTML or executed. `svg` is neither, either: it is untrusted
-markup, checked against a strict element and attribute denylist and re-serialized, not sanitized
+markup, checked against a strict element and attribute allowlist and re-serialized, not sanitized
 by stripping.
 
 ## Trust boundary
@@ -26,7 +26,7 @@ sanitized, since they carry no markup. `visual.mermaid` is diagram source: escap
 the text content of a `<pre>`, so a `<script>` inside it renders as inert text, never as markup.
 
 A figure's `svg` is untrusted markup, not prose: it is parsed as XML and checked against a strict
-denylist of elements and attributes (see "What the build checks" below). A figure that fails this
+allowlist of elements and attributes (see "What the build checks" below). A figure that fails this
 check is a build failure naming the chapter and figure index, not stripped or sanitized down to
 something safe; the agent fixes the drawing and rebuilds. A figure that passes is re-serialized
 and embedded as literal markup, since only markup that has already been proven safe reaches the
@@ -74,19 +74,49 @@ neither fails the build); `decisions` and `evidence` are optional arrays.
 { "svg": "<svg viewBox=\"0 0 640 320\" role=\"img\" aria-label=\"...\">...</svg>", "caption": "One sentence, at most 25 words." }
 ```
 
-Exactly one of `mermaid` or `svg` per figure; `caption` is required on every figure. An `svg`
-figure's root must carry `viewBox`; `width`/`height` on the root are stripped, since CSS sizes the
-figure. Disallowed anywhere in the tree: `<script>`, `<style>`, `<foreignObject>`, `<iframe>`,
-`<image>`, `<a>`, a `<use>` whose `href` is not a `#` fragment, any attribute starting with `on`,
-any `href`/`xlink:href` that is not a `#` fragment, and any attribute value containing `url(...)`
-unless it is `url(#...)`. A figure that fails any of these is a build failure naming the chapter
-and the figure's index, never silently stripped down to something safe: the agent fixes the
-drawing. A valid svg figure is capped at 64 KB serialized and is re-serialized with a normalized
-`xmlns="http://www.w3.org/2000/svg"` on the root, so no `ns0:`-style prefix ever reaches the page
-regardless of how the input declared its namespaces.
+Exactly one of `mermaid` or `svg` per figure, both as non-empty strings; `caption` is required on
+every figure as a non-empty string, at most 25 words. An `svg` figure's root must carry `viewBox`;
+`width`/`height` on the root are stripped, since CSS sizes the figure.
+
+`svg` is checked against an **allowlist**, not a denylist: every element and every attribute has
+to be named below, or the build fails naming the chapter, the figure's index, and the offending
+tag or attribute. This is deliberately narrower than "no known-bad tags": SMIL animation
+(`<set>`, `<animate>`, ...), `<feImage>`, `<image>`, `<foreignObject>`, `<iframe>`, `<a>`, and any
+HTML tag are all refused by omission, not by name, so a new attack surface in an element nobody
+thought to ban still fails closed.
+
+- **Elements:** `svg g path rect circle ellipse line polyline polygon text tspan textPath defs
+  clipPath mask pattern linearGradient radialGradient stop marker symbol use title desc filter
+  feGaussianBlur feOffset feBlend feColorMatrix feComposite feFlood feMerge feMergeNode
+  feMorphology feTile feTurbulence feDropShadow feComponentTransfer feFuncR feFuncG feFuncB
+  feFuncA`.
+- **Attributes**, on any allowed element: geometry and paint (`x`, `y`, `width`, `height`, `d`,
+  `points`, `fill`, `stroke`, `opacity`, and friends), text layout, `viewBox`,
+  `preserveAspectRatio`, filter and gradient parameters, `id`, `class`, `transform`,
+  `role`/`aria-*`, `xml:space`, `lang`, `xmlns`. See `SVG_ALLOWED_ATTRS` in `build_brief.py` for
+  the exact list; anything not on it fails by name, including `style` and every `on*` handler.
+- **`href`/`xlink:href`** are not on the general attribute list: they are only accepted on `use`,
+  `textPath`, `pattern`, `linearGradient`, `radialGradient`, and only as a `#local` reference.
+  Anywhere else, `href` is a disallowed attribute like any other.
+- **Values:** any attribute value containing `url(...)` must be `url(#local)`; any value
+  containing `javascript:` or `data:` (case-insensitive, whitespace stripped first so a scheme
+  can't hide behind a tab or newline) fails, wherever it appears.
+- **Size:** the raw `svg` string is capped at 64 KB before it is even parsed, and the
+  re-serialized, validated markup is capped at 64 KB again.
+- **IDs are scoped per figure.** Every `id` is prefixed with `f<chapter-id>-<figure-index>-`
+  during re-serialization, and every reference to it — `url(#id)`, `href="#id"`,
+  `aria-labelledby` — is rewritten to match, so two figures that each define, say,
+  `id="arrow"` (a natural marker or gradient name) never collide once both land on the same page.
+- **Namespaces are stripped and normalized.** The re-serialized root always reads
+  `<svg xmlns="http://www.w3.org/2000/svg" ...>`; no `ns0:`-style prefix ever reaches the page
+  regardless of how the input declared its namespaces.
+
+A figure that fails any of these is a build failure naming the chapter and the figure's index,
+never silently stripped down to something safe: the agent fixes the drawing.
 
 Mermaid figures are unchanged: `mermaid` must be non-empty and its first diagram line must start
-with a recognized type (below).
+with a recognized type (below). The full document's mermaid init also sets
+`securityLevel: 'strict'`, so mermaid's own HTML-label escape hatch stays off.
 
 ## What the build checks
 
@@ -159,7 +189,7 @@ Every figure, mermaid or svg, renders as `<figure class="fig">...<figcaption>` i
 - A mermaid figure's markup is unchanged: `<pre class="mermaid">`, escaped diagram source as
   inert text.
 - An svg figure's validated, re-serialized markup is embedded directly inside
-  `<div class="svg">`, since only markup that already passed the denylist reaches this point.
+  `<div class="svg">`, since only markup that already passed the allowlist reaches this point.
   `.fig svg{max-width:100%;height:auto;display:block}` sizes it from the template; `color` on
   `.fig` is the page's ink token, so a drawing that uses `currentColor` themes with the page.
 - The fragment output (`--fragment`) emits `<pre class="mermaid">` blocks as-is and loads no

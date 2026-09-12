@@ -27,10 +27,6 @@ reader opens rather than scrolls past.
 - Deletion is the highest-quality move: cut a node, a swimlane, or a whole diagram before adding
   one. Above roughly nine nodes, it is two diagrams, not one crowded diagram. Keep one or two
   focal elements; everything else is context around them.
-- A chapter earns a diagram when a cold reader would otherwise have to assemble a mechanism from
-  prose alone: a flow, a set of states, a before/after, or who talks to whom. Otherwise write
-  `noVisual` and say why in one sentence. "Drawing this would take effort" is not a reason.
-
 ## Choosing a figure source
 
 For every chapter the default is a figure; `noVisual` is the exception, and its reason must name
@@ -79,9 +75,9 @@ is enough. Some tells for which kind of figure a chapter wants:
 - Arrowheads are markers, not manually rotated triangles. Text sits at 11-13px, short labels only.
   Align shapes to a grid instead of eyeballing coordinates.
 - One figure, one claim: a figure that tries to show two unrelated things is two figures.
-- The drawing has to be self-contained and pass the denylist in `references/spec.md`: no
-  `<script>`, `<style>`, `<foreignObject>`, `<iframe>`, `<image>`, `<a>`, no event-handler
-  attributes, no external `href`, no external `url(...)`.
+- The drawing has to be self-contained and pass the element/attribute allowlist in
+  `references/spec.md`: no SMIL animation, `<script>`, `<style>`, `<foreignObject>`, `<iframe>`,
+  `<image>`, `<a>`, no event-handler attributes, no external `href`, no external `url(...)`.
 
 ## Dataviz condensation
 

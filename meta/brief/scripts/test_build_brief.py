@@ -610,6 +610,193 @@ class BuildBriefTest(unittest.TestCase, Harness):
         self.assertIn("open", r.stderr)
         self.assertNotIn("Traceback", r.stderr)
 
+    # ---------------------------------------------------------------- 22: svg allowlist PoCs
+    def test_poc_a_smil_set_event_handler_fails(self) -> None:
+        spec = valid_spec()
+        svg = (
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">'
+            '<rect width="10" height="10">'
+            '<set attributeName="onbegin" to="alert(document.domain)" begin="0s"/>'
+            "</rect></svg>"
+        )
+        spec["chapters"][0]["visual"] = {"svg": svg, "caption": "SMIL set demo."}
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("set", r.stderr)
+        self.assertFalse(r.out.exists())  # a failed build writes nothing
+
+    def test_poc_b_use_animate_href_rebind_fails(self) -> None:
+        spec = valid_spec()
+        svg = (
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">'
+            '<use href="#x"><animate attributeName="href" to="https://evil.example/exfil.svg" '
+            'begin="0s" dur="1s" fill="freeze"/></use></svg>'
+        )
+        spec["chapters"][0]["visual"] = {"svg": svg, "caption": "use animate demo."}
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("animate", r.stderr)
+
+    def test_poc_c_feimage_animate_fails(self) -> None:
+        spec = valid_spec()
+        svg = (
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">'
+            '<filter id="f"><feImage><animate attributeName="href" '
+            'to="https://evil.example/beacon.png" begin="0s"/></feImage></filter>'
+            '<rect width="10" height="10" filter="url(#f)"/></svg>'
+        )
+        spec["chapters"][0]["visual"] = {"svg": svg, "caption": "feImage animate demo."}
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("feImage", r.stderr)
+
+    def test_poc_d_img_src_fails(self) -> None:
+        spec = valid_spec()
+        svg = (
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">'
+            '<img src="https://evil.example/beacon.png"/></svg>'
+        )
+        spec["chapters"][0]["visual"] = {"svg": svg, "caption": "img src demo."}
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("img", r.stderr)
+
+    def test_svg_style_attribute_fails(self) -> None:
+        spec = valid_spec()
+        svg = '<svg viewBox="0 0 10 10"><rect style="fill:red"/></svg>'
+        spec["chapters"][0]["visual"] = {"svg": svg, "caption": "Style attr."}
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("style", r.stderr)
+
+    def test_svg_html_div_fails(self) -> None:
+        spec = valid_spec()
+        svg = '<svg viewBox="0 0 10 10"><div>hi</div></svg>'
+        spec["chapters"][0]["visual"] = {"svg": svg, "caption": "HTML div."}
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("div", r.stderr)
+
+    def test_svg_javascript_scheme_in_value_fails(self) -> None:
+        spec = valid_spec()
+        svg = '<svg viewBox="0 0 10 10"><rect fill="jav\tascript:alert(1)"/></svg>'
+        spec["chapters"][0]["visual"] = {"svg": svg, "caption": "JS scheme."}
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("disallowed scheme", r.stderr)
+
+    def test_svg_href_on_rect_fails(self) -> None:
+        spec = valid_spec()
+        svg = '<svg viewBox="0 0 10 10"><rect href="#x"/></svg>'
+        spec["chapters"][0]["visual"] = {"svg": svg, "caption": "href on rect."}
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("href", r.stderr)
+
+    def test_svg_href_local_on_use_passes(self) -> None:
+        spec = valid_spec()
+        svg = (
+            '<svg viewBox="0 0 10 10"><defs><g id="x"><rect width="4" height="4"/></g></defs>'
+            '<use href="#x"/></svg>'
+        )
+        spec["chapters"][0]["visual"] = {"svg": svg, "caption": "Local use ref."}
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_svg_unknown_attribute_fails_naming_it(self) -> None:
+        spec = valid_spec()
+        svg = '<svg viewBox="0 0 10 10"><rect data-evil="x"/></svg>'
+        spec["chapters"][0]["visual"] = {"svg": svg, "caption": "Unknown attr."}
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("data-evil", r.stderr)
+
+    # ---------------------------------------------------------------- 23: figure id scoping
+    def test_figure_ids_scoped_per_chapter_and_references_rewritten(self) -> None:
+        def marker_svg() -> str:
+            return (
+                '<svg viewBox="0 0 20 20">'
+                '<defs><marker id="ar" markerWidth="6" markerHeight="6">'
+                '<path d="M0,0 L6,3 L0,6 z" fill="currentColor"/></marker></defs>'
+                '<line x1="0" y1="0" x2="10" y2="10" stroke="currentColor" marker-end="url(#ar)"/>'
+                "</svg>"
+            )
+
+        spec = valid_spec()
+        spec["chapters"][0]["visual"] = {"svg": marker_svg(), "caption": "Marker one."}
+        spec["chapters"][1]["visual"] = {"svg": marker_svg(), "caption": "Marker two."}
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        page = r.out.read_text(encoding="utf-8")
+
+        cid0, cid1 = spec["chapters"][0]["id"], spec["chapters"][1]["id"]
+        id0, id1 = f"f{cid0}-0-ar", f"f{cid1}-0-ar"
+        self.assertNotEqual(id0, id1)
+
+        blocks = page.split('<div class="svg">')
+        self.assertEqual(len(blocks), 3)  # preamble + one block per figure
+        block0, block1 = blocks[1], blocks[2]
+
+        # each figure carries only its own scoped id, and its marker-end points at it
+        self.assertIn(f'id="{id0}"', block0)
+        self.assertIn(f'url(#{id0})', block0)
+        self.assertNotIn(id1, block0)
+
+        self.assertIn(f'id="{id1}"', block1)
+        self.assertIn(f'url(#{id1})', block1)
+        self.assertNotIn(id0, block1)
+
+    # ---------------------------------------------------------------- 24: normalize_figures bounds
+    def test_visual_empty_array_fails(self) -> None:
+        spec = valid_spec()
+        spec["chapters"][0]["visual"] = []
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn(spec["chapters"][0]["id"], r.stderr)
+
+    def test_visual_five_figures_fail(self) -> None:
+        spec = valid_spec()
+        spec["chapters"][0]["visual"] = [
+            {"mermaid": "flowchart LR\n  a --> b", "caption": f"Figure {i}."} for i in range(5)
+        ]
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("1 to 4", r.stderr)
+        self.assertIn("5", r.stderr)
+
+    def test_visual_four_figures_pass(self) -> None:
+        spec = valid_spec()
+        spec["chapters"][0]["visual"] = [
+            {"mermaid": "flowchart LR\n  a --> b", "caption": f"Figure {i}."} for i in range(4)
+        ]
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 0, r.stderr)
+
+    # ---------------------------------------------------------------- 25: figure field crash guards
+    def test_mermaid_non_string_fails_cleanly(self) -> None:
+        spec = valid_spec()
+        spec["chapters"][0]["visual"] = {"mermaid": 5, "caption": "Not a string."}
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("mermaid must be a string", r.stderr)
+        self.assertNotIn("Traceback", r.stderr)
+
+    def test_svg_non_string_fails_cleanly(self) -> None:
+        spec = valid_spec()
+        spec["chapters"][0]["visual"] = {"svg": ["not", "a", "string"], "caption": "Not a string."}
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("svg must be a string", r.stderr)
+        self.assertNotIn("Traceback", r.stderr)
+
+    def test_caption_non_string_fails_cleanly(self) -> None:
+        spec = valid_spec()
+        spec["chapters"][0]["visual"] = {"svg": VALID_SVG, "caption": 42}
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("caption must be a non-empty string", r.stderr)
+        self.assertNotIn("Traceback", r.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()
