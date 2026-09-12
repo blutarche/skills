@@ -273,11 +273,15 @@ def check_spec(spec: dict) -> None:
         fail(f"kind {spec['kind']!r} is not one of {sorted(KINDS)}")
 
     chapters = spec["chapters"]
-    if not isinstance(chapters, list) or not 1 <= len(chapters) <= 8:
+    if not isinstance(chapters, list):
+        fail(f"chapters must be an array of chapter objects, got {type(chapters).__name__}")
+    if not 1 <= len(chapters) <= 8:
         fail(f"{len(chapters)} chapters; keep between 1 and 8")
 
     seen_ids: set[str] = set()
-    for ch in chapters:
+    for chapter_idx, ch in enumerate(chapters):
+        if not isinstance(ch, dict):
+            fail(f"chapters[{chapter_idx}] must be an object, got {type(ch).__name__}")
         for key in ("id", "title", "prose"):
             if not ch.get(key):
                 fail(f"chapter {ch.get('id', '?')} is missing a required field: {key}")
@@ -304,12 +308,22 @@ def check_spec(spec: dict) -> None:
         check_word_cap(f"chapter {cid} prose", plain_text(ch["prose"]), 120)
         check_sentence_cap(f"chapter {cid} prose", plain_text(ch["prose"]))
 
-        for i, d in enumerate(ch.get("decisions", [])):
+        decisions_val = ch.get("decisions", [])
+        if not isinstance(decisions_val, list):
+            fail(f"chapter {cid}: decisions must be an array")
+        for i, d in enumerate(decisions_val):
+            if not isinstance(d, dict):
+                fail(f"chapter {cid} decisions[{i}]: must be an object")
             for key in ("decision", "chosen", "rejected", "why"):
                 if not d.get(key):
                     fail(f"chapter {cid} decisions[{i}]: missing {key}")
 
-        for i, e in enumerate(ch.get("evidence", [])):
+        evidence_val = ch.get("evidence", [])
+        if not isinstance(evidence_val, list):
+            fail(f"chapter {cid}: evidence must be an array")
+        for i, e in enumerate(evidence_val):
+            if not isinstance(e, dict):
+                fail(f"chapter {cid} evidence[{i}]: must be an object")
             if not e.get("cmd"):
                 fail(f"chapter {cid} evidence[{i}]: missing cmd")
             if not e.get("cwd"):
@@ -327,7 +341,10 @@ def check_spec(spec: dict) -> None:
     check_word_cap("state", plain_text(spec["state"]), 60)
     check_sentence_cap("state", plain_text(spec["state"]))
 
-    for i, item in enumerate(spec.get("open", [])):
+    open_val = spec.get("open", [])
+    if not isinstance(open_val, list):
+        fail(f"open must be an array of strings, got {type(open_val).__name__}")
+    for i, item in enumerate(open_val):
         if not isinstance(item, str):
             fail(f"open[{i}]: must be a string")
 

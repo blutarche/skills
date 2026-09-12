@@ -81,11 +81,12 @@ Try each of these in order, and use the first that applies:
 
 a. **Claude Code with the Artifact tool:** publish `brief.fragment.html` (title = the spec
    title, favicon 🗺️). Feedback comes back as artifact comments.
-b. **`orca status --json` succeeds:** resolve the binary per the orca-cli skill stub
-   (`ORCA_CLI_COMMAND` env var, else `orca`; on Linux outside Orca use `orca-ide`, never a bare
-   `orca`), then `ORCA artifacts share brief.html --json` and report the URL. On
-   `artifact_sharing_disabled`, do not retry: tell the user it's Settings → Artifacts, and fall
-   through to (c).
+b. **`orca status --json` succeeds:** `ORCA` below is a placeholder for the resolved binary:
+   `$ORCA_CLI_COMMAND` when set, otherwise `orca`; on Linux outside an Orca terminal use
+   `orca-ide`, never bare `orca` (it is the GNOME screen reader there). The `orca-cli` skill,
+   when installed, has the same rule. Then `ORCA artifacts share brief.html --json` and report
+   the URL. On `artifact_sharing_disabled`, do not retry: tell the user it's Settings →
+   Artifacts, and fall through to (c).
 c. **Otherwise:** `open brief.html` on macOS, `xdg-open` on Linux. Feedback comes back through
    the page: Notes, then "Copy feedback", then paste into the chat.
 

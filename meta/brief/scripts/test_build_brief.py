@@ -557,6 +557,59 @@ class BuildBriefTest(unittest.TestCase, Harness):
         self.assertEqual(stats["mermaidFigures"], 2)
         self.assertEqual(stats["svgFigures"], 1)
 
+    # ---------------------------------------------------------------- 21: type guards, no traceback
+    def test_chapters_wrong_type_int_fails_cleanly(self) -> None:
+        spec = valid_spec()
+        spec["chapters"] = 5
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("build_brief:", r.stderr)
+        self.assertIn("chapters", r.stderr)
+        self.assertNotIn("Traceback", r.stderr)
+
+    def test_chapters_containing_a_string_fails_cleanly(self) -> None:
+        spec = valid_spec()
+        spec["chapters"] = ["not-a-chapter-object"]
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("chapters[0]", r.stderr)
+        self.assertNotIn("Traceback", r.stderr)
+
+    def test_decisions_as_dict_fails_cleanly(self) -> None:
+        spec = valid_spec()
+        spec["chapters"][0]["decisions"] = {"decision": "x"}
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn(spec["chapters"][0]["id"], r.stderr)
+        self.assertIn("decisions", r.stderr)
+        self.assertNotIn("Traceback", r.stderr)
+
+    def test_evidence_as_dict_fails_cleanly(self) -> None:
+        spec = valid_spec()
+        spec["chapters"][1]["evidence"] = {"cmd": "x"}
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn(spec["chapters"][1]["id"], r.stderr)
+        self.assertIn("evidence", r.stderr)
+        self.assertNotIn("Traceback", r.stderr)
+
+    def test_visual_as_string_fails_cleanly(self) -> None:
+        spec = valid_spec()
+        spec["chapters"][0]["visual"] = "not-a-figure"
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn(spec["chapters"][0]["id"], r.stderr)
+        self.assertIn("visual", r.stderr)
+        self.assertNotIn("Traceback", r.stderr)
+
+    def test_open_as_string_fails_cleanly(self) -> None:
+        spec = valid_spec()
+        spec["open"] = "not a list"
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("open", r.stderr)
+        self.assertNotIn("Traceback", r.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

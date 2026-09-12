@@ -22,7 +22,7 @@ SCRIPT_START, SCRIPT_END = "<!-- SCRIPT:START -->", "<!-- SCRIPT:END -->"
 def fail(msg: str) -> None:
     """Prefix taken from the calling script's own filename, so each skill's build reports its
     own name (`build_tour: ...`, `build_brief: ...`) without hardcoding one skill's here."""
-    prog = Path(sys.argv[0]).stem if sys.argv and sys.argv[0] else "build_tour"
+    prog = Path(sys.argv[0]).stem if sys.argv and sys.argv[0] else "build"
     print(f"{prog}: {msg}", file=sys.stderr)
     sys.exit(1)
 
