@@ -38,7 +38,8 @@ Usage:
   ./install.sh --claude     ~/.claude/skills only   (Claude Code)
   ./install.sh --codex      ~/.agents/skills only   (Codex CLI)
   ./install.sh --cursor     ~/.agents/skills only   (Cursor reads it)
-  ./install.sh --copy       copy instead of symlink (edits won't sync back)
+  ./install.sh --copy       copy instead of symlink (edits won't sync back; dereferences a
+                            skill's shared lib symlink so the copy is self-contained)
   ./install.sh --force      overwrite an existing FOREIGN skill of the same name
   ./install.sh --hermes     configure Hermes only (when Hermes is installed)
   ./install.sh --uninstall  remove only the links pointing back into this repo
@@ -355,7 +356,7 @@ link_one() { # src target_dir
   fi
 
   if [ "$COPY" -eq 1 ]; then
-    cp -R "$src" "$target"
+    cp -RL "$src" "$target"
     echo "  copied $name -> $target"
   else
     ln -sfn "$src" "$target"
@@ -420,7 +421,7 @@ install_hermes() {
     name="$(basename "$src")"
     target="$HERMES_EXTERNAL_ROOT/$name"
     if [ "$COPY" -eq 1 ]; then
-      cp -R "$src" "$target"
+      cp -RL "$src" "$target"
       echo "  copied $name -> $target (Hermes)"
     else
       ln -s "$src" "$target"

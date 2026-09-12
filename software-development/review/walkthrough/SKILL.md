@@ -122,6 +122,8 @@ comments. Do not apply feedback inside this skill; that is the next request.
   directory. Run it after touching the build.
 - `templates/tour-shell.html`: the page shell with the CSS, the JavaScript, and the markers the
   build splices into. It holds no prose.
+- `lib/`: symlink to the repo's shared `_lib/` page machinery (theme, layout, `pagelib.py`).
+  Never edit through this symlink; edit `_lib/` itself.
 - `references/spec.md`: the `review-tour.json` format and every check the build runs.
 - `references/authoring.md`: chapter, overview, hunk, verify, and voice rules.
 - `examples/review-tour.example.json`: a complete spec to copy the shape from.

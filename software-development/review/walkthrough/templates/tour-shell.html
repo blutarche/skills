@@ -6,50 +6,7 @@
 <!-- TITLE:START --><title>Walkthrough</title><!-- TITLE:END -->
 <!-- STYLE:START -->
 <style>
-:root{
-  color-scheme:light dark;
-  --ink:#1F2124;--ink-2:#5E6672;--ink-3:#8B94A1;--paper:#F6F7F8;--surface:#FFFFFF;
-  --line:#E0E3E8;--line-2:#EFF1F4;--accent:#1B5FA8;--accent-deep:#154A83;--wash:rgba(27,95,168,0.08);
-  --add-bg:#E9F6EC;--add-ink:#1E6B34;--del-bg:#FBEBEA;--del-ink:#96201B;
-  --amber:#8A5A00;--amber-bg:#FFF4DB;--green:#1E6B34;--green-bg:#E9F6EC;
-  --tk-cm:#6B7C6E;--tk-st:#0F6B66;--tk-kw:#3B4FA0;--tk-nu:#8A5A2B;--tk-fn:#1B4F91;--tk-ty:#6B3FA0;--tk-at:#6B6B1E;
-  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-}
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --ink:#E7E9EC;--ink-2:#A6AEBB;--ink-3:#79828F;--paper:#15171A;--surface:#1D2024;
-    --line:#2E333A;--line-2:#262A30;--accent:#6FA8DC;--accent-deep:#9CC4E8;--wash:rgba(111,168,220,0.12);
-    --add-bg:#16301F;--add-ink:#7FD39B;--del-bg:#3A1D1C;--del-ink:#F0918A;
-    --amber:#E0B25C;--amber-bg:#33270F;--green:#7FD39B;--green-bg:#16301F;
-    --tk-cm:#9FC2A0;--tk-st:#6FE0D0;--tk-kw:#AFC0FF;--tk-nu:#F0C08A;--tk-fn:#8FC7FF;--tk-ty:#D8AEFF;--tk-at:#E0DB8A;
-  }
-}
-:root[data-theme="dark"]{
-  --ink:#E7E9EC;--ink-2:#A6AEBB;--ink-3:#79828F;--paper:#15171A;--surface:#1D2024;
-  --line:#2E333A;--line-2:#262A30;--accent:#6FA8DC;--accent-deep:#9CC4E8;--wash:rgba(111,168,220,0.12);
-  --add-bg:#16301F;--add-ink:#7FD39B;--del-bg:#3A1D1C;--del-ink:#F0918A;
-  --amber:#E0B25C;--amber-bg:#33270F;--green:#7FD39B;--green-bg:#16301F;
-  --tk-cm:#9FC2A0;--tk-st:#6FE0D0;--tk-kw:#AFC0FF;--tk-nu:#F0C08A;--tk-fn:#8FC7FF;--tk-ty:#D8AEFF;--tk-at:#E0DB8A;
-}
-*{box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.55;-webkit-text-size-adjust:100%}
-section,.chapter,.file{scroll-margin-top:64px}
-a{color:var(--accent-deep);text-decoration:none;border-bottom:1px solid var(--line)}
-a:hover{border-bottom-color:var(--accent)}
-code,pre,.mono{font-family:var(--mono);font-size:0.88em}
-code{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:0 4px}
-button{font:inherit;color:inherit}
-h1,h2,h3,h4{letter-spacing:-.01em}
-p{max-width:78ch}
-.wrap{max-width:1080px;margin:0 auto;padding:0 24px 80px;overflow-wrap:anywhere}
-header.top{padding:36px 0 18px;border-bottom:1px solid var(--line)}
-header.top .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2);margin:0 0 8px}
-header.top h1{font-size:29px;line-height:1.15;font-weight:600;margin:0 0 12px}
-.banner{display:flex;gap:12px;align-items:flex-start;margin:14px 0 0;padding:10px 14px;border:1px solid var(--line);border-left:3px solid var(--accent);background:var(--surface);border-radius:4px;font-size:13.5px}
-.banner b{font-family:var(--mono);font-weight:500;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);white-space:nowrap;padding-top:3px}
-.banner span{max-width:72ch}
+<!-- LIB:STYLE -->
 .controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:14px 0 0;padding:10px 12px;border:1px solid var(--line);border-radius:4px;background:var(--surface)}
 .controls .prog{font-family:var(--mono);font-size:12px;color:var(--ink-2);margin-right:auto}
 .controls .bar{height:4px;background:var(--line-2);border-radius:2px;flex-basis:100%;overflow:hidden}
@@ -182,20 +139,7 @@ footer{padding-top:20px;font-family:var(--mono);font-size:11.5px;color:var(--ink
   var HEAD = wrap.getAttribute("data-head-label") || "";
   var DOC_TITLE = wrap.getAttribute("data-doc-title") || "Walkthrough";
 
-  function $(sel, root) { return (root || document).querySelector(sel); }
-  function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
-
-  function load() {
-    try {
-      var raw = localStorage.getItem(KEY);
-      var s = raw ? JSON.parse(raw) : {};
-      return { read: s.read || {}, notes: s.notes || {}, changedOnly: !!s.changedOnly };
-    } catch (e) { return { read: {}, notes: {}, changedOnly: false }; }
-  }
-  function save() {
-    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* storage blocked: the page still reads */ }
-  }
-  var state = load();
+<!-- LIB:SCRIPT -->
 
   var cards = $$(".file[data-card]");
   var chapters = $$("article.chapter");

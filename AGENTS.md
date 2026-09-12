@@ -39,6 +39,8 @@ Use the global `/skill-creator` for the authoring craft itself (drafting, evals,
   Keep the README thin so it doesn't rot.
 - **Don't edit the installed copies** in `~/.claude/skills` or `~/.agents/skills` — they're
   symlinks back here (unless installed with `--copy`). Edit in this repo; every agent sees it.
+- **Shared page-building machinery lives in [`_lib/`](_lib/)**, reached via a per-skill `lib`
+  symlink — never import across skill folders directly.
 
 ## Commits
 
