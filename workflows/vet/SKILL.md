@@ -29,7 +29,7 @@ Run in order. Finish each gate before the next.
    *Gate:* `council` has returned the adjudicated findings (or has degraded — see below).
 
 3. **Decide which to apply** (the gate)
-   `council` already adjudicated, so vet's job is to *act on* the findings, not re-review them. **Don't apply blindly** — the caller decides: in interactive use, present the findings and ask which to fix; when vet runs inside an autonomous loop, the controller decides and proceeds with no human halt (see Rules).
+   `council` already adjudicated, so vet's job is to *act on* the findings, not re-review them. **Don't apply blindly** — the caller decides: in interactive use, present the findings and ask which to fix — at five or more findings, or when `council` reported cross-model disagreement, deliver them as a `brief` page instead (findings as the decision table, disagreement-first, an evidence column drawn from the review) so the caller marks choices in the notes panel and copies the feedback back; fewer findings than that stay inline. When vet runs inside an autonomous loop, the controller decides and proceeds with no human halt and no page (see Rules).
    *Gate:* the findings to act on are chosen.
 
 4. **Fix loop**
