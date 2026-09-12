@@ -31,10 +31,11 @@ take effort.
 | Need | Source | How |
 |---|---|---|
 | Flow, sequence, state, git, gantt, simple ER | mermaid | write source into the spec |
-| Architecture, layer stack, before/after with emphasis, quadrant, Venn, fishbone, Wardley, timeline with callouts, anything needing editorial layout | `diagram-design` skill (Claude Code) | invoke it with the type; take the `<svg>` from its HTML output; paste into `svg` |
-| Bar, line, scatter, heatmap, small multiples, stat tiles | `dataviz` skill (Claude Code) | follow it for form and palette; author inline SVG; paste into `svg` |
+| Architecture, layer stack, before/after with emphasis, quadrant, Venn, fishbone, Wardley, timeline with callouts, bar, line, scatter, anything needing editorial layout | `diagram-design` skill (Claude Code) | (a) load the skill and pick the visual type from its §3 selection table; (b) load that type's own reference file before drawing; (c) follow its §6 connector rules and §7 4px grid and complexity budget; (d) run `python3 <diagram-design skill dir>/scripts/self_check.py <figure.svg>` on the saved figure and paste nothing into the spec until it prints `OK`; (e) then take the `<svg>` and paste it into `svg` |
+| Heatmap, small multiples, stat tiles | `dataviz` skill (Claude Code) | follow it for form and palette; author inline SVG; paste into `svg` |
 | A mechanism sketch not worth a library | hand-authored inline SVG per `artifact-diagramming` rules | `viewBox`, `currentColor`, marker arrowheads, grid-aligned, 11-13px text |
 
+Hand-drawn boxes-and-lines with no type reference behind them is an anti-pattern, not a shortcut.
 On agents without those skills: mermaid, or hand-authored SVG following `references/authoring.md`.
 `diagram-design`'s style-guide gate applies too: if the project has no `.diagram-design` marker,
 pass the default profile; never prompt the user for brand tokens from inside brief. Full rules
@@ -72,6 +73,9 @@ Open the page and confirm it before handing it over: on Claude Code, publish
 headless browser if one is available; at minimum, Read `brief.html` and confirm every chapter
 title appears once, in order, and every figure is present. Every figure, mermaid or svg, needs
 to be seen rendered; an svg figure that shows nothing or clips is a spec defect, not a page bug.
+The page loads its skin fonts (Geist, Geist Mono, Instrument Serif) from Google Fonts; offline,
+it falls back to the system font stacks already in the page, so a figure drawn to those fonts
+still reads fine without a network.
 
 Done when seen rendered.
 

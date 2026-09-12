@@ -35,10 +35,11 @@ why prose beats a picture here, not that drawing would take effort.
 | Need | Source | How |
 |---|---|---|
 | Flow, sequence, state, git, gantt, simple ER | mermaid | write the source into the spec |
-| Architecture, layer stack, before/after with emphasis, quadrant, Venn, fishbone, Wardley, timeline with callouts, anything needing editorial layout | `diagram-design` skill (Claude Code) | invoke it with the type; take the `<svg>` from its HTML output; paste into `svg` |
-| Bar, line, scatter, heatmap, small multiples, stat tiles | `dataviz` skill (Claude Code) | follow it for form and palette; author inline SVG; paste into `svg` |
+| Architecture, layer stack, before/after with emphasis, quadrant, Venn, fishbone, Wardley, timeline with callouts, bar, line, scatter, anything needing editorial layout | `diagram-design` skill (Claude Code) | (a) load the skill and pick the visual type from its §3 selection table; (b) load that type's own reference file before drawing; (c) follow its §6 connector rules and §7 4px grid and complexity budget; (d) run `python3 <diagram-design skill dir>/scripts/self_check.py <figure.svg>` on the saved figure and paste nothing into the spec until it prints `OK`; (e) then take the `<svg>` and paste it into `svg` |
+| Heatmap, small multiples, stat tiles | `dataviz` skill (Claude Code) | follow it for form and palette; author inline SVG; paste into `svg` |
 | A mechanism sketch not worth a library | hand-authored inline SVG per the rules below | `viewBox`, `currentColor`, marker arrowheads, grid-aligned, 11-13px text |
 
+Hand-drawn boxes-and-lines with no type reference behind them is an anti-pattern, not a shortcut.
 On agents without those skills: use mermaid, or a hand-authored SVG following the rules below.
 `diagram-design`'s style-guide gate applies here too: if the project has no `.diagram-design`
 marker, pass the default profile; brief never prompts the user for brand tokens.
@@ -103,6 +104,7 @@ never in prose: don't write "all 12 tests" in a sentence when the evidence table
 ## Anti-patterns
 
 - A chapter per file or per commit.
+- Hand-drawn boxes-and-lines for a `diagram-design` figure with no type reference behind it.
 - A box-per-noun diagram with no arrows between the boxes.
 - A diagram that restates a table already on the page.
 - `noVisual` used because drawing would take effort, not because prose already carries it better.

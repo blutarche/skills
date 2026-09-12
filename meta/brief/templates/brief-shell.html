@@ -6,6 +6,7 @@
 <!-- TITLE:START --><title>Brief</title><!-- TITLE:END -->
 <!-- STYLE:START -->
 <style>
+@import url("https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap");
 <!-- LIB:STYLE -->
 .strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:4px;overflow:hidden;margin:18px 0 8px}
 .stat{background:var(--surface);padding:12px 14px}
@@ -24,7 +25,8 @@ h3{font-size:17px;font-weight:600;margin:0}
 .figs{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin:0 0 14px}
 .fig{margin:0;border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--surface);color:var(--ink)}
 .fig pre.mermaid{margin:0;padding:14px;font-family:var(--mono);font-size:12.5px;white-space:pre-wrap;word-break:break-word;background:transparent}
-.fig .svg{padding:14px}
+.fig .svg{padding:0}
+.fig .svg svg{display:block;width:100%;height:auto}
 .fig svg{max-width:100%;height:auto;display:block}
 .fig figcaption{padding:8px 14px;border-top:1px solid var(--line);background:var(--paper);font-size:13px;color:var(--ink-2)}
 .prose{max-width:78ch}
