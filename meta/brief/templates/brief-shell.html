@@ -21,9 +21,12 @@ h3{font-size:17px;font-weight:600;margin:0}
 .chapter{margin:0 0 30px;padding-top:6px}
 .chapter-head{display:grid;grid-template-columns:32px 1fr;gap:12px;align-items:center;margin:0 0 12px}
 .chapter-head .num{font-family:var(--mono);font-size:13px;font-weight:600;border:1px solid var(--ink-3);border-radius:4px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:var(--surface)}
-.visual{margin:0 0 14px;border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--surface)}
-.visual pre.mermaid{margin:0;padding:14px;font-family:var(--mono);font-size:12.5px;white-space:pre-wrap;word-break:break-word;background:transparent}
-.visual figcaption{padding:8px 14px;border-top:1px solid var(--line);background:var(--paper);font-size:13px;color:var(--ink-2)}
+.figs{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin:0 0 14px}
+.fig{margin:0;border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--surface);color:var(--ink)}
+.fig pre.mermaid{margin:0;padding:14px;font-family:var(--mono);font-size:12.5px;white-space:pre-wrap;word-break:break-word;background:transparent}
+.fig .svg{padding:14px}
+.fig svg{max-width:100%;height:auto;display:block}
+.fig figcaption{padding:8px 14px;border-top:1px solid var(--line);background:var(--paper);font-size:13px;color:var(--ink-2)}
 .prose{max-width:78ch}
 .prose p{margin:0 0 10px}
 .scroll{overflow-x:auto;border:1px solid var(--line);border-radius:4px;background:var(--surface);margin:10px 0 18px}

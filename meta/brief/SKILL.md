@@ -18,13 +18,27 @@ This skill is read-only with respect to the repository. It writes only under the
 
 ## Steps
 
-### 1. Cut the chapters
+### 1. Cut chapters and choose each figure
 
 Decide the `kind`: what the session was mostly (`plan`, `execution`, `investigation`, `mixed`).
 Cut chapters by concept, 1 to 8 of them: the goal or contract first, then the mechanism, then
-what changed or was decided, then what is open. A chapter earns a diagram when a cold reader
-would otherwise assemble a mechanism from prose (a flow, a set of states, a before/after, who
-talks to whom); otherwise it gets `noVisual` and the reason. Rules: `references/authoring.md`.
+what changed or was decided, then what is open.
+
+For every chapter the default is a figure (1 to 4 of them, mermaid or inline SVG); `noVisual` is
+the exception, and its reason has to name why prose beats a picture here, not that drawing would
+take effort.
+
+| Need | Source | How |
+|---|---|---|
+| Flow, sequence, state, git, gantt, simple ER | mermaid | write source into the spec |
+| Architecture, layer stack, before/after with emphasis, quadrant, Venn, fishbone, Wardley, timeline with callouts, anything needing editorial layout | `diagram-design` skill (Claude Code) | invoke it with the type; take the `<svg>` from its HTML output; paste into `svg` |
+| Bar, line, scatter, heatmap, small multiples, stat tiles | `dataviz` skill (Claude Code) | follow it for form and palette; author inline SVG; paste into `svg` |
+| A mechanism sketch not worth a library | hand-authored inline SVG per `artifact-diagramming` rules | `viewBox`, `currentColor`, marker arrowheads, grid-aligned, 11-13px text |
+
+On agents without those skills: mermaid, or hand-authored SVG following `references/authoring.md`.
+`diagram-design`'s style-guide gate applies too: if the project has no `.diagram-design` marker,
+pass the default profile; never prompt the user for brand tokens from inside brief. Full rules
+(what earns a diagram, mermaid type picker, dataviz condensation): `references/authoring.md`.
 
 Done when: each chapter has a one-line claim as its title.
 
@@ -56,7 +70,8 @@ Done when it prints
 Open the page and confirm it before handing it over: on Claude Code, publish
 `brief.fragment.html` as an Artifact and view its preview; otherwise render a screenshot with a
 headless browser if one is available; at minimum, Read `brief.html` and confirm every chapter
-title appears once, in order, and every mermaid block is present.
+title appears once, in order, and every figure is present. Every figure, mermaid or svg, needs
+to be seen rendered; an svg figure that shows nothing or clips is a spec defect, not a page bug.
 
 Done when seen rendered.
 

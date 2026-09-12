@@ -25,10 +25,16 @@
       "id": "the-drain-loop",
       "title": "A worker drains the outbox with capped backoff",
       "prose": "<p>A worker claims rows with <code>FOR UPDATE SKIP LOCKED</code>, so two workers never race for the same row. A failed attempt pushes the next try out by 2, 4, 8, then 16 minutes, capped at an hour. The fifth failure parks the row with its last error instead of retrying forever. The claim query orders by age, so an old row cannot starve behind a flood of new ones.</p>",
-      "visual": {
-        "mermaid": "sequenceDiagram\n  participant W as Worker\n  participant O as Outbox\n  participant P as Provider\n  W->>O: claim (skip locked)\n  W->>P: deliver\n  P-->>W: failure\n  W->>O: bump attempt, backoff\n  Note over O: fifth failure parks the row",
-        "caption": "One claim, one delivery attempt, one backoff update per tick."
-      },
+      "visual": [
+        {
+          "mermaid": "sequenceDiagram\n  participant W as Worker\n  participant O as Outbox\n  participant P as Provider\n  W->>O: claim (skip locked)\n  W->>P: deliver\n  P-->>W: failure\n  W->>O: bump attempt, backoff\n  Note over O: fifth failure parks the row",
+          "caption": "One claim, one delivery attempt, one backoff update per tick."
+        },
+        {
+          "svg": "<svg viewBox=\"0 0 320 170\" role=\"img\" aria-label=\"Backoff grows across four attempts then the row parks\"><line x1=\"20\" y1=\"140\" x2=\"300\" y2=\"140\" stroke=\"currentColor\" stroke-width=\"1\"/><rect x=\"20\" y=\"130\" width=\"32\" height=\"10\" fill=\"currentColor\"/><text x=\"36\" y=\"152\" font-size=\"11\" text-anchor=\"middle\" fill=\"currentColor\">1</text><text x=\"36\" y=\"120\" font-size=\"11\" text-anchor=\"middle\" fill=\"currentColor\">2m</text><rect x=\"76\" y=\"120\" width=\"32\" height=\"20\" fill=\"currentColor\"/><text x=\"92\" y=\"152\" font-size=\"11\" text-anchor=\"middle\" fill=\"currentColor\">2</text><text x=\"92\" y=\"110\" font-size=\"11\" text-anchor=\"middle\" fill=\"currentColor\">4m</text><rect x=\"132\" y=\"100\" width=\"32\" height=\"40\" fill=\"currentColor\"/><text x=\"148\" y=\"152\" font-size=\"11\" text-anchor=\"middle\" fill=\"currentColor\">3</text><text x=\"148\" y=\"90\" font-size=\"11\" text-anchor=\"middle\" fill=\"currentColor\">8m</text><rect x=\"188\" y=\"60\" width=\"32\" height=\"80\" fill=\"currentColor\"/><text x=\"204\" y=\"152\" font-size=\"11\" text-anchor=\"middle\" fill=\"currentColor\">4</text><text x=\"204\" y=\"50\" font-size=\"11\" text-anchor=\"middle\" fill=\"currentColor\">16m</text><rect x=\"244\" y=\"60\" width=\"32\" height=\"80\" fill=\"none\" stroke=\"#b1401a\" stroke-width=\"2\" stroke-dasharray=\"4 3\"/><text x=\"260\" y=\"152\" font-size=\"11\" text-anchor=\"middle\" fill=\"#b1401a\">5</text><text x=\"260\" y=\"50\" font-size=\"11\" text-anchor=\"middle\" fill=\"#b1401a\">parked</text></svg>",
+          "caption": "Backoff doubles each attempt; the fifth failure parks the row instead of retrying."
+        }
+      ],
       "evidence": [
         { "cmd": "npm test -- test/workers", "cwd": ".", "exit": 0, "ok": true, "summary": "31 passed" },
         { "cmd": "npm run test:integration", "cwd": ".", "exit": null, "summary": "not run: needs a live database" }

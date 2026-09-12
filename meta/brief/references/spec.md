@@ -6,11 +6,13 @@ file, checks every field against the rules below, and renders the page from it.
 Fields marked HTML are sanitized against the tag allowlist in Trust boundary below, then
 embedded as HTML (`<p>`, `<code>`, `<a>`, `<b>`). Everything else is plain text and is escaped.
 `mermaid` is neither: it is diagram source, escaped and placed inside `<pre class="mermaid">`
-as inert text, never interpreted as HTML or executed.
+as inert text, never interpreted as HTML or executed. `svg` is neither, either: it is untrusted
+markup, checked against a strict element and attribute denylist and re-serialized, not sanitized
+by stripping.
 
 ## Trust boundary
 
-`context`, `state`, chapter `prose`, `visual.caption`, decision `why`, evidence `summary`, and
+`context`, `state`, chapter `prose`, figure `caption`, decision `why`, evidence `summary`, and
 `open[]` items are the agent's own words, and every one of these fields is passed through an
 allowlist sanitizer before it reaches the page. Only `<p> <br> <b> <strong> <i> <em> <code> <pre>
 <a> <ul> <ol> <li> <span>` survive; on `<a>`, only `href` survives, and only when it is a `#`
@@ -22,6 +24,13 @@ oddly, not a build error.
 `cmd`, `cwd`, `decision`, `chosen`, `rejected`, and `noVisual` are plain text: escaped, not
 sanitized, since they carry no markup. `visual.mermaid` is diagram source: escaped and placed as
 the text content of a `<pre>`, so a `<script>` inside it renders as inert text, never as markup.
+
+A figure's `svg` is untrusted markup, not prose: it is parsed as XML and checked against a strict
+denylist of elements and attributes (see "What the build checks" below). A figure that fails this
+check is a build failure naming the chapter and figure index, not stripped or sanitized down to
+something safe; the agent fixes the drawing and rebuilds. A figure that passes is re-serialized
+and embedded as literal markup, since only markup that has already been proven safe reaches the
+page this way.
 
 ```json
 {
@@ -36,7 +45,7 @@ the text content of a `<pre>`, so a `<script>` inside it renders as inert text, 
       "prose": "<p>HTML. At most 120 words. Sentences of at most 25 words.</p>",
       "visual": {
         "mermaid": "flowchart LR\n  a[Handler] -->|writes| b[(Outbox)]",
-        "caption": "One sentence: what the picture shows."
+        "caption": "One sentence, at most 25 words: what the picture shows."
       },
       "noVisual": "why a picture would not beat the prose here",
       "decisions": [
@@ -56,6 +65,29 @@ Required: `title`, `kind`, `state`, `chapters`. `context` and `open` are optiona
 `id`, `title`, `prose` are required; exactly one of `visual` or `noVisual` is required (both or
 neither fails the build); `decisions` and `evidence` are optional arrays.
 
+## Figures
+
+`visual` is either one figure object or an array of 1 to 4 of them, rendered in order:
+
+```json
+{ "mermaid": "flowchart LR\n  a --> b", "caption": "One sentence, at most 25 words." }
+{ "svg": "<svg viewBox=\"0 0 640 320\" role=\"img\" aria-label=\"...\">...</svg>", "caption": "One sentence, at most 25 words." }
+```
+
+Exactly one of `mermaid` or `svg` per figure; `caption` is required on every figure. An `svg`
+figure's root must carry `viewBox`; `width`/`height` on the root are stripped, since CSS sizes the
+figure. Disallowed anywhere in the tree: `<script>`, `<style>`, `<foreignObject>`, `<iframe>`,
+`<image>`, `<a>`, a `<use>` whose `href` is not a `#` fragment, any attribute starting with `on`,
+any `href`/`xlink:href` that is not a `#` fragment, and any attribute value containing `url(...)`
+unless it is `url(#...)`. A figure that fails any of these is a build failure naming the chapter
+and the figure's index, never silently stripped down to something safe: the agent fixes the
+drawing. A valid svg figure is capped at 64 KB serialized and is re-serialized with a normalized
+`xmlns="http://www.w3.org/2000/svg"` on the root, so no `ns0:`-style prefix ever reaches the page
+regardless of how the input declared its namespaces.
+
+Mermaid figures are unchanged: `mermaid` must be non-empty and its first diagram line must start
+with a recognized type (below).
+
 ## What the build checks
 
 Every failure prints `build_brief: <the defect>` on stderr, exits 1, and writes nothing, so a
@@ -66,17 +98,27 @@ failed build leaves the previous page in place. Fix the spec, never the page.
 - 1 to 8 chapters. Every chapter id is kebab-case and unique.
 - Each chapter has `id`, `title`, `prose`.
 - Exactly one of `visual` or `noVisual` per chapter. `noVisual` must be a non-empty string.
-  `visual.mermaid` must be non-empty; its first non-blank line, after skipping any leading
+  `visual` must be a figure object or an array of 1 to 4 figures. Each figure needs exactly one
+  of `mermaid` or `svg`, and a non-empty `caption` of at most 25 words.
+  A `mermaid` figure must be non-empty; its first non-blank line, after skipping any leading
   `---`-delimited frontmatter block and any `%%{init...}%%` directive (in either order), must
   start with one of: `flowchart`, `graph`, `sequenceDiagram`, `stateDiagram`, `stateDiagram-v2`,
   `classDiagram`, `erDiagram`, `journey`, `gantt`, `pie`, `quadrantChart`, `timeline`, `mindmap`,
   `sankey-beta`, `xychart-beta`, `block-beta`, `gitGraph`, `C4Context`. Otherwise the build fails,
-  naming the chapter and the line it found.
-- If `mmdc` is on `PATH`, every mermaid block is rendered to a scratch SVG under `$TMPDIR` with
-  `mmdc -i <tmp.mmd> -o <tmp.svg> -q`. A non-zero exit fails the build with mmdc's stderr and the
-  chapter id. `--no-mmdc` skips this check entirely. When `mmdc` is absent, the build prints one
-  line, `build_brief: mmdc not found, mermaid syntax unchecked`, to stderr and continues; this is
-  not a failure.
+  naming the chapter, the figure's index, and the line it found.
+  An `svg` figure must parse as XML with an `<svg>` root carrying `viewBox`; `width`/`height` on
+  the root are stripped. Disallowed anywhere in the tree: `<script>`, `<style>`,
+  `<foreignObject>`, `<iframe>`, `<image>`, `<a>`, a `<use>` with a non-`#` `href`, any attribute
+  starting with `on`, any `href`/`xlink:href` that is not a `#` fragment, and any attribute value
+  containing `url(...)` unless it is `url(#...)`. Failing any of these fails the build, naming the
+  chapter and figure index; nothing is stripped to make it pass. A passing figure is capped at
+  64 KB serialized and is re-serialized with `xmlns="http://www.w3.org/2000/svg"` normalized onto
+  the root, so no `ns0:` prefix leaks regardless of the input's own namespace declarations.
+- If `mmdc` is on `PATH`, every mermaid figure is rendered to a scratch SVG under `$TMPDIR` with
+  `mmdc -i <tmp.mmd> -o <tmp.svg> -q`. A non-zero exit fails the build with mmdc's stderr, the
+  chapter id, and the figure's index. `--no-mmdc` skips this check entirely. When `mmdc` is
+  absent, the build prints one line, `build_brief: mmdc not found, mermaid syntax unchecked`, to
+  stderr and continues; this is not a failure.
 - Word caps, counted on the sanitized text with every tag stripped: chapter `prose` at most 120
   words, `context` at most 120 words, `state` at most 60 words. Over the cap fails, naming the
   field (and the chapter, for `prose`) and the count.
@@ -92,23 +134,37 @@ failed build leaves the previous page in place. Fix the spec, never the page.
 
 ## What the build derives
 
-`chapters`, `visuals` (chapters with a diagram), `noVisuals` (chapters with a stated reason
-instead), `decisions` (total rows across all chapters), `evidenceRan` (evidence rows with a
-non-null `exit`), `evidenceNotRun` (rows with `exit: null`), and `words` (total prose words
-across `context`, `state`, and every chapter's `prose`, counted the same way as the word caps
-above). These render in the stats strip under the banner; counts never appear in prose.
+`chapters`, `visuals` (total figures across all chapters, mermaid and svg combined),
+`mermaidFigures`, `svgFigures`, `noVisuals` (chapters with a stated reason instead of a figure),
+`decisions` (total rows across all chapters), `evidenceRan` (evidence rows with a non-null
+`exit`), `evidenceNotRun` (rows with `exit: null`), and `words` (total prose words across
+`context`, `state`, and every chapter's `prose`, counted the same way as the word caps above).
+These render in the stats strip under the banner; counts never appear in prose. The build's own
+ok line also reports the svg count: `build_brief: ok chapters=N visuals=N noVisuals=N svg=N
+decisions=N evidence=N/M words=N`.
 
 ## Page order
 
 Banner (title, kind label, build timestamp) → stats strip → Context (if present) → State
-(a visually distinct box: this is "where things stand") → chapters in order, each: title, visual
-or nothing (a `noVisual` reason is never rendered on the page; it exists only to satisfy the
-build) → prose → decisions table if any → evidence table if any → Open items (if any) → Notes.
+(a visually distinct box: this is "where things stand") → chapters in order, each: title, its
+figure(s) side by side in reading order or nothing (a `noVisual` reason is never rendered on the
+page; it exists only to satisfy the build) → prose → decisions table if any → evidence table if
+any → Open items (if any) → Notes.
 
-## Mermaid rendering
+## Figure rendering
 
-- The fragment output (`--fragment`) emits `<pre class="mermaid">` blocks only and loads no
-  mermaid script; the Claude Artifact host renders mermaid blocks natively.
+Every figure, mermaid or svg, renders as `<figure class="fig">...<figcaption>` inside a chapter's
+`<div class="figs">`, so multiple figures lay out in a grid in spec order.
+
+- A mermaid figure's markup is unchanged: `<pre class="mermaid">`, escaped diagram source as
+  inert text.
+- An svg figure's validated, re-serialized markup is embedded directly inside
+  `<div class="svg">`, since only markup that already passed the denylist reaches this point.
+  `.fig svg{max-width:100%;height:auto;display:block}` sizes it from the template; `color` on
+  `.fig` is the page's ink token, so a drawing that uses `currentColor` themes with the page.
+- The fragment output (`--fragment`) emits `<pre class="mermaid">` blocks as-is and loads no
+  mermaid script; the Claude Artifact host renders mermaid blocks natively. svg figures need no
+  script either way.
 - The full document (`--out`) additionally loads
   `https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.4.1/mermaid.min.js` (pinned) right after the
   page's own script, then calls `mermaid.initialize({startOnLoad:true, theme: ...})`, picking

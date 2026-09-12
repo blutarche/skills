@@ -31,6 +31,33 @@ reader opens rather than scrolls past.
   prose alone: a flow, a set of states, a before/after, or who talks to whom. Otherwise write
   `noVisual` and say why in one sentence. "Drawing this would take effort" is not a reason.
 
+## Choosing a figure source
+
+For every chapter the default is a figure; `noVisual` is the exception, and its reason must name
+why prose beats a picture here, not that drawing would take effort.
+
+| Need | Source | How |
+|---|---|---|
+| Flow, sequence, state, git, gantt, simple ER | mermaid | write the source into the spec |
+| Architecture, layer stack, before/after with emphasis, quadrant, Venn, fishbone, Wardley, timeline with callouts, anything needing editorial layout | `diagram-design` skill (Claude Code) | invoke it with the type; take the `<svg>` from its HTML output; paste into `svg` |
+| Bar, line, scatter, heatmap, small multiples, stat tiles | `dataviz` skill (Claude Code) | follow it for form and palette; author inline SVG; paste into `svg` |
+| A mechanism sketch not worth a library | hand-authored inline SVG per the rules below | `viewBox`, `currentColor`, marker arrowheads, grid-aligned, 11-13px text |
+
+On agents without those skills: use mermaid, or a hand-authored SVG following the rules below.
+`diagram-design`'s style-guide gate applies here too: if the project has no `.diagram-design`
+marker, pass the default profile; brief never prompts the user for brand tokens.
+
+A chapter can carry 1 to 4 figures, mixing mermaid and svg, when more than one picture earns its
+place; each one still needs its own caption and still has to clear the bar below. More often one
+is enough. Some tells for which kind of figure a chapter wants:
+
+- A decisions table with three or more rows about trade-offs is often clearer as a quadrant or a
+  before/after pair than as more table rows.
+- Evidence with numbers across runs — timings, counts, pass rates over time — is a chart, not a
+  table.
+- A plan with phases is a timeline or a gantt, not a bulleted list of dates.
+- An investigation is a fishbone of ruled-out causes, or a sequence of what was tried in order.
+
 ## Mermaid type picker
 
 | What the chapter shows | Diagram type |
@@ -43,6 +70,25 @@ reader opens rather than scrolls past.
 | Prioritisation among options | `quadrantChart` |
 | The shape of data | `erDiagram` |
 | The shape of a git history | `gitGraph` |
+
+## Inline SVG mechanics
+
+- Size the drawing by `viewBox`, not `width`/`height`; the page strips those and sizes it with
+  CSS. Theme it with `currentColor` so it follows the page's ink; reserve one literal hue for the
+  single focal element a reader's eye should land on first.
+- Arrowheads are markers, not manually rotated triangles. Text sits at 11-13px, short labels only.
+  Align shapes to a grid instead of eyeballing coordinates.
+- One figure, one claim: a figure that tries to show two unrelated things is two figures.
+- The drawing has to be self-contained and pass the denylist in `references/spec.md`: no
+  `<script>`, `<style>`, `<foreignObject>`, `<iframe>`, `<image>`, `<a>`, no event-handler
+  attributes, no external `href`, no external `url(...)`.
+
+## Dataviz condensation
+
+- One series colour unless the series differ in kind, not just in identity.
+- Axis labels carry units; a number without a unit is a guess the reader has to resolve.
+- No 3D. No pie chart for more than three slices; a table or a bar chart says more past that.
+- Direct labels on the data beat a legend when there are only a few series.
 
 ## Decisions and evidence
 

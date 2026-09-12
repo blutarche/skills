@@ -25,6 +25,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import xml.etree.ElementTree as ET
 from datetime import datetime
 from pathlib import Path
 
@@ -56,6 +57,13 @@ MERMAID_TYPES = {
 KEBAB_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 SENTENCE_RE = re.compile(r"(?<=[.!?])(?:\s+|$)")
 _MISSING = object()
+
+SVG_NS = "http://www.w3.org/2000/svg"
+SVG_MAX_BYTES = 64 * 1024
+SVG_BANNED_TAGS = {"script", "style", "foreignObject", "iframe", "image", "a"}
+URL_REF_RE = re.compile(r"url\(([^)]*)\)")
+
+ET.register_namespace("", SVG_NS)
 
 
 # ---------------------------------------------------------------- prose measurement
@@ -89,6 +97,71 @@ def check_sentence_cap(where: str, text: str) -> None:
         if n > 25:
             first_five = " ".join(sentence.split()[:5])
             fail(f"{where}: a sentence is {n} words, over 25: \"{first_five} ...\"")
+
+
+# ---------------------------------------------------------------- svg figures
+
+
+def _local_name(tag: str) -> str:
+    return tag.split("}", 1)[1] if tag.startswith("{") else tag
+
+
+def _strip_namespaces(elem: ET.Element) -> None:
+    """Drop every namespace prefix from a tag and its attributes, recursively, so the
+    re-serialized tree can never grow an `ns0:`-style prefix regardless of how the input
+    declared its namespaces."""
+    elem.tag = _local_name(elem.tag)
+    if elem.attrib:
+        elem.attrib = {_local_name(k): v for k, v in elem.attrib.items()}
+    for child in elem:
+        _strip_namespaces(child)
+
+
+def build_svg_figure(svg_src: str, cid: str, idx: int) -> str:
+    """Validate an untrusted `svg` figure and return the safe, normalized markup to embed.
+    Fails (naming the chapter and figure index) rather than stripping: a rejected drawing is
+    the agent's to fix, never silently altered."""
+    where = f"chapter {cid} visual[{idx}]"
+    try:
+        root = ET.fromstring(svg_src)
+    except ET.ParseError as e:
+        fail(f"{where}: svg does not parse: {e}")
+
+    tag = _local_name(root.tag)
+    ns = root.tag.split("}", 1)[0][1:] if root.tag.startswith("{") else None
+    if tag != "svg" or (ns is not None and ns != SVG_NS):
+        fail(f"{where}: svg root must be an <svg> element")
+    if not root.get("viewBox"):
+        fail(f"{where}: svg must carry a viewBox attribute")
+
+    for el in root.iter():
+        el_tag = _local_name(el.tag)
+        if el_tag in SVG_BANNED_TAGS:
+            fail(f"{where}: svg contains a disallowed <{el_tag}> element")
+        if el_tag == "use":
+            href = el.get("href") or el.get("{http://www.w3.org/1999/xlink}href")
+            if href is not None and not href.startswith("#"):
+                fail(f"{where}: <use> href must be a local reference (#...): {href!r}")
+        for key, value in el.attrib.items():
+            local_key = _local_name(key).lower()
+            if local_key.startswith("on"):
+                fail(f"{where}: svg has an event-handler attribute {local_key!r}")
+            if local_key == "href" and not value.startswith("#"):
+                fail(f"{where}: svg has a non-local href {value!r}")
+            for m in URL_REF_RE.finditer(value):
+                ref = m.group(1).strip().strip("'\"")
+                if not ref.startswith("#"):
+                    fail(f"{where}: svg has an external url() reference: {value!r}")
+
+    _strip_namespaces(root)
+    root.attrib.pop("width", None)
+    root.attrib.pop("height", None)
+    root.attrib = {"xmlns": SVG_NS, **root.attrib}
+
+    serialized = ET.tostring(root, encoding="unicode")
+    if len(serialized.encode("utf-8")) > SVG_MAX_BYTES:
+        fail(f"{where}: svg is over {SVG_MAX_BYTES // 1024} KB; simplify the drawing")
+    return serialized
 
 
 # ---------------------------------------------------------------- mermaid
@@ -127,21 +200,69 @@ def check_mermaid_with_mmdc(spec: dict, tmpdir: Path) -> None:
         print("build_brief: mmdc not found, mermaid syntax unchecked", file=sys.stderr)
         return
     for ch in spec["chapters"]:
-        visual = ch.get("visual")
-        if not visual:
-            continue
-        mmd_path = tmpdir / f"{ch['id']}.mmd"
-        svg_path = tmpdir / f"{ch['id']}.svg"
-        mmd_path.write_text(visual["mermaid"], encoding="utf-8")
-        proc = subprocess.run(
-            [mmdc_path, "-i", str(mmd_path), "-o", str(svg_path), "-q"],
-            capture_output=True, text=True,
-        )
-        if proc.returncode != 0:
-            fail(f"chapter {ch['id']}: mmdc rejected the diagram: {proc.stderr.strip()}")
+        for i, fig in enumerate(ch.get("_figures", [])):
+            mermaid = fig.get("mermaid")
+            if not mermaid:
+                continue
+            mmd_path = tmpdir / f"{ch['id']}-{i}.mmd"
+            svg_path = tmpdir / f"{ch['id']}-{i}.svg"
+            mmd_path.write_text(mermaid, encoding="utf-8")
+            proc = subprocess.run(
+                [mmdc_path, "-i", str(mmd_path), "-o", str(svg_path), "-q"],
+                capture_output=True, text=True,
+            )
+            if proc.returncode != 0:
+                fail(f"chapter {ch['id']} visual[{i}]: mmdc rejected the diagram: {proc.stderr.strip()}")
 
 
 # ---------------------------------------------------------------- validation
+
+
+def normalize_figures(ch: dict, cid: str) -> list:
+    """`visual` is either one figure object or an array of 1 to 4 of them; return it as a
+    list either way. Called only once `has_visual` (truthy `visual`) is already known."""
+    visual = ch["visual"]
+    if isinstance(visual, dict):
+        return [visual]
+    if isinstance(visual, list):
+        if not 1 <= len(visual) <= 4:
+            fail(f"chapter {cid}: visual must have 1 to 4 figures, has {len(visual)}")
+        return visual
+    fail(f"chapter {cid}: visual must be a figure object or an array of 1 to 4 figures")
+
+
+def check_figure(fig, cid: str, idx: int) -> dict:
+    """Validate one figure (exactly one of `mermaid`/`svg`, a capped `caption`) and return it
+    with `_svg` filled in when it is an svg figure, ready for rendering."""
+    where = f"chapter {cid} visual[{idx}]"
+    if not isinstance(fig, dict):
+        fail(f"{where}: figure must be an object")
+
+    has_mermaid = bool(fig.get("mermaid"))
+    has_svg = bool(fig.get("svg"))
+    if has_mermaid and has_svg:
+        fail(f"{where}: has both mermaid and svg; use exactly one")
+    if not has_mermaid and not has_svg:
+        fail(f"{where}: needs exactly one of mermaid or svg")
+
+    if not fig.get("caption") or not str(fig["caption"]).strip():
+        fail(f"{where}: caption is required")
+    check_word_cap(f"{where} caption", plain_text(fig["caption"]), 25)
+
+    if has_mermaid:
+        mermaid = fig["mermaid"]
+        if not mermaid.strip():
+            fail(f"{where}: mermaid must be non-empty")
+        line = first_diagram_line(mermaid)
+        first_token = line.split()[0] if line else ""
+        if first_token not in MERMAID_TYPES:
+            fail(
+                f"{where}: mermaid diagram must start with one of "
+                f"{sorted(MERMAID_TYPES)}; first line is {line!r}"
+            )
+    else:
+        fig["_svg"] = build_svg_figure(fig["svg"], cid, idx)
+    return fig
 
 
 def check_spec(spec: dict) -> None:
@@ -176,17 +297,9 @@ def check_spec(spec: dict) -> None:
         if has_no_visual and not isinstance(ch["noVisual"], str):
             fail(f"chapter {cid}: noVisual must be a non-empty string")
         if has_visual:
-            visual = ch["visual"]
-            mermaid = visual.get("mermaid") if isinstance(visual, dict) else None
-            if not mermaid or not mermaid.strip():
-                fail(f"chapter {cid}: visual.mermaid must be non-empty")
-            line = first_diagram_line(mermaid)
-            first_token = line.split()[0] if line else ""
-            if first_token not in MERMAID_TYPES:
-                fail(
-                    f"chapter {cid}: mermaid diagram must start with one of "
-                    f"{sorted(MERMAID_TYPES)}; first line is {line!r}"
-                )
+            ch["_figures"] = [
+                check_figure(fig, cid, i) for i, fig in enumerate(normalize_figures(ch, cid))
+            ]
 
         check_word_cap(f"chapter {cid} prose", plain_text(ch["prose"]), 120)
         check_sentence_cap(f"chapter {cid} prose", plain_text(ch["prose"]))
@@ -238,7 +351,10 @@ def build_body(spec: dict, page_key: str) -> tuple[str, dict]:
     state = spec["state"]
     open_items = spec.get("open", [])
 
-    visuals = sum(1 for ch in chapters if ch.get("visual"))
+    figures_all = [fig for ch in chapters for fig in ch.get("_figures", [])]
+    visuals = len(figures_all)
+    mermaid_figures = sum(1 for fig in figures_all if fig.get("mermaid"))
+    svg_figures = sum(1 for fig in figures_all if fig.get("svg"))
     no_visuals = sum(1 for ch in chapters if ch.get("noVisual"))
     decisions_count = sum(len(ch.get("decisions", [])) for ch in chapters)
     evidence_all = [e for ch in chapters for e in ch.get("evidence", [])]
@@ -253,6 +369,8 @@ def build_body(spec: dict, page_key: str) -> tuple[str, dict]:
     stats = {
         "chapters": len(chapters),
         "visuals": visuals,
+        "mermaidFigures": mermaid_figures,
+        "svgFigures": svg_figures,
         "noVisuals": no_visuals,
         "decisions": decisions_count,
         "evidenceRan": evidence_ran,
@@ -309,13 +427,18 @@ def build_body(spec: dict, page_key: str) -> tuple[str, dict]:
         o.append(
             f'<header class="chapter-head"><span class="num">{idx}</span><h3>{esc(ch["title"])}</h3></header>'
         )
-        visual = ch.get("visual")
-        if visual:
-            o.append('<figure class="visual">')
-            o.append(f'<pre class="mermaid">{esc(visual["mermaid"])}</pre>')
-            if visual.get("caption"):
-                o.append(f'<figcaption>{sanitize_prose(visual["caption"])}</figcaption>')
-            o.append("</figure>")
+        figures = ch.get("_figures", [])
+        if figures:
+            o.append('<div class="figs">')
+            for fig in figures:
+                o.append('<figure class="fig">')
+                if fig.get("mermaid"):
+                    o.append(f'<pre class="mermaid">{esc(fig["mermaid"])}</pre>')
+                else:
+                    o.append(f'<div class="svg">{fig["_svg"]}</div>')
+                o.append(f'<figcaption>{sanitize_prose(fig["caption"])}</figcaption>')
+                o.append("</figure>")
+            o.append("</div>")
         o.append(f'<div class="prose">{sanitize_prose(ch["prose"])}</div>')
 
         decisions = ch.get("decisions", [])
@@ -441,7 +564,7 @@ def main() -> None:
         Path(args.data_out).write_text(json.dumps(stats, indent=2) + "\n", encoding="utf-8")
     print(
         f"build_brief: ok chapters={stats['chapters']} visuals={stats['visuals']} "
-        f"noVisuals={stats['noVisuals']} decisions={stats['decisions']} "
+        f"noVisuals={stats['noVisuals']} svg={stats['svgFigures']} decisions={stats['decisions']} "
         f"evidence={stats['evidenceRan']}/{stats['evidenceTotal']} words={stats['words']}"
     )
 

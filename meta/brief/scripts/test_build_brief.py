@@ -27,6 +27,13 @@ import build_brief  # noqa: E402  (needs sys.path set up above)
 BUILD = HERE / "build_brief.py"
 
 
+VALID_SVG = (
+    '<svg viewBox="0 0 100 40" role="img" aria-label="A box">'
+    '<rect x="4" y="4" width="92" height="32" fill="currentColor"/>'
+    "</svg>"
+)
+
+
 def make_prose(n_words: str | int, tag: str = "p") -> str:
     """`n_words` "word" tokens, split into 20-word sentences so the sentence cap never trips
     while the word cap is exercised on its own."""
@@ -414,6 +421,141 @@ class BuildBriefTest(unittest.TestCase, Harness):
         page = r.out.read_text(encoding="utf-8")
         self.assertNotIn("<script>alert(1)</script>", page)
         self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", page)
+
+    # ---------------------------------------------------------------- 20: svg figures
+    def test_valid_svg_figure_builds(self) -> None:
+        spec = valid_spec()
+        spec["chapters"][0]["visual"] = {"svg": VALID_SVG, "caption": "A plain box."}
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        page = r.out.read_text(encoding="utf-8")
+        self.assertIn('<figure class="fig">', page)
+        self.assertIn('<div class="svg">', page)
+        self.assertIn('<svg xmlns="http://www.w3.org/2000/svg"', page)
+
+    def test_array_of_figures_builds_and_renders_in_order(self) -> None:
+        spec = valid_spec()
+        spec["chapters"][0]["visual"] = [
+            {"mermaid": "flowchart LR\n  a --> b", "caption": "First figure."},
+            {"svg": VALID_SVG, "caption": "Second figure."},
+        ]
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        page = r.out.read_text(encoding="utf-8")
+        self.assertLess(page.index("First figure."), page.index("Second figure."))
+        stats = json.loads(r.data_out.read_text(encoding="utf-8"))
+        self.assertEqual(stats["visuals"], 3)  # 2 here + 1 in the other chapter
+        self.assertEqual(stats["mermaidFigures"], 2)
+        self.assertEqual(stats["svgFigures"], 1)
+
+    def test_svg_missing_viewbox_fails(self) -> None:
+        spec = valid_spec()
+        spec["chapters"][0]["visual"] = {"svg": "<svg><rect/></svg>", "caption": "No viewBox."}
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn(spec["chapters"][0]["id"], r.stderr)
+        self.assertIn("visual[0]", r.stderr)
+        self.assertIn("viewBox", r.stderr)
+
+    def test_svg_script_tag_fails_naming_chapter_and_index(self) -> None:
+        spec = valid_spec()
+        svg = '<svg viewBox="0 0 10 10"><script>alert(1)</script></svg>'
+        spec["chapters"][0]["visual"] = {"svg": svg, "caption": "Bad svg."}
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn(spec["chapters"][0]["id"], r.stderr)
+        self.assertIn("visual[0]", r.stderr)
+        self.assertIn("script", r.stderr)
+
+    def test_svg_onclick_attr_fails(self) -> None:
+        spec = valid_spec()
+        svg = '<svg viewBox="0 0 10 10"><rect onclick="alert(1)"/></svg>'
+        spec["chapters"][0]["visual"] = {"svg": svg, "caption": "Bad svg."}
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("onclick", r.stderr)
+
+    def test_svg_external_href_fails(self) -> None:
+        spec = valid_spec()
+        svg = '<svg viewBox="0 0 10 10"><use href="http://evil.example/x.svg#a"/></svg>'
+        spec["chapters"][0]["visual"] = {"svg": svg, "caption": "Bad svg."}
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("href", r.stderr)
+
+    def test_svg_local_url_ref_passes_external_url_ref_fails(self) -> None:
+        spec = valid_spec()
+        good = (
+            '<svg viewBox="0 0 10 10"><defs><linearGradient id="g"/></defs>'
+            '<rect fill="url(#g)"/></svg>'
+        )
+        spec["chapters"][0]["visual"] = {"svg": good, "caption": "Local ref."}
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 0, r.stderr)
+
+        bad = '<svg viewBox="0 0 10 10"><rect fill="url(http://evil.example/x.svg#g)"/></svg>'
+        spec["chapters"][0]["visual"] = {"svg": bad, "caption": "External ref."}
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("url(", r.stderr)
+
+    def test_oversized_svg_fails(self) -> None:
+        spec = valid_spec()
+        rects = "".join(f'<rect x="{i}" y="0" width="1" height="1"/>' for i in range(6000))
+        svg = f'<svg viewBox="0 0 100 100">{rects}</svg>'
+        spec["chapters"][0]["visual"] = {"svg": svg, "caption": "Too big."}
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("64 KB", r.stderr)
+
+    def test_svg_output_has_no_ns0_prefix(self) -> None:
+        spec = valid_spec()
+        svg = (
+            '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" '
+            'viewBox="0 0 10 10"><rect/></svg>'
+        )
+        spec["chapters"][0]["visual"] = {"svg": svg, "caption": "Namespaced input."}
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        page = r.out.read_text(encoding="utf-8")
+        self.assertNotIn("ns0", page)
+        self.assertIn('<svg xmlns="http://www.w3.org/2000/svg"', page)
+
+    def test_figure_caption_over_25_words_fails(self) -> None:
+        spec = valid_spec()
+        long_caption = " ".join(["word"] * 26)
+        spec["chapters"][0]["visual"] = {"svg": VALID_SVG, "caption": long_caption}
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("caption", r.stderr)
+        self.assertIn("26 words", r.stderr)
+
+    def test_mixed_mermaid_and_svg_figures_in_one_chapter(self) -> None:
+        spec = valid_spec()
+        spec["chapters"][0]["visual"] = [
+            {"mermaid": "flowchart LR\n  a --> b", "caption": "The flow."},
+            {"svg": VALID_SVG, "caption": "The shape."},
+        ]
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        page = r.out.read_text(encoding="utf-8")
+        self.assertIn('<pre class="mermaid">', page)
+        self.assertIn('<div class="svg">', page)
+
+    def test_stats_counts_split_between_mermaid_and_svg(self) -> None:
+        spec = valid_spec()
+        spec["chapters"][0]["visual"] = [
+            {"mermaid": "flowchart LR\n  a --> b", "caption": "The flow."},
+            {"svg": VALID_SVG, "caption": "The shape."},
+        ]
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("svg=1", r.stdout)
+        stats = json.loads(r.data_out.read_text(encoding="utf-8"))
+        # chapter 0 now has 2 figures (1 mermaid + 1 svg), chapter 1 has its original mermaid one
+        self.assertEqual(stats["visuals"], 3)
+        self.assertEqual(stats["mermaidFigures"], 2)
+        self.assertEqual(stats["svgFigures"], 1)
 
 
 if __name__ == "__main__":
