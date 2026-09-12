@@ -15,6 +15,7 @@ import json
 import stat
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -796,6 +797,63 @@ class BuildBriefTest(unittest.TestCase, Harness):
         self.assertEqual(r.returncode, 1)
         self.assertIn("caption must be a non-empty string", r.stderr)
         self.assertNotIn("Traceback", r.stderr)
+
+    # ---------------------------------------------------------------- 26: case-insensitive url(), DTD/entity refusal
+    def test_poc_e_uppercase_url_scheme_fails(self) -> None:
+        spec = valid_spec()
+        svg = (
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">'
+            '<rect width="10" height="10" fill="black" '
+            'filter="URL(https://evil.example/track.svg#f)"/></svg>'
+        )
+        spec["chapters"][0]["visual"] = {"svg": svg, "caption": "Uppercase URL()."}
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("filter", r.stderr)
+        self.assertIn("url(", r.stderr)
+        self.assertFalse(r.out.exists())
+
+    def test_svg_mixed_case_url_local_ref_passes(self) -> None:
+        spec = valid_spec()
+        svg = (
+            '<svg viewBox="0 0 10 10"><defs><linearGradient id="ok"/></defs>'
+            '<rect fill="Url(#ok)"/></svg>'
+        )
+        spec["chapters"][0]["visual"] = {"svg": svg, "caption": "Mixed-case local ref."}
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_poc_g_entity_declaration_rejected_before_parsing(self) -> None:
+        spec = valid_spec()
+        svg = (
+            '<?xml version="1.0"?><!DOCTYPE svg [<!ENTITY a0 "AAAAAAAAAA">'
+            '<!ENTITY a1 "&a0;&a0;&a0;&a0;&a0;&a0;&a0;&a0;&a0;&a0;">'
+            '<!ENTITY a2 "&a1;&a1;&a1;&a1;&a1;&a1;&a1;&a1;&a1;&a1;">'
+            '<!ENTITY a3 "&a2;&a2;&a2;&a2;&a2;&a2;&a2;&a2;&a2;&a2;">'
+            '<!ENTITY a4 "&a3;&a3;&a3;&a3;&a3;&a3;&a3;&a3;&a3;&a3;">]>'
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">'
+            "<title>&a4;</title></svg>"
+        )
+        spec["chapters"][0]["visual"] = {"svg": svg, "caption": "Entity expand."}
+        start = time.monotonic()
+        r = self.build(spec, self.dir)
+        elapsed = time.monotonic() - start
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("must not declare a DTD or entities", r.stderr)
+        self.assertFalse(r.out.exists())
+        self.assertLess(elapsed, 1.0, "DTD/entity check must reject before any parsing occurs")
+
+    def test_svg_doctype_without_entities_also_rejected(self) -> None:
+        spec = valid_spec()
+        svg = (
+            '<?xml version="1.0"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" '
+            '"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">'
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"/>'
+        )
+        spec["chapters"][0]["visual"] = {"svg": svg, "caption": "DTD, no entities."}
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("must not declare a DTD or entities", r.stderr)
 
 
 if __name__ == "__main__":

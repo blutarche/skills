@@ -62,7 +62,8 @@ SVG_NS = "http://www.w3.org/2000/svg"
 XLINK_NS = "http://www.w3.org/1999/xlink"
 XML_NS = "http://www.w3.org/XML/1998/namespace"
 SVG_MAX_BYTES = 64 * 1024
-URL_REF_RE = re.compile(r"url\(([^)]*)\)")
+URL_REF_RE = re.compile(r"url\(([^)]*)\)", re.IGNORECASE)
+DTD_RE = re.compile(r"<!DOCTYPE|<!ENTITY", re.IGNORECASE)
 
 # Everything not named here is refused: SMIL animation (`set`, `animate`, ...), `feImage`,
 # `image`, `foreignObject`, `iframe`, `a`, `script`, `style`, and any HTML tag.
@@ -176,8 +177,8 @@ def _check_svg_value(value: str, where: str, el_tag: str, key: str) -> None:
     collapsed = re.sub(r"\s+", "", value).lower()
     if SCHEME_RE.search(collapsed):
         fail(f"{where}: <{el_tag}> {key} contains a disallowed scheme: {value!r}")
-    for m in URL_REF_RE.finditer(value):
-        ref = m.group(1).strip().strip("'\"")
+    for m in URL_REF_RE.finditer(collapsed):
+        ref = m.group(1).strip("'\"")
         if not ref.startswith("#"):
             fail(f"{where}: <{el_tag}> {key} has an external url() reference: {value!r}")
 
@@ -203,7 +204,7 @@ def _scope_figure_ids(root: ET.Element, prefix: str) -> None:
                 " ".join(id_map.get(tok, tok) for tok in labelledby.split()),
             )
         for key, value in list(el.attrib.items()):
-            if "url(" not in value:
+            if "url(" not in value.lower():
                 continue
 
             def _rewrite(m: re.Match) -> str:
@@ -222,6 +223,8 @@ def build_svg_figure(svg_src: str, cid: str, idx: int) -> str:
     where = f"chapter {cid} visual[{idx}]"
     if len(svg_src.encode("utf-8")) > SVG_MAX_BYTES:
         fail(f"{where}: svg is over {SVG_MAX_BYTES // 1024} KB; simplify the drawing")
+    if DTD_RE.search(svg_src):
+        fail(f"{where}: svg must not declare a DTD or entities")
     try:
         root = ET.fromstring(svg_src)
     except ET.ParseError as e:
