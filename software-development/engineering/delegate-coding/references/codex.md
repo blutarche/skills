@@ -55,4 +55,4 @@ Cap at the default 3 retries, then escalate (you finish) per the method.
 ## Notes
 
 - **`is_error` / exit code is the real success signal**, not the agent's prose — verify Tier-1 yourself on the worktree.
-- Codex's `gpt-5.x-codex` family is the cheap executor tier; omit `-m` to use the account default.
+- Codex's GPT-family model is the cheap executor tier; omit `-m` to use the account default.

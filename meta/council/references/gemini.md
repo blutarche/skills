@@ -15,8 +15,9 @@ Non-interactive prompting is roughly:
 gemini -p "<artifact + attack brief>"
 ```
 
-For a large artifact, pass it on stdin or via a file the agent reads. Pin `--model` to a
-Gemini model and run read-only. Read stdout as the verdict.
+For a large artifact, pass it on stdin or via a file the agent reads. Uses the account/CLI
+default model — already off-family — unless `COUNCIL_MODEL` is set, in which case pass it
+with `--model "$COUNCIL_MODEL"`. Run read-only. Read stdout as the verdict.
 
 ## Install / auth / verify
 

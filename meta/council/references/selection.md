@@ -1,8 +1,9 @@
 # Cross-model CLI — selection
 
 Council needs **one non-interactive, one-shot CLI from a model family different than
-Claude**, run from the top-level session. This file decides *which* CLI; the per-tool
-invocation lives in a file of its own:
+Claude**, run from the top-level session. This skill never names a model version; ids
+come from the CLI's own listing or the account default at run time. This file decides
+*which* CLI; the per-tool invocation lives in a file of its own:
 
 - [`codex.md`](codex.md) — OpenAI Codex (GPT family)
 - [`cursor-agent.md`](cursor-agent.md) — Cursor agent (pin a non-Claude model)
@@ -89,9 +90,10 @@ run_council() {                       # $1=cli, $2=artifact file → prints verd
 ## Keep it cross-family
 
 The whole point is a model that does not share Claude's blind spots. `codex` (GPT) and
-`gemini` (Gemini) are off-family by default; **`cursor-agent` must be pinned to a
-non-Claude `--model` (e.g. `gpt-5.5-high`)** — it can run Claude models too, and letting
-it default to one silently defeats the mechanism.
+`gemini` (Gemini) are off-family by default; **`cursor-agent`'s model is resolved at
+runtime by `council_cursor_model` ([`cursor-agent.md`](cursor-agent.md)) or
+`COUNCIL_MODEL`** — it can run Claude models too, and letting it default to one silently
+defeats the mechanism.
 
 ## Raw prompt, not a canned `review` subcommand
 

@@ -1,10 +1,33 @@
 # cursor-agent — Cursor agent
 
-**Pin a non-Claude `--model`** — cursor-agent will happily run Claude models
-(`claude-opus-4-8-*` appear in `--list-models`), and a council on a Claude model is not
-cross-family and defeats the mechanism. Pick a current GPT/Gemini/Grok id from
-`--list-models` (e.g. `gpt-5.5-high`; `gpt-5` is **not** a valid id — model names rot, so
-check the list). Selected per [`selection.md`](selection.md).
+**Resolve a non-Claude `--model` at runtime** — cursor-agent can run Claude models too, and a
+council on a Claude model is not cross-family and defeats the mechanism. `COUNCIL_MODEL`, if
+set, is used verbatim; otherwise `council_cursor_model` below resolves one from
+`cursor-agent --list-models` at convene time, so nothing here rots when model names change.
+Selected per [`selection.md`](selection.md).
+
+## Resolving `--model`
+
+POSIX-sh, no arrays — just grep/awk/head — safe under both bash and zsh:
+
+```sh
+council_cursor_model() {
+  if [ -n "${COUNCIL_MODEL:-}" ]; then printf '%s\n' "$COUNCIL_MODEL"; return 0; fi
+  # NOTE: `--list-models` output format was not verified on this box (unauthed) — if
+  # resolution ever picks something odd, run `cursor-agent --list-models` yourself and eyeball it.
+  candidates="$(cursor-agent --list-models 2>/dev/null \
+    | grep -E '^[A-Za-z0-9]' \
+    | awk '{print $1}' \
+    | grep -E '^[A-Za-z0-9][A-Za-z0-9._/-]*$' \
+    | grep -viE 'claude|sonnet|opus|haiku')"
+  [ -n "$candidates" ] || return 1   # no non-Claude id found → caller treats this as a model-selection failure
+  for pat in gpt gemini grok; do
+    m=$(printf '%s\n' "$candidates" | grep -i "$pat" | head -n1)
+    [ -n "$m" ] && { printf '%s\n' "$m"; return 0; }
+  done
+  printf '%s\n' "$candidates" | head -n1   # any other non-Claude id
+}
+```
 
 Headless requirements: `-p` = non-interactive print mode; `--mode ask` =
 read-only Q&A (council never edits); **`--trust`** is required in `-p` mode or it refuses
@@ -16,7 +39,8 @@ Read stdout as the verdict.
 Small artifact:
 
 ```sh
-cursor-agent -p --output-format text --mode ask --trust --model gpt-5.5-high \
+model="$(council_cursor_model)" || exit 1   # no non-Claude id → model-selection failure, loop tries the next CLI
+cursor-agent -p --output-format text --mode ask --trust --model "$model" \
   "<artifact + attack brief>" < /dev/null
 ```
 
@@ -28,7 +52,8 @@ read-only `ask` mode):
 # mktemp (not a fixed $TMPDIR/council.txt): a predictable name races concurrent runs; trap cleans up.
 art="$(mktemp -t council.XXXXXX)"; trap 'rm -f "$art"' EXIT
 { printf '%s\n\n' "<attack brief>"; git diff <range>; } > "$art"
-cursor-agent -p --output-format text --mode ask --trust --model gpt-5.5-high \
+model="$(council_cursor_model)" || exit 1   # no non-Claude id → model-selection failure, loop tries the next CLI
+cursor-agent -p --output-format text --mode ask --trust --model "$model" \
   "Read $art and review the artifact in it, per the brief at the top." < /dev/null
 ```
 
@@ -37,7 +62,7 @@ the file, not stdin. `ask` mode reads an absolute `mktemp` path fine.)
 
 ## Flags
 
-- `--model <model>` — pin a **non-Claude** model; list valid ids with `--list-models`.
+- `--model <model>` — resolved at runtime, see above; never pin a literal id in this skill.
 - `--trust` — trust the workspace without prompting; **required** in headless `-p` mode.
 - `--mode ask` — read-only Q&A; keeps the sandbox read-only regardless of config.
 - `--sandbox enabled|disabled` — explicit sandbox override; `ask` mode is read-only either way.

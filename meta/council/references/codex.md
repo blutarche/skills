@@ -3,6 +3,9 @@
 Off-family by default. Codex's own sandbox defaults to `read-only`, which is enough to
 read and review; it persists config to `~/.codex`. Selected per [`selection.md`](selection.md).
 
+Uses the account/CLI default model — already off-family — unless `COUNCIL_MODEL` is set,
+in which case pass it with `-m "$COUNCIL_MODEL"`.
+
 ## Invocation
 
 Small artifact (a decision, a short diff) — inline it; redirect `< /dev/null` or
@@ -34,7 +37,7 @@ without it `codex exec` hangs on stdin EOF *before* any watchdog could fire.
 
 ## Flags
 
-- `-m <model>` — pin the model/family.
+- `-m <model>` — pass only when `COUNCIL_MODEL` is set; otherwise the account/CLI default is used.
 - `-c model_reasoning_effort="high"` — tier effort by stakes (`high` for a decision or a
   `vet` pass; lower for a frequent in-loop judge).
 - `-s <mode>` — codex's own sandbox; leave at the `read-only` default (review never edits).
