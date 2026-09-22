@@ -326,6 +326,23 @@ class BuildTourTest(unittest.TestCase):
         self.assertEqual(r.returncode, 1)
         self.assertIn("unsafe SVG", r.stderr)
 
+    def test_pr_lens_allows_url_in_inert_svg_label(self) -> None:
+        spec = valid_spec(self.base, self.head)
+        self.add_pr_lens(spec)
+        manifest_path = self.dir / spec["prLens"]["manifest"]
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        asset = manifest["assets"][0]
+        labelled = (
+            b'<svg xmlns="http://www.w3.org/2000/svg" '
+            b'aria-label="Requests to https://api.example.com"></svg>'
+        )
+        (manifest_path.parent / asset["path"]).write_bytes(labelled)
+        asset["bytes"] = len(labelled)
+        asset["contentHash"] = hashlib.sha256(labelled).hexdigest()[:32]
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        r = self.build(spec)
+        self.assertEqual(r.returncode, 0, r.stderr)
+
     def test_pr_lens_rejects_missing_graph_view(self) -> None:
         spec = valid_spec(self.base, self.head)
         self.add_pr_lens(

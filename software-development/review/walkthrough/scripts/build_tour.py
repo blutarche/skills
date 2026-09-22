@@ -683,7 +683,9 @@ def validate_svg(raw: bytes, label: str) -> None:
                 fail(f"unsafe SVG {label}: event attributes are not allowed")
             if attr in {"href", "src"} and not candidate.startswith("#"):
                 fail(f"unsafe SVG {label}: external references are not allowed")
-            if any(token in candidate for token in ("javascript:", "https:", "http:", "data:", "@import")):
+            if attr == "style" and any(
+                token in candidate for token in ("javascript:", "https:", "http:", "data:", "@import")
+            ):
                 fail(f"unsafe SVG {label}: external or executable content is not allowed")
             for match in re.finditer(r"url\(([^)]*)\)", candidate):
                 target = match.group(1).strip(" \t\r\n\"'")
