@@ -27,6 +27,11 @@ executing.
   "repo": "Owner/repo",
   "base": "<full sha of the merge-base>",
   "head": "<sha> or worktree",
+  "prLens": {
+    "graph": "pr-lens/.pr-lens/drawn.graph.json",
+    "manifest": "pr-lens/.pr-lens/manifest.json",
+    "worktreeHash": "required only when head is worktree"
+  },
   "overview": "<p>HTML. What changed and why, 100 to 250 words.</p>",
   "focus": ["<HTML list item: what to check, linking a chapter with <a href=\"#ch-id\">"],
   "intuition": "<p>HTML. The mental model to hold before the tour.</p>",
@@ -59,8 +64,39 @@ executing.
 }
 ```
 
-Required: `title`, `base`, `head`, `overview`, `chapters`. Everything else is optional.
+Required: `title`, `base`, `head`, `prLens`, `overview`, `chapters`. Everything else is optional.
 `repo` only enables GitHub blob links; leave it out and the page carries no external link.
+
+## PR Lens views
+
+`prLens.graph` and `prLens.manifest` are POSIX paths relative to `review-tour.json`. Absolute
+paths, URLs, `..`, backslashes, missing files, and symlink escapes fail the build. The graph must
+be the `drawn.graph.json` written beside the manifest, with provenance matching this tour's base
+and head. For a working-tree tour, its head is the current `HEAD` commit.
+
+For `"head": "worktree"`, `prLens.worktreeHash` binds the rendered graph to the exact tracked and
+untracked contents. Generate it immediately after PR Lens renders:
+
+```bash
+python3 <skill-dir>/scripts/build_tour.py \
+  --repo-root . --print-worktree-hash <base>
+```
+
+Any later working-tree edit makes the build fail until PR Lens is rendered again and the hash is
+recomputed. Omit `worktreeHash` for a committed head.
+
+The build compares the graph's complete flattened view tree with the manifest. Every logical view
+must appear exactly once per rendered theme, and all views must carry the same theme set. Asset
+ids and paths are unique; byte counts and SHA-256 content hashes must match. The total embedded
+SVG payload is capped at 16 MiB.
+
+The manifest's graph content hash must match the canonical `drawn.graph.json`, preventing a stale
+render from being paired with a newer graph that happens to retain the same view ids.
+
+SVGs are parsed before embedding. Scripts, event handlers, DTDs, entities, executable content,
+external resources, and resource-bearing elements fail the build. Internal fragment references
+such as `url(#dots)` survive. Accepted SVG bytes are base64-encoded into `<picture>` elements, so
+the output remains one self-contained HTML file with light/dark theme selection.
 
 ## Revisions
 
@@ -86,6 +122,8 @@ Required: `title`, `base`, `head`, `overview`, `chapters`. Everything else is op
 - Every `verify.ran` row needs `cwd`, a repo-root-relative path (`"."` for the repo root). A row
   missing it fails, naming its index.
 - `verify.ran[].ok`, when present, must be `true` or `false`.
+- Every logical PR Lens view has exactly one asset for each rendered theme. The graph and
+  manifest revisions, asset hashes, byte counts, paths, and SVG trust boundary all validate.
 
 Prose fields are sanitized, never rejected; see Trust boundary above. A failure prints `build_tour: <the defect>` on stderr, exits 1, and writes nothing, so a failed
 build leaves the previous page in place. Fix the spec, never the page.
@@ -128,3 +166,5 @@ build leaves the previous page in place. Fix the spec, never the page.
   then `<script>`. That is what the Claude Code Artifact tool wants, since it supplies the
   document itself.
 - Both are self-contained. No fonts, scripts, or images are fetched.
+- Every PR Lens logical view is embedded before the prose tour, in graph order. Light and dark
+  assets become one `<picture>` when both exist.

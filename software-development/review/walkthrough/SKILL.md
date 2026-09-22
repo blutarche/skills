@@ -1,14 +1,18 @@
 ---
 name: walkthrough
-description: Build a browser walkthrough of a finished implementation (branch or working-tree diff) as one self-contained HTML page: chapters by concept, only the hunks the prose claims, every line validated against git, plus a verify section and notes that export as feedback. Use when the user asks to walk through, explain, or tour a diff or implementation result before reviewing it.
+description: "Build a browser walkthrough of a finished implementation (branch or working-tree diff) as one self-contained HTML page: every PR Lens view, chapters by concept, git-validated lines, verification, and feedback notes. Use when the user asks to walk through, explain, share, or tour a diff or implementation result before reviewing it."
 ---
 
 # Walkthrough
 
-One page a reader opens instead of the raw diff. It is a **pure explainer**: chapters cut by
-concept in reading order, each showing only the hunks its prose makes a claim about, every line
-number checked against the real diff by the build. No verdicts, no findings, no severities. If a
-review is wanted, that is a different skill.
+One page a reader shares instead of the raw diff. It is a **pure explainer**: every PR Lens
+architecture and data-flow view first, then chapters cut by concept in reading order. Each
+chapter shows only the hunks its prose claims, with every line number checked against the real
+diff by the build. No verdicts, findings, or severities. If a review is wanted, use another skill.
+
+**REQUIRED SUB-SKILL:** Use `pr-lens` to render the architecture and data-flow views embedded in
+the shared page. Its graph orients the explanation; the diff and `build_tour.py` remain
+authoritative for every claim, file, hunk, and line number.
 
 All prose lives in `review-tour.json`. The agent never edits HTML: `scripts/build_tour.py`
 validates the spec against `git diff` and renders the page. A rejected spec is a fact about the
@@ -33,13 +37,29 @@ not supported; if the user asks for one, say so and walk the whole diff.
 Done when: `BASE` and the head value are written down, and `git diff --name-status $BASE..HEAD`
 (or `git diff --name-status $BASE` for a working tree) is in front of you.
 
-### 2. Read the change
+### 2. Map and read the change
 
-`git diff --stat`, then read the hunks of every changed file. Find the heart of the change and
-the contract it exposes. You cannot cut chapters from a file list; you need to know what the
-change does.
+Set `REPO_ROOT=$(git rev-parse --show-toplevel)` and create `$DIR/pr-lens/.pr-lens`, where `DIR`
+is `${TMPDIR:-/tmp}/walkthrough/<repo-name>-<branch-slug>`. Follow `pr-lens` for the exact
+`BASE` and head fixed in step 1, but write its graph to `$DIR/pr-lens/.pr-lens/graph.json` and
+run its validate and render commands from `$DIR/pr-lens`. Keep every PR Lens artifact there so
+this skill remains read-only with respect to the repository. Skip canvas publishing and pull
+request attachment: the walkthrough embeds the rendered views into its own deliverable.
 
-Done when: you can say in one sentence what changed and why, without naming a folder.
+When the head is `worktree`, fingerprint it immediately after rendering:
+
+```bash
+WORKTREE_HASH=$(python3 <skill-dir>/scripts/build_tour.py \
+  --repo-root "$REPO_ROOT" --print-worktree-hash "$BASE")
+```
+
+Read the validated graph and render manifest for the intended contract, system boundaries,
+unchanged neighbours, blast radius, and ordered flows. Then run `git diff --stat` and read the
+hunks of every changed file. Reconcile the graph against the diff; never repeat an inference the
+code does not support. You cannot cut chapters from a file list or accept the graph on faith.
+
+Done when: PR Lens validation and rendering succeed, every graph view has a manifest asset, and
+you can say in one sentence what changed and why without naming a folder.
 
 ### 3. Write the spec
 
@@ -47,8 +67,13 @@ Write `review-tour.json` in `${TMPDIR:-/tmp}/walkthrough/<repo-name>-<branch-slu
 `references/spec.md`. Rules: `references/authoring.md`. Shape to copy:
 `examples/review-tour.example.json`.
 
+Set `prLens.graph` to `pr-lens/.pr-lens/drawn.graph.json` and `prLens.manifest` to
+`pr-lens/.pr-lens/manifest.json`. Both paths are relative to `review-tour.json`. When the head is
+`worktree`, also set `prLens.worktreeHash` to `$WORKTREE_HASH`.
+
 - Chapters cut by concept in reading order: contract, then the heart, then consequences, then
-  glue. One to six of them.
+  glue. One to six of them. Use the PR Lens contract, boundaries, blast radius, and flows to
+  choose those concepts, after reconciling each against the diff.
 - The hunk rule: a hunk appears only when the prose claims something about it. Every other file
   in the chapter is a card.
 - Every changed file lands in a chapter or in `everythingElse`.
@@ -70,16 +95,18 @@ python3 <skill-dir>/scripts/build_tour.py \
 ```
 
 A failure names the defect: a range with no changed line, a file placed nowhere, a line shown
-twice. Fix the spec, never the page, and build again.
+twice, a missing PR Lens view, stale asset bytes, or unsafe SVG content. Fix the source artifact
+or spec, never the page, and build again.
 
 Once the build prints `ok`, open the page and look before delivering it: on Claude Code, publish
 `tour.fragment.html` as an Artifact and view its preview; otherwise render a screenshot with a
-headless browser if one is available; at minimum, Read `tour.html` and confirm the focus list,
-every chapter title, and the verify table each appear once, in order.
+headless browser if one is available; at minimum, Read `tour.html` and confirm every PR Lens view,
+the focus list, every chapter title, and the verify table each appear once, in order.
 
-Done when: the build prints `build_tour: ok files=... placed=... else=... hunks=... chapters=...`
-and those numbers match what you expected, AND the page was opened and the focus list, chapter
-titles, and verify table were seen rendered.
+Done when: the build prints
+`build_tour: ok files=... placed=... else=... hunks=... chapters=... pr-lens=...` and those
+numbers match what you expected, AND the page was opened and every PR Lens view, the focus list,
+chapter titles, and verify table were seen rendered.
 
 ### 5. Deliver
 

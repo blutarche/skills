@@ -3,6 +3,10 @@
   "repo": "acme/billing",
   "base": "9c1f4a2b7d3e6f80a5c4b9e2d1f70a3c6b8e5d24",
   "head": "4e7b0d19a6c25f83b1d0e7a94c62f35b8d017cae",
+  "prLens": {
+    "graph": "pr-lens/.pr-lens/drawn.graph.json",
+    "manifest": "pr-lens/.pr-lens/manifest.json"
+  },
   "overview": "<p>A webhook that failed on a transient database error used to be acknowledged and lost. The handler now writes the event to an outbox row before it acknowledges, and a worker drains the outbox with capped exponential backoff. The provider sees a fast <code>200</code> either way, so its own retry budget is untouched. The trade-off is a second write on the hot path, about 2 ms per event. Deliberately left out: no dead-letter UI, and no replay endpoint. After five failed attempts the row is parked with its last error and an operator has to look at it.</p>",
   "focus": [
     "<b><a href=\"#ch-outbox\">The outbox write</a></b> decides whether an event can ever be lost. Check that nothing acknowledges before the row is committed.",

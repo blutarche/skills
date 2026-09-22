@@ -9,6 +9,7 @@ Usage:
     build_tour.py --spec review-tour.json --repo-root . --out tour.html
                   [--fragment tour.fragment.html] [--data-out stats.json]
                   [--template path/to/tour-shell.html]
+    build_tour.py --repo-root . --print-worktree-hash <base>
 
 Exit status 1 with a message naming the defect on any validation failure; no output file is
 touched when a build fails. Stdlib only, Python 3.10 or newer.
@@ -17,16 +18,20 @@ touched when a build fails. Stdlib only, Python 3.10 or newer.
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import json
 import keyword
+import math
 import re
 import subprocess
 import sys
 from dataclasses import dataclass, field
+from decimal import Decimal
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote
+from xml.etree import ElementTree
 
 WORKTREE = "worktree"
 SKILL_DIR = Path(__file__).resolve().parent.parent
@@ -45,6 +50,11 @@ sanitize_prose = pagelib.sanitize_prose
 RISK_LABEL = {"attention": "read closely", "medium": "read once", "safe": "skim"}
 SIDES = ("new", "old")
 STATUS_LABEL = {"A": "added", "M": "modified", "D": "deleted", "R": "renamed", "C": "copied", "T": "type change"}
+PR_LENS_SCHEMA = "0.2.0"
+PR_LENS_MAX_ASSETS = 256
+PR_LENS_MAX_BYTES = 16 * 1024 * 1024
+PR_LENS_LENSES = {"architecture", "data-flow"}
+PR_LENS_THEMES = {"light", "dark"}
 
 
 # ---------------------------------------------------------------- git
@@ -84,6 +94,16 @@ class FileDiff:
     removed_blocks: dict[tuple[int, str], list[str]] = field(default_factory=dict)
     new_lines: list[str] = field(default_factory=list)
     old_lines: list[str] = field(default_factory=list)
+
+
+@dataclass
+class PrLensView:
+    lens: str
+    view: str | None
+    title: str
+    width: int
+    height: int
+    themes: dict[str, str]
 
 
 HUNK_RE = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
@@ -562,6 +582,265 @@ def render_range(fd: FileDiff, side: str, start: int, end: int) -> tuple[str, st
     return "".join(rows), "\n".join(plain)
 
 
+# ---------------------------------------------------------------- PR Lens
+
+
+def json_no_duplicates(text: str, label: str, numbers_as_float: bool = False) -> dict:
+    def object_pairs(pairs):
+        out = {}
+        for key, value in pairs:
+            if key in out:
+                raise ValueError(f"duplicate key {key!r}")
+            out[key] = value
+        return out
+
+    try:
+        number_options = {"parse_int": float, "parse_float": float} if numbers_as_float else {}
+        value = json.loads(text, object_pairs_hook=object_pairs, **number_options)
+    except (json.JSONDecodeError, ValueError) as e:
+        fail(f"cannot read {label}: {e}")
+    if not isinstance(value, dict):
+        fail(f"{label} must contain a JSON object")
+    return value
+
+
+def canonical_json(value: object) -> str:
+    if value is None:
+        return "null"
+    if value is True:
+        return "true"
+    if value is False:
+        return "false"
+    if isinstance(value, str):
+        return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            fail("PR Lens graph contains a non-finite number")
+        if value == 0:
+            return "0"
+        raw = repr(value).lower()
+        magnitude = abs(value)
+        if 1e-6 <= magnitude < 1e21:
+            fixed = format(Decimal(raw), "f")
+            return fixed.rstrip("0").rstrip(".") if "." in fixed else fixed
+        mantissa, exponent = raw.split("e")
+        mantissa = mantissa.rstrip("0").rstrip(".")
+        power = int(exponent)
+        return f"{mantissa}e{'+' if power >= 0 else ''}{power}"
+    if isinstance(value, list):
+        return "[" + ",".join(canonical_json(item) for item in value) + "]"
+    if isinstance(value, dict):
+        return "{" + ",".join(
+            f"{canonical_json(key)}:{canonical_json(value[key])}" for key in sorted(value)
+        ) + "}"
+    fail(f"PR Lens graph contains unsupported JSON value {type(value).__name__}")
+
+
+def local_path(base: Path, value: object, label: str) -> Path:
+    if not isinstance(value, str) or not value:
+        fail(f"{label} must be a non-empty relative path")
+    if "\\" in value or "://" in value or value.startswith(("/", "~")):
+        fail(f"{label} must be a POSIX relative path")
+    parts = Path(value).parts
+    if any(part in ("", ".", "..") for part in parts):
+        fail(f"{label} must not contain . or .. segments")
+    try:
+        resolved = (base / value).resolve(strict=True)
+        resolved.relative_to(base.resolve())
+    except (OSError, ValueError):
+        fail(f"{label} escapes its containing directory or does not exist: {value}")
+    return resolved
+
+
+def validate_svg(raw: bytes, label: str) -> None:
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        fail(f"unsafe SVG {label}: not UTF-8")
+    lowered = text.lower()
+    if "<!doctype" in lowered or "<!entity" in lowered:
+        fail(f"unsafe SVG {label}: DTDs and entities are not allowed")
+    try:
+        root = ElementTree.fromstring(text)
+    except ElementTree.ParseError as e:
+        fail(f"unsafe SVG {label}: malformed XML: {e}")
+
+    def local(name: str) -> str:
+        return name.rsplit("}", 1)[-1].lower()
+
+    if local(root.tag) != "svg":
+        fail(f"unsafe SVG {label}: root element is not svg")
+    blocked = {"script", "style", "foreignobject", "iframe", "object", "embed", "image", "audio", "video", "link"}
+    for element in root.iter():
+        if local(element.tag) in blocked:
+            fail(f"unsafe SVG {label}: <{local(element.tag)}> is not allowed")
+        for name, value in element.attrib.items():
+            attr = local(name)
+            candidate = value.strip().lower()
+            if attr.startswith("on"):
+                fail(f"unsafe SVG {label}: event attributes are not allowed")
+            if attr in {"href", "src"} and not candidate.startswith("#"):
+                fail(f"unsafe SVG {label}: external references are not allowed")
+            if any(token in candidate for token in ("javascript:", "https:", "http:", "data:", "@import")):
+                fail(f"unsafe SVG {label}: external or executable content is not allowed")
+            for match in re.finditer(r"url\(([^)]*)\)", candidate):
+                target = match.group(1).strip(" \t\r\n\"'")
+                if not target.startswith("#"):
+                    fail(f"unsafe SVG {label}: external url() references are not allowed")
+
+
+def flatten_graph_views(views: object, lenses: set[str]) -> list[tuple[str, str | None, str]]:
+    if not isinstance(views, list):
+        fail("PR Lens graph views must be an array")
+    out: list[tuple[str, str | None, str]] = []
+
+    def visit(items: list) -> None:
+        for view in items:
+            if not isinstance(view, dict):
+                fail("PR Lens graph view must be an object")
+            lens, view_id, title = view.get("lens"), view.get("id"), view.get("title")
+            if lens not in lenses or not isinstance(view_id, str) or not isinstance(title, str):
+                fail("PR Lens graph view needs a declared lens, id, and title")
+            out.append((lens, view_id, title))
+            children = view.get("children", [])
+            if not isinstance(children, list):
+                fail(f"PR Lens graph view {view_id}: children must be an array")
+            visit(children)
+
+    visit(views)
+    return out
+
+
+def load_pr_lens(spec: dict, spec_dir: Path, root: Path) -> list[PrLensView]:
+    config = spec.get("prLens")
+    if not isinstance(config, dict):
+        fail("spec is missing required prLens graph and manifest paths")
+    graph_path = local_path(spec_dir, config.get("graph"), "prLens.graph")
+    manifest_path = local_path(spec_dir, config.get("manifest"), "prLens.manifest")
+    graph = json_no_duplicates(
+        graph_path.read_text(encoding="utf-8"), "PR Lens graph", numbers_as_float=True
+    )
+    manifest = json_no_duplicates(manifest_path.read_text(encoding="utf-8"), "PR Lens manifest")
+
+    if graph.get("schemaVersion") != PR_LENS_SCHEMA or graph.get("kind") != "graph":
+        fail(f"PR Lens graph must be a {PR_LENS_SCHEMA} graph document")
+    if manifest.get("schemaVersion") != PR_LENS_SCHEMA or manifest.get("kind") != "render-manifest":
+        fail(f"PR Lens manifest must be a {PR_LENS_SCHEMA} render-manifest")
+    lenses_raw = graph.get("lenses")
+    if not isinstance(lenses_raw, list) or not lenses_raw or any(lens not in PR_LENS_LENSES for lens in lenses_raw):
+        fail("PR Lens graph lenses must contain architecture or data-flow")
+    lenses = set(lenses_raw)
+
+    provenance = graph.get("provenance")
+    if not isinstance(provenance, dict):
+        fail("PR Lens graph is missing provenance")
+    base_sha = (provenance.get("base") or {}).get("sha") if isinstance(provenance.get("base"), dict) else None
+    head_sha = (provenance.get("head") or {}).get("sha") if isinstance(provenance.get("head"), dict) else None
+    expected_head = git(root, "rev-parse", "HEAD").strip() if spec["head"] == WORKTREE else spec["head"]
+    if base_sha != spec["base"] or head_sha != expected_head:
+        fail("PR Lens graph provenance does not match the walkthrough revision")
+    manifest_graph = manifest.get("graph")
+    if not isinstance(manifest_graph, dict) or manifest_graph.get("headSha") != head_sha:
+        fail("PR Lens manifest headSha does not match its graph")
+    graph_hash = manifest_graph.get("contentHash")
+    if not isinstance(graph_hash, str) or not re.fullmatch(r"[0-9a-f]{16,64}", graph_hash):
+        fail("PR Lens manifest graph contentHash is invalid")
+    actual_graph_hash = hashlib.sha256(canonical_json(graph).encode("utf-8")).hexdigest()
+    if not actual_graph_hash.startswith(graph_hash):
+        fail("PR Lens manifest graph contentHash does not match drawn.graph.json")
+    if spec["head"] == WORKTREE:
+        recorded = config.get("worktreeHash")
+        if recorded != revision_hash(root, spec["base"]):
+            fail("prLens.worktreeHash does not match the current working tree")
+
+    graph_views = graph.get("views", [])
+    if graph_views:
+        expected = flatten_graph_views(graph_views, lenses)
+    else:
+        flows = graph.get("flows", [])
+        expected = [
+            (lens, None, f'{graph.get("title", "PR Lens")} - {lens}')
+            for lens in lenses_raw
+            if lens != "data-flow" or flows
+        ]
+    expected_keys = [(lens, view) for lens, view, _ in expected]
+    if len(expected_keys) != len(set(expected_keys)):
+        fail("PR Lens graph contains duplicate logical views")
+
+    assets = manifest.get("assets")
+    if not isinstance(assets, list) or not 1 <= len(assets) <= PR_LENS_MAX_ASSETS:
+        fail(f"PR Lens manifest assets must contain 1 to {PR_LENS_MAX_ASSETS} entries")
+    by_key: dict[tuple[str, str | None], dict[str, tuple[dict, str]]] = {}
+    ids: set[str] = set()
+    paths: set[str] = set()
+    total = 0
+    for index, asset in enumerate(assets):
+        if not isinstance(asset, dict):
+            fail(f"PR Lens asset {index} must be an object")
+        asset_id, lens, theme = asset.get("id"), asset.get("lens"), asset.get("theme")
+        view, path = asset.get("view"), asset.get("path")
+        if not isinstance(asset_id, str) or asset_id in ids:
+            fail(f"PR Lens asset {index} has a missing or duplicate id")
+        ids.add(asset_id)
+        if lens not in PR_LENS_LENSES or theme not in PR_LENS_THEMES:
+            fail(f"PR Lens asset {asset_id} has an invalid lens or theme")
+        if view is not None and not isinstance(view, str):
+            fail(f"PR Lens asset {asset_id} has an invalid view")
+        if asset.get("mediaType") != "image/svg+xml":
+            fail(f"PR Lens asset {asset_id} is not image/svg+xml")
+        if not isinstance(path, str) or path in paths:
+            fail(f"PR Lens asset {asset_id} has a missing or duplicate path")
+        paths.add(path)
+        svg_path = local_path(manifest_path.parent, path, f"PR Lens asset {asset_id} path")
+        raw = svg_path.read_bytes()
+        total += len(raw)
+        if total > PR_LENS_MAX_BYTES:
+            fail(f"PR Lens assets exceed {PR_LENS_MAX_BYTES} bytes")
+        if asset.get("bytes") != len(raw):
+            fail(f"PR Lens asset {asset_id} byte count does not match its file")
+        digest = asset.get("contentHash")
+        if not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{16,64}", digest):
+            fail(f"PR Lens asset {asset_id} has an invalid contentHash")
+        if not hashlib.sha256(raw).hexdigest().startswith(digest):
+            fail(f"PR Lens asset {asset_id} contentHash does not match its file")
+        width, height = asset.get("width"), asset.get("height")
+        if not isinstance(width, int) or width < 1 or not isinstance(height, int) or height < 1:
+            fail(f"PR Lens asset {asset_id} needs positive width and height")
+        validate_svg(raw, asset_id)
+        key = (lens, view)
+        if theme in by_key.setdefault(key, {}):
+            fail(f"PR Lens manifest duplicates {lens}/{view or 'root'} theme {theme}")
+        encoded = base64.b64encode(raw).decode("ascii")
+        by_key[key][theme] = (asset, encoded)
+
+    if set(by_key) != set(expected_keys):
+        missing = set(expected_keys) - set(by_key)
+        extra = set(by_key) - set(expected_keys)
+        fail(f"PR Lens manifest views do not match its graph: missing={sorted(map(str, missing))} extra={sorted(map(str, extra))}")
+    theme_sets = {frozenset(themes) for themes in (group.keys() for group in by_key.values())}
+    if len(theme_sets) != 1:
+        fail("PR Lens manifest uses inconsistent theme sets across views")
+
+    result: list[PrLensView] = []
+    for lens, view, title in expected:
+        themed = by_key[(lens, view)]
+        first = themed.get("light") or themed.get("dark")
+        assert first is not None
+        result.append(
+            PrLensView(
+                lens=lens,
+                view=view,
+                title=title,
+                width=first[0]["width"],
+                height=first[0]["height"],
+                themes={theme: encoded for theme, (_, encoded) in themed.items()},
+            )
+        )
+    return result
+
+
 # ---------------------------------------------------------------- validation
 
 
@@ -771,7 +1050,29 @@ def file_card(
     return "".join(out)
 
 
-def build_body(spec: dict, root: Path) -> tuple[str, dict]:
+def render_pr_lens_view(view: PrLensView, index: int) -> str:
+    fallback = view.themes.get("light") or view.themes["dark"]
+    sources: list[str] = []
+    if "dark" in view.themes:
+        sources.append(
+            '<source media="(prefers-color-scheme: dark)" '
+            f'srcset="data:image/svg+xml;base64,{view.themes["dark"]}">'
+        )
+    if "light" in view.themes:
+        sources.append(
+            '<source media="(prefers-color-scheme: light)" '
+            f'srcset="data:image/svg+xml;base64,{view.themes["light"]}">'
+        )
+    return (
+        f'<figure class="pr-lens-view" id="pr-lens-view-{index}">'
+        f'<figcaption><span class="chip pr-lens-kind">{esc(view.lens)}</span><h3>{esc(view.title)}</h3></figcaption>'
+        f'<picture>{"".join(sources)}'
+        f'<img src="data:image/svg+xml;base64,{fallback}" width="{view.width}" height="{view.height}" '
+        f'alt="{esc(view.title)}" loading="lazy" decoding="async"></picture></figure>'
+    )
+
+
+def build_body(spec: dict, root: Path, pr_lens_views: list[PrLensView]) -> tuple[str, dict]:
     base, head = spec["base"], spec["head"]
     check_spec(spec)
     git_bytes(root, "rev-parse", "--verify", f"{base}^{{commit}}")
@@ -801,6 +1102,7 @@ def build_body(spec: dict, root: Path) -> tuple[str, dict]:
         "hunksShown": 0,
         "chapters": len(chapters),
         "attentionChapters": sum(1 for ch in chapters if ch["risk"] == "attention"),
+        "prLensViews": len(pr_lens_views),
         "hasContextRow": False,
     }
 
@@ -852,7 +1154,7 @@ def build_body(spec: dict, root: Path) -> tuple[str, dict]:
     o.append("</div></header>")
 
     # ---- nav
-    nav = [("overview", "Overview")]
+    nav = [("overview", "Overview"), ("pr-lens", "Architecture and data flow")]
     if spec.get("focus"):
         nav.append(("focus", "Where to focus"))
     if spec.get("intuition"):
@@ -903,6 +1205,16 @@ def build_body(spec: dict, root: Path) -> tuple[str, dict]:
             f'{stats["linesUnshownInUnopenedFiles"]} in files listed by name only.</p>'
         )
     o.append("</section>")
+
+    # ---- architecture and data flow
+    o.append('<section id="pr-lens"><h2>Architecture and data flow</h2>')
+    o.append(
+        f'<p class="lede">PR Lens rendered {len(pr_lens_views)} view'
+        f'{"s" if len(pr_lens_views) != 1 else ""} for this revision. Every view is embedded in this page.</p>'
+    )
+    o.append('<div class="pr-lens-views">')
+    o.extend(render_pr_lens_view(view, index) for index, view in enumerate(pr_lens_views, start=1))
+    o.append("</div></section>")
 
     # ---- focus, intuition, background
     if spec.get("focus"):
@@ -1028,19 +1340,27 @@ def build_body(spec: dict, root: Path) -> tuple[str, dict]:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Render a walkthrough page from review-tour.json.")
-    ap.add_argument("--spec", required=True)
+    ap.add_argument("--spec")
     ap.add_argument("--repo-root", default=".")
-    ap.add_argument("--out", required=True, help="full HTML document")
+    ap.add_argument("--out", help="full HTML document")
     ap.add_argument("--fragment", default=None, help="same content without the document wrappers")
     ap.add_argument("--data-out", default=None, help="write the derived stats as JSON here")
     ap.add_argument("--template", default=str(DEFAULT_TEMPLATE))
+    ap.add_argument("--print-worktree-hash", metavar="BASE", help="print the tracked and untracked tree fingerprint")
     args = ap.parse_args()
 
     root = Path(args.repo_root).resolve()
+    if args.print_worktree_hash:
+        print(revision_hash(root, args.print_worktree_hash))
+        return
+    if not args.spec or not args.out:
+        ap.error("--spec and --out are required unless --print-worktree-hash is used")
+    spec_path = Path(args.spec).resolve()
     try:
-        spec = json.loads(Path(args.spec).read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as e:
+        spec_text = spec_path.read_text(encoding="utf-8")
+    except OSError as e:
         fail(f"cannot read the spec {args.spec}: {e}")
+    spec = json_no_duplicates(spec_text, f"spec {args.spec}")
     template = Path(args.template)
     if not template.is_file():
         fail(f"template not found: {template}")
@@ -1052,7 +1372,8 @@ def main() -> None:
     shell = shell.replace(LIB_STYLE, (LIB_DIR / "page.css").read_text(encoding="utf-8").rstrip("\n"))
     shell = shell.replace(LIB_SCRIPT, (LIB_DIR / "notes.js").read_text(encoding="utf-8").rstrip("\n"))
 
-    body, stats = build_body(spec, root)
+    pr_lens_views = load_pr_lens(spec, spec_path.parent, root)
+    body, stats = build_body(spec, root, pr_lens_views)
     title = esc(spec["title"])
     document, fragment = pagelib.assemble(shell, title, body)
 
@@ -1065,6 +1386,7 @@ def main() -> None:
     print(
         f"build_tour: ok files={stats['filesChanged']} placed={stats['filesPlaced']} "
         f"else={stats['everythingElse']} hunks={stats['hunksShown']} chapters={stats['chapters']} "
+        f"pr-lens={stats['prLensViews']} "
         f"lines shown {stats['linesShown']} / changed {stats['linesChanged']} ({stats['coveragePercent']}%)"
     )
 

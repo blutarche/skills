@@ -9,6 +9,7 @@ Run from the skill directory:
 from __future__ import annotations
 
 import html
+import hashlib
 import json
 import re
 import subprocess
@@ -168,7 +169,87 @@ class BuildTourTest(unittest.TestCase):
         self.stats = self.dir / "stats.json"
         self.addCleanup(self.tmp.cleanup)
 
-    def build(self, spec: dict, out: Path | None = None) -> subprocess.CompletedProcess:
+    def add_pr_lens(self, spec: dict, views: list[dict] | None = None) -> None:
+        views = views or [
+            {
+                "id": "architecture-overview",
+                "title": "Architecture overview",
+                "lens": "architecture",
+                "children": [],
+            }
+        ]
+        head_sha = git(self.repo, "rev-parse", "HEAD") if spec["head"] == "worktree" else spec["head"]
+        graph = {
+            "schemaVersion": "0.2.0",
+            "kind": "graph",
+            "title": "Test change",
+            "lenses": list(dict.fromkeys(view["lens"] for view in views)),
+            "provenance": {"base": {"sha": spec["base"]}, "head": {"sha": head_sha}},
+            "flows": [{"id": "flow"}] if any(view["lens"] == "data-flow" for view in views) else [],
+            "views": views,
+        }
+        lens_dir = self.dir / "pr-lens"
+        lens_dir.mkdir(exist_ok=True)
+        write(self.dir, "pr-lens/drawn.graph.json", json.dumps(graph))
+        assets = []
+
+        def flatten(items: list[dict]) -> list[dict]:
+            return [item for view in items for item in [view, *flatten(view.get("children", []))]]
+
+        for view in flatten(views):
+            for theme in ("light", "dark"):
+                svg = (
+                    f'<svg xmlns="http://www.w3.org/2000/svg" width="640" height="320" '
+                    f'viewBox="0 0 640 320" role="img" aria-label="{view["title"]} {theme}">'
+                    f'<defs><pattern id="dots" width="8" height="8" patternUnits="userSpaceOnUse">'
+                    f'<circle cx="1" cy="1" r="1"/></pattern></defs>'
+                    f'<rect width="640" height="320" fill="url(#dots)"/>'
+                    f'<text x="20" y="40">{view["title"]} {theme}</text></svg>'
+                )
+                raw = svg.encode()
+                digest = hashlib.sha256(raw).hexdigest()[:32]
+                path = f'{view["id"]}-{theme}-{digest}.svg'
+                write(self.dir, f"pr-lens/{path}", svg)
+                assets.append(
+                    {
+                        "id": f'{view["id"]}-{theme}',
+                        "lens": view["lens"],
+                        "theme": theme,
+                        "view": view["id"],
+                        "mediaType": "image/svg+xml",
+                        "contentHash": digest,
+                        "bytes": len(raw),
+                        "width": 640,
+                        "height": 320,
+                        "animated": False,
+                        "path": path,
+                    }
+                )
+        manifest = {
+            "schemaVersion": "0.2.0",
+            "kind": "render-manifest",
+            "graph": {
+                "headSha": head_sha,
+                "contentHash": hashlib.sha256(
+                    json.dumps(graph, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+                ).hexdigest()[:32],
+            },
+            "renderer": {"name": "pr-lens", "version": "test"},
+            "assets": assets,
+        }
+        write(self.dir, "pr-lens/manifest.json", json.dumps(manifest))
+        spec["prLens"] = {
+            "graph": "pr-lens/drawn.graph.json",
+            "manifest": "pr-lens/manifest.json",
+        }
+        if spec["head"] == "worktree":
+            spec["prLens"]["worktreeHash"] = build_tour.revision_hash(self.repo, spec["base"])
+
+    def build(
+        self, spec: dict, out: Path | None = None, with_pr_lens: bool = True
+    ) -> subprocess.CompletedProcess:
+        if with_pr_lens and "prLens" not in spec:
+            self.add_pr_lens(spec)
         spec_path = self.dir / "review-tour.json"
         spec_path.write_text(json.dumps(spec), encoding="utf-8")
         return subprocess.run(
@@ -189,6 +270,132 @@ class BuildTourTest(unittest.TestCase):
             capture_output=True,
             text=True,
         )
+
+    def test_pr_lens_is_required(self) -> None:
+        r = self.build(valid_spec(self.base, self.head), with_pr_lens=False)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("prLens", r.stderr)
+
+    def test_pr_lens_embeds_every_view_with_theme_pairs(self) -> None:
+        spec = valid_spec(self.base, self.head)
+        self.add_pr_lens(
+            spec,
+            [
+                {
+                    "id": "system",
+                    "title": "System boundary",
+                    "lens": "architecture",
+                    "children": [
+                        {
+                            "id": "components",
+                            "title": "Changed components",
+                            "lens": "architecture",
+                            "children": [],
+                        }
+                    ],
+                },
+                {
+                    "id": "request-flow",
+                    "title": "Request flow",
+                    "lens": "data-flow",
+                    "children": [],
+                },
+            ],
+        )
+        r = self.build(spec)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        page = self.out.read_text(encoding="utf-8")
+        self.assertEqual(page.count('<figure class="pr-lens-view"'), 3)
+        embedded = re.findall(r"data:image/svg\+xml;base64,([A-Za-z0-9+/=]+)", page)
+        self.assertEqual(len(set(embedded)), 6)
+        for title in ("System boundary", "Changed components", "Request flow"):
+            self.assertIn(title, page)
+
+    def test_pr_lens_rejects_unsafe_svg(self) -> None:
+        spec = valid_spec(self.base, self.head)
+        self.add_pr_lens(spec)
+        manifest_path = self.dir / spec["prLens"]["manifest"]
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        asset = manifest["assets"][0]
+        unsafe = b'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'
+        (manifest_path.parent / asset["path"]).write_bytes(unsafe)
+        asset["bytes"] = len(unsafe)
+        asset["contentHash"] = hashlib.sha256(unsafe).hexdigest()[:32]
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        r = self.build(spec)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("unsafe SVG", r.stderr)
+
+    def test_pr_lens_rejects_missing_graph_view(self) -> None:
+        spec = valid_spec(self.base, self.head)
+        self.add_pr_lens(
+            spec,
+            [
+                {
+                    "id": "system",
+                    "title": "System boundary",
+                    "lens": "architecture",
+                    "children": [
+                        {
+                            "id": "components",
+                            "title": "Changed components",
+                            "lens": "architecture",
+                            "children": [],
+                        }
+                    ],
+                }
+            ],
+        )
+        manifest_path = self.dir / spec["prLens"]["manifest"]
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["assets"] = [asset for asset in manifest["assets"] if asset.get("view") != "components"]
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        r = self.build(spec)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("manifest views do not match", r.stderr)
+
+    def test_pr_lens_rejects_parent_path(self) -> None:
+        spec = valid_spec(self.base, self.head)
+        self.add_pr_lens(spec)
+        spec["prLens"]["manifest"] = "../manifest.json"
+        r = self.build(spec)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("must not contain . or .. segments", r.stderr)
+
+    def test_pr_lens_rejects_stale_graph(self) -> None:
+        spec = valid_spec(self.base, self.head)
+        self.add_pr_lens(spec)
+        graph_path = self.dir / spec["prLens"]["graph"]
+        graph = json.loads(graph_path.read_text(encoding="utf-8"))
+        graph["title"] = "Changed after rendering"
+        graph_path.write_text(json.dumps(graph), encoding="utf-8")
+        r = self.build(spec)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("graph contentHash", r.stderr)
+
+    def test_pr_lens_rejects_stale_worktree(self) -> None:
+        spec = valid_spec(self.base, "worktree")
+        self.add_pr_lens(spec)
+        write(self.repo, "alpha.py", ALPHA_HEAD.replace("return 42", "return 99"))
+        r = self.build(spec)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("worktreeHash", r.stderr)
+
+    def test_print_worktree_hash(self) -> None:
+        r = subprocess.run(
+            [
+                sys.executable,
+                str(BUILD),
+                "--repo-root",
+                str(self.repo),
+                "--print-worktree-hash",
+                self.base,
+            ],
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.stdout.strip(), build_tour.revision_hash(self.repo, self.base))
 
     # ---------------------------------------------------------------- 1
     def test_valid_spec_builds(self) -> None:
@@ -359,7 +566,7 @@ class BuildTourTest(unittest.TestCase):
             r = self.build(spec)
             self.assertEqual(r.returncode, 0, r.stderr)
             page = self.out.read_text(encoding="utf-8")
-            self.assertNotIn("<img", page.lower())
+            self.assertNotIn("<img src=x", page.lower())
             self.assertNotIn("onerror", page.lower())
 
         with self.subTest("entity-obscured javascript: href is dropped"):
