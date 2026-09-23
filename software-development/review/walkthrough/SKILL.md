@@ -98,37 +98,40 @@ A failure names the defect: a range with no changed line, a file placed nowhere,
 twice, a missing PR Lens view, stale asset bytes, or unsafe SVG content. Fix the source artifact
 or spec, never the page, and build again.
 
-Once the build prints `ok`, open the page and look before delivering it: on Claude Code, publish
-`tour.fragment.html` as an Artifact and view its preview; otherwise render a screenshot with a
-headless browser if one is available; at minimum, Read `tour.html` and confirm every PR Lens view,
-the focus list, every chapter title, and the verify table each appear once, in order.
+Once the build prints `ok`, open the page and look before delivering it: render a screenshot of
+`tour.html` with a headless browser if one is available; at minimum, Read `tour.html` and confirm
+every PR Lens view, the focus list, every chapter title, and the verify table each appear once, in
+order.
 
 Done when: the build prints
 `build_tour: ok files=... placed=... else=... hunks=... chapters=... pr-lens=...` and those
-numbers match what you expected, AND the page was opened and every PR Lens view, the focus list,
-chapter titles, and verify table were seen rendered.
+numbers match what you expected, AND every PR Lens view, the focus list, chapter titles, and
+verify table were seen rendered.
 
 ### 5. Deliver
 
-**Claude Code with the Artifact tool:** publish `tour.fragment.html` as an artifact (title = the
-spec title, favicon a compass), and give the user the link. Feedback comes back as comment
-threads on the artifact; read them with the tool's `comments` action when the user says they have
-commented.
+**Always:** `open "$DIR/tour.html"` on macOS, `xdg-open` on Linux. Print the local path. Feedback
+comes back through the page: Notes, then "Copy feedback", then paste into the chat.
 
-**Any other agent, or no Artifact tool:** `open "$DIR/tour.html"` on macOS, `xdg-open` on Linux.
-Feedback comes back through the page: Notes, then "Copy feedback", then paste into the chat.
+**On top of that, only when the user explicitly asks to publish or share the tour online:** on
+Claude Code, publish `tour.fragment.html` as an artifact (title = the spec title, favicon a
+compass), and give the user the link. Feedback comes back as comment threads on the artifact;
+read them with the ArtifactComments tool when the user says they have commented. If there is
+no Artifact tool, say the tour was not published and point back to the local path already given.
 
-Print the local path either way.
-
-Done when: the user has a link or a path, and knows which of the two feedback routes applies.
+Done when: the local file was opened and its path printed, and, if a publish was requested,
+either the user has a link or has been told it was not published and pointed back to the path.
 
 ### 6. Stop
 
-Report the link or path, the chapter count, and one line on how to send feedback. Do not wait for
-comments. Do not apply feedback inside this skill; that is the next request.
+Report the local path, and the link if a requested publish succeeded (or a note that it did not),
+the chapter count, and one line on how to send feedback. Do not wait for comments. Do not apply
+feedback inside this skill; that is the next request.
 
 ## Rules that decide the shape
 
+- **Self-contained and local.** Every PR Lens view is embedded; the page is never uploaded unless
+  the user asks.
 - **Hunk rule.** A hunk is shown only when the prose makes a claim about it. The reader can open
   the file; the page says where to look and why.
 - **Coverage is derived.** The build refuses a changed file with no home and a placed file that
