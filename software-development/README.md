@@ -23,7 +23,7 @@ sequencing lives in [`workflows/`](../workflows/README.md), not here. Sources fo
 | Skill | What it does |
 |-------|--------------|
 | [`walkthrough`](review/walkthrough/SKILL.md) | Build a shareable browser walkthrough with every PR Lens architecture/data-flow view, conceptual diff chapters, and git-validated line numbers. Explains, never grades. |
-| [`pr-lens`](review/pr-lens/SKILL.md) | Draw a code change or codebase as a validated, animated architecture or data-flow diagram, for a canvas or pull request. |
+| [`pr-lens`](review/pr-lens/SKILL.md) | Draw a code change or codebase as a validated, animated architecture or data-flow diagram, kept local by default. |
 | [`scrutinize`](review/scrutinize/SKILL.md) | Outsider end-to-end review of a produced PR/diff/design doc: question intent → trace the real code path → verify the claim → severity-ordered findings + one verdict. Read-only (hands off edits to `simplify`/`slop-cleanup`). |
 | [`receiving-code-review`](review/receiving-code-review/SKILL.md) | Evaluate review feedback with rigor — verify each claim, push back when wrong, implement what holds up. |
 | [`slop-cleanup`](review/slop-cleanup/SKILL.md) | Detect and remove characteristic AI-generated slop from a diff, behavior-preserving. |

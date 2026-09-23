@@ -12,13 +12,15 @@ The diff or code is represented as one JSON document (lanes, nodes, edges, order
 
 ## Operating manual
 
-Decide where the diagram lands before you write it: a canvas, or an SVG and a pull request comment. Only a canvas draws `payload`, the sample request and response on a flow step. A late decision costs another pass through steps 2 and 3.
+Diagrams stay local by default. `canvas push` (uploads to prlens.dev, a third-party service), attaching a diagram to a pull request (uploads to GitHub), publishing SVGs to an `--asset-base-url`, and `analyze` (sends code to an LLM provider) run only when the user explicitly asks for that destination.
+
+If the user asked for a canvas, decide that before you write the document: only a canvas draws `payload`, the sample request and response on a flow step. A late decision costs another pass through steps 2 and 3.
 
 1. **Read the diff.** When asked to represent a code change: `git diff --find-renames <base>...<head>`. The base is the merge base, not the tip of the base branch.
 
    If not expressing a code diff, read the code to be visually represented
 
-2. **Write the document** to `.pr-lens/graph.json`, following `references/graph-document.md`. `references/example.graph.json` is valid reference with three lanes, all four delta states, a hero edge, a seven-step flow, a nested drill-down tree and a six-step walkthrough. Read it before you write your first one. It is quicker than reading the reference. If it is going to a canvas, give every flow step (`messages`) that moves data a `payload` as you write it. "Sample traffic on a flow step" below says what goes in one. Only a flow step carries one. Flows need the `data-flow` lens, so an architecture view draws none.
+2. **Write the document** to `.pr-lens/graph.json`, following `references/graph-document.md`. `references/example.graph.json` is valid reference with three lanes, all four delta states, a hero edge, a seven-step flow, a nested drill-down tree and a six-step walkthrough. Read it before you write your first one. It is quicker than reading the reference. If the user asked for a canvas, give every flow step (`messages`) that moves data a `payload` as you write it. "Sample traffic on a flow step" below says what goes in one. Only a flow step carries one. Flows need the `data-flow` lens, so an architecture view draws none.
 
 3. **Validate, and fix**
 
@@ -36,17 +38,19 @@ Decide where the diagram lands before you write it: a canvas, or an SVG and a pu
 
    Render light by default unless the user requests another theme. The SVGs, the manifest and `drawn.graph.json` land in `.pr-lens/`, which the CLI adds to the repository's .gitignore. Do not commit any of it. These files are rebuilt from the diff whenever anyone wants them again. Each SVG is named after its view, the theme and a content hash; `manifest.json` lists them by lens and view, so read the names from there or from the directory.
 
-   If the user asked for a diagram, an explanation or a picture of the architecture and nothing more, put it on a canvas and hand back the link:
+   By default, this is the deliverable. The top view is the architecture view with `defaultOpen: true` in the document; find its SVG in `manifest.json`. Give the user the SVG paths, top view first, and open the top view locally: `open` on macOS, `xdg-open` on Linux.
+
+   **Only when the user asks for a prlens.dev canvas:**
 
    ```bash
    npx @coldtea/pr-lens-cli@latest canvas push
    ```
 
-   This pushes `.pr-lens/drawn.graph.json` and prints three links. Give the user the view link, `https://prlens.dev/c/{id}`: that is the diagram, full screen, every view on one page, and it opens without a login. The edit link, the one ending in `#w=…`, lets its holder push over the canvas, so leave it out of the reply unless they ask, and never paste it anywhere public. The embed link serves the top view as an SVG for a README.
+   This uploads `.pr-lens/drawn.graph.json` to prlens.dev and prints three links. Give the user the view link, `https://prlens.dev/c/{id}`: that is the diagram, full screen, every view on one page, and it opens without a login. The edit link, the one ending in `#w=…`, lets its holder push over the canvas, so leave it out of the reply unless they ask, and never paste it anywhere public. The embed link serves the top view as an SVG for a README.
 
    Pushing the same file again updates the same canvas, so a follow-up such as "rename that node" or "add the queue" is: edit the document, validate, render, push. The link stays the same. If the push fails, say so and tell them where the SVGs are and which one is the top view.
 
-5. **Attach, when there is a pull request to attach to.** That means the user asked you to open a PR, asked for a diagram on one that exists, or you are opening a PR as part of changes made. Otherwise skip this step.
+5. **Attach, only when the user asked for the diagram on a pull request.** Otherwise skip this step.
 
    GitHub CLI uploads the diagram with the pull request. Write the body with a Markdown image pointing at the local file, then pass the same path to `--attach`. `gh` rewrites the reference to the uploaded asset and keeps the alt text you wrote:
 
@@ -70,7 +74,7 @@ Decide where the diagram lands before you write it: a canvas, or an SVG and a pu
 
    Attach the views a reviewer needs and leave the rest in `.pr-lens/`: the top architecture view first, then a data flow if the change has a sequence worth following. A body with four diagrams reads worse than one with two, except the four are really needed to understand the change e.g., in the case of a complex feature or refactor.
 
-   When `--attach` is not an option, publish the SVGs somewhere durable and let the CLI compose the comment instead:
+   When `--attach` is not an option and the user names where to publish the SVGs, let the CLI compose the comment instead. Never pick a host yourself:
 
    ```bash
    npx @coldtea/pr-lens-cli@latest comment \
@@ -81,9 +85,11 @@ Decide where the diagram lands before you write it: a canvas, or an SVG and a pu
 
    `--graph` takes `drawn.graph.json`, not the document you wrote, because corrections change what the diagrams show and the CLI refuses a document its manifest does not describe. `--asset-base-url` is where you published the SVGs; leave it out and the markdown points at local paths no reader can fetch. The markdown goes to stdout, with each diagram as a `<picture>` pair; posting it is your business.
 
-If you would rather not author the document yourself, `npx @coldtea/pr-lens-cli@latest analyze --base <ref>` does steps 1 and 2 by asking a provider — Gemini, OpenAI, or any endpoint speaking `/chat/completions` — with a key of your own. That is the only path here that needs one.
+If you would rather not author the document yourself, `npx @coldtea/pr-lens-cli@latest analyze --base <ref>` does steps 1 and 2 by asking a provider — Gemini, OpenAI, or any endpoint speaking `/chat/completions` — with a key of your own. It sends the diff to that provider, so run it only when the user explicitly asks for it. That is the only path here that needs a key.
 
 ## The pull request body, when there is one
+
+This section applies only when the user asked for the diagram on a pull request, the same gate as step 5.
 
 A reviewer should understand the change before reading the diff, so the diagram goes where they look first: the description, not a trailing comment. Open with one sentence on why the change exists, then the architecture diagram, then whatever proves the change works, such as a screenshot of the result or a recording of the interaction. Use one visual per idea. A diagram that needs a paragraph of explanation has a document problem; go back to step 2.
 
@@ -105,6 +111,8 @@ Every child moves down one level and covers a materially narrower scope. Skip em
 Keep data-flow views as separate roots rather than nesting them in the architecture tree. Set `defaultOpen: true` on the highest useful architecture view. Lower levels should normally keep the default, `false`.
 
 ## Writing a walkthrough
+
+Write a walkthrough only when the user asked for a canvas: only a canvas plays it.
 
 A walkthrough is a short guided tour of the diagrams. It has two to twelve steps. Each step shows one diagram, points at one part of it, and says a few words about it. A canvas plays it, and the reader scrolls through it.
 
