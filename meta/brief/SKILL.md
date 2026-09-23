@@ -72,8 +72,7 @@ Done when it prints
 
 ### 4. Look before delivering
 
-Open the page and confirm it before handing it over: on Claude Code, publish
-`brief.fragment.html` as an Artifact and view its preview; otherwise render a screenshot with a
+Open the page and confirm it before handing it over: render a screenshot of `brief.html` with a
 headless browser if one is available; at minimum, Read `brief.html` and confirm every chapter
 title appears once, in order, and every figure is present. Every figure, mermaid or svg, needs
 to be seen rendered; an svg figure that shows nothing or clips is a spec defect, not a page bug.
@@ -85,7 +84,11 @@ Done when seen rendered.
 
 ### 5. Deliver
 
-Try each of these in order, and use the first that applies:
+**Always:** `open brief.html` on macOS, `xdg-open` on Linux. Print the local path. Feedback comes
+back through the page: Notes, then "Copy feedback", then paste into the chat.
+
+**On top of that, only when the user explicitly asks to publish or share the brief online**, try
+each of these in order, and use the first that applies:
 
 a. **Claude Code with the Artifact tool:** publish `brief.fragment.html` (title = the spec
    title, favicon 🗺️). Feedback comes back as artifact comments.
@@ -94,16 +97,18 @@ b. **`orca status --json` succeeds:** `ORCA` below is a placeholder for the reso
    `orca-ide`, never bare `orca` (it is the GNOME screen reader there). The `orca-cli` skill,
    when installed, has the same rule. Then `ORCA artifacts share brief.html --json` and report
    the URL. On `artifact_sharing_disabled`, do not retry: tell the user it's Settings →
-   Artifacts, and fall through to (c).
-c. **Otherwise:** `open brief.html` on macOS, `xdg-open` on Linux. Feedback comes back through
-   the page: Notes, then "Copy feedback", then paste into the chat.
+   Artifacts.
+c. **Neither applies, or the tried route fails:** tell the user the brief was not published and
+   point back to the local path already given.
 
-Always print the local path, whichever route was used.
+Done when: the local file was opened and its path printed, and, if a publish was requested,
+either the user has a link or has been told it was not published and pointed back to the path.
 
 ### 6. Stop
 
-Report the link or path, the chapter count, and how feedback comes back. Do not act on feedback
-in this skill; that is the next request.
+Report the local path, and the link if a requested publish succeeded (or a note that it did not),
+the chapter count, and how feedback comes back. Do not act on feedback in this skill; that is the
+next request.
 
 ## Rules that decide the shape
 
