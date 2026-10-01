@@ -42,5 +42,5 @@ Short paragraph: what this skill is for and when to reach for it.
 ## Rules
 
 Naming, placement, the README row, credits, and the validation gate live in
-[`AGENTS.md`](../AGENTS.md). For a guided authoring flow, use the `skill-creator` skill
+[`AGENTS.md`](../AGENTS.md). For a guided authoring flow in Claude, use Anthropic's built-in `skill-creator`
 (`/skill-creator`).

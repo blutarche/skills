@@ -32,7 +32,7 @@ Other tests: `./scripts/test-install.sh`, `./scripts/test-validate-skills.sh`, a
 Only the top-level domains in [`install.conf`](install.conf) install; see the README's
 [Install](README.md#install) for default-deny. Grouping below the domain is for humans only.
 
-Fastest path: run `/add-skill` (does steps 1–4). Use the global `/skill-creator` for the authoring
+Fastest path: run `/add-skill` (does steps 1–4). In Claude, Anthropic's built-in `/skill-creator` covers the authoring
 craft itself (drafting, evals, description tuning).
 
 ## Conventions
