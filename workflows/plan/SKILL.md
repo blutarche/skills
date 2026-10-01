@@ -8,7 +8,7 @@ description: "Brief → hardened, execution-ready plan: brainstorm, write plan, 
 
 Invoke each composed skill in turn and carry its output forward; there is no automatic return between skills, so you own the sequence. This workflow plans; it does not build.
 
-For just one stage, invoke that skill directly — shape a design (`brainstorming`), turn an existing spec into a plan (`writing-plans`), or grill an existing plan (`grill-me` / `grill-with-docs`).
+For just one stage, invoke that skill directly — shape a design (`brainstorming`), turn an existing spec into a plan (`writing-plans`), or grill an existing plan (`grill-me`; the user can also type `/grill-with-docs` for the brownfield version).
 
 ## Stages
 
@@ -28,7 +28,7 @@ Run in order. Finish each stage's gate before moving to the next. If a later sta
 
 4. **Harden — invoke a grill skill**
    Pick by context:
-   - **Brownfield** (existing codebase / docs): `grill-with-docs` — stress-test the plan against the domain model and ADRs.
+   - **Brownfield** (existing codebase / docs): `grill-me` while applying `domain-modeling` discipline — stress-test the plan against the domain model, keeping the `CONTEXT.md` glossary and ADRs current. This is what `grill-with-docs` composes; it is user-invoked, so don't invoke it.
    - **Greenfield** (nothing to grill against yet): `grill-me`.
    Fold the grilling's conclusions back into the plan file.
    *Gate:* surfaced issues are resolved or explicitly deferred in the plan.

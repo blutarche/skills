@@ -1,7 +1,7 @@
 ---
 name: vet
 disable-model-invocation: true
-description: Cross-model review of a branch, diff, or PR (scrutinize + council), then a gated fix loop until clean.
+description: Cross-model review of a branch, diff, PR, or document (scrutinize + council), then a gated fix loop until clean.
 ---
 
 # Vet (workflow)
@@ -18,12 +18,12 @@ Vet runs `scrutinize` and council's cross-model **convene** on the **same diff**
 Run in order. Finish each gate before the next.
 
 1. **Scope**
-   Fix what's under review: the working tree, a `--base <ref>` diff, or a PR. State it explicitly so both reviews look at the same thing.
+   Fix what's under review: the working tree, a `--base <ref>` diff, a PR, or a document, plan, policy, or agent-instruction file (see **Documents** below). State it explicitly so both reviews look at the same thing.
    *Gate:* the artifact and its boundaries are pinned.
 
 2. **Review — `scrutinize` ∥ `council`** (both read-only, run concurrently)
-   On a wide or risky diff, **launch `council`'s cross-model CLI as a background top-level call and run `scrutinize` concurrently**; then **join at adjudication**, where `council` reconciles the two blind sets and returns **disagreement-first** findings + a "what the council changed" note. On a small/low-risk diff the overlap earns nothing — run them inline in either order. Add `/security-review` when the change touches untrusted input/authz/secrets; `/code-review` for a PR.
-   *Gate:* `council` has returned the adjudicated findings (or has degraded — see below).
+   On a wide or risky diff, **launch `council`'s cross-model CLI as a background top-level call and run `scrutinize` concurrently**; then **join at adjudication**, where `council` reconciles the two blind sets and returns **disagreement-first** findings + a "what the council changed" note. On a small/low-risk diff the overlap earns nothing — run them inline in either order. Add `/security-review` when the change touches untrusted input/authz/secrets; `/code-review` for a PR. When the diff is small but central, or touches a shared contract (wire format, DB column, public API, config/flag), also run `blast-radius` alongside `scrutinize` — it is user-invoked: read its `SKILL.md` from the installed skills directory and follow it (if it isn't installed, trace the callers and consumers inline).
+   *Gate:* `council` has returned the adjudicated findings (or has degraded — see below), and `blast-radius`, when it ran, has reported and its risks are in the findings.
 
 3. **Decide which to apply** (the gate)
    `council` already adjudicated, so vet's job is to *act on* the findings, not re-review them. **Don't apply blindly** — the caller decides: in interactive use, present the findings and ask which to fix — at five or more findings, or when `council` reported cross-model disagreement, deliver them as a `brief` page instead (findings as the decision table, disagreement-first, an evidence column drawn from the review) so the caller marks choices in the notes panel and copies the feedback back; fewer findings than that stay inline. When vet runs inside an autonomous loop, the controller decides and proceeds with no human halt and no page — the gate is "verify before applying," not "halt for a human"; never stall an autonomous run waiting on a prompt.
@@ -35,8 +35,14 @@ Run in order. Finish each gate before the next.
    - If `receiving-code-review` or `slop-cleanup` isn't installed, apply its discipline directly here in the fix stage.
    - **`/simplify`** for quality/over-engineering cleanups; **`slop-cleanup`** *only* when the finding is AI-slop-shaped. If a host command (`/simplify`, `/security-review`, `/code-review`) is absent, note it was skipped and move on — don't reimplement a built-in you can't see, and never skip a *stage* because one tool is missing.
    - Confirm each fix by running it (`/run` where available) — read the real output and exit code before calling it green; then **`git-commit`**.
-   - **Re-review** the fixed change (back through stage 2) until it comes back clean. If the findings amount to substantial rework, this isn't a fix loop — hand back to the `execute` workflow.
-   *Gate:* the change re-reviews clean, or has been escalated back to `execute`.
+   - **Verify the fixes yourself** rather than re-reviewing from scratch: run the checks, re-read the fix diff, and `scrutinize` the fix range if it is non-trivial. Don't re-convene `council` on fix rounds — one cross-model pass per decision; a fix is a revision of a decision already reviewed. If the findings amount to a changed approach or substantial rework, this isn't a fix loop — hand back to the `execute` workflow.
+   *Gate:* the fixes are verified clean, or the change has been escalated back to `execute`.
+
+## Documents
+
+For a document, plan, policy, or agent-instruction file, the methodology is a critical read (`scrutinize` covers design docs) plus `council`. Loop review → fix, re-convening `council` each round (the once-per-decision rule in stage 4 is for code), until a round yields no P0/P1, then show the user the diff; deliver a clean document, not round history. Don't council a pure deletion.
+
+For a rewrite or tidy of instruction prose (skills, AGENTS.md, prompts), give `council` the old and new text and require it to list every rule whose meaning changed, was added, or was dropped. That check gates the commit.
 
 ## Degrade visibly
 
