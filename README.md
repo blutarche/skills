@@ -7,10 +7,9 @@ Some are original; many build on community prior art, credited in [`CREDITS.md`]
 ## Layout
 
 Skills are grouped by **domain**. `workflows/` holds playbooks that compose atomic skills into an
-end-to-end process; `meta/` holds domain-agnostic skills. The **domain is the install unit** —
-[`install.sh`](install.sh) installs only the domains opted into [`install.conf`](install.conf), so a
-non-coding domain never leaks into a coding agent. Skills can nest at any depth inside a domain (just
-for humans); only **leaf folder names** must be unique across the repo.
+end-to-end process; `meta/` holds domain-agnostic skills; `in-progress/` holds experiments not yet
+graduated to a domain. The **domain is the install unit** (see [Install](#install)). Skills can nest at
+any depth inside a domain (just for humans); only **leaf folder names** must be unique across the repo.
 
 ```
 .
@@ -19,7 +18,9 @@ for humans); only **leaf folder names** must be unique across the repo.
 │   └── <group>/<skill>/SKILL.md
 ├── workflows/                # playbooks that compose atomic skills
 │   └── <workflow>/SKILL.md
-└── meta/                     # domain-agnostic skills
+├── meta/                     # domain-agnostic skills
+│   └── <skill>/SKILL.md
+└── in-progress/              # experiments, not yet graduated
     └── <skill>/SKILL.md
 ```
 
@@ -28,6 +29,7 @@ Each area has its own index:
 - [`software-development/`](software-development/README.md) — design, planning, review, engineering
 - [`workflows/`](workflows/README.md) — multi-skill playbooks
 - [`meta/`](meta/README.md) — domain-agnostic skills
+- [`in-progress/`](in-progress/README.md) — experimental skills, installed but not yet graduated
 
 A skill's `SKILL.md` is the source of truth.
 
@@ -54,17 +56,7 @@ commands; the symlinked staging directory is not a write-protection boundary, so
 edit to one of these skills can modify the repository. If Hermes is absent, the installer skips it
 without failing.
 
-```bash
-./install.sh --claude     # only ~/.claude/skills  (Claude Code)
-./install.sh --codex      # only ~/.agents/skills  (Codex CLI)
-./install.sh --cursor     # only ~/.agents/skills  (Cursor)
-./install.sh --hermes     # only configure Hermes (when installed)
-./install.sh --copy       # copy instead of symlink — use if an agent ignores symlinks (won't sync back)
-./install.sh --force      # overwrite a foreign skill of the same name
-./install.sh --uninstall  # remove only the links into this repo
-./install.sh --prune-only # remove only stale links to skills removed from this repo; link nothing
-./install.sh --dry-run    # preview, change nothing
-```
+Run `./install.sh --help` for all options.
 
 `--uninstall` removes this repository's links and, when Hermes is installed, removes only this
 repository's external-directory registration and staging directory. It leaves unrelated Hermes
@@ -75,21 +67,20 @@ previously created for a skill that no longer exists in the repo; `--prune-only`
 without linking anything. A link to the repo's *previous* path after a move isn't recognized as
 ours — run `--force` to relink under the new path, then remove the leftover old link by hand.
 
-Installation is **default-deny** — only the domains in [`install.conf`](install.conf) link, so a new
-domain stays out of your agents until you opt it in. Each leaf `SKILL.md` becomes a `/command` named for its
-folder, so leaf names are unique repo-wide and the installer aborts on a collision. It won't overwrite
-a same-named skill it didn't create — pass `--force` for that.
+Installation is **default-deny** — only the top-level domains in [`install.conf`](install.conf) link, so
+a new domain (e.g. a non-coding one) stays out of your agents until you opt it in. Each leaf `SKILL.md`
+becomes a `/command` named for its folder, so leaf names are unique repo-wide and the installer aborts
+on a collision. It won't overwrite a same-named skill it didn't create — pass `--force` for that.
 
 ## Adding a skill
 
-Copy [`docs/skill-template.md`](docs/skill-template.md) into a kebab-case folder, add a one-line row to
-the area's README, and run `./scripts/validate-skills.sh` until it's clean. In Claude Code,
-[`/add-skill`](.claude/skills/add-skill/SKILL.md) does all of that for you.
+See [`AGENTS.md`](AGENTS.md) for placement, rules, and the validation gate, and
+[`docs/skill-template.md`](docs/skill-template.md) for the `SKILL.md` template.
 
 ## Companion: agents
 
 The companion [`agents`](https://github.com/blutarche/agents) repo's subagent definitions reference
-skills from here by name (`scrutinize`, `brainstorming`, `writing-plans`). Install skills first so those agents get the
+the `scrutinize` skill from here by name. Install skills first so those agents get the
 methodology they expect.
 
 ## License

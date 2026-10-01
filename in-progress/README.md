@@ -1,7 +1,7 @@
 # in-progress
 
-Experimental skills not yet graduated to their target domain. Not installed by default —
-add `in-progress` to `install.conf` to opt in.
+Experimental skills not yet graduated to their target domain. Installed like any other domain
+(`in-progress` is listed in `install.conf`); remove it there to stop installing them.
 
 | Skill | What it does | Target |
 |-------|--------------|--------|

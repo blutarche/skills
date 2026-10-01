@@ -11,6 +11,7 @@ description: One or two sentences. Lead with WHAT it does, then "Use when ..." s
   agent can match it to a request. This text is the only thing the model sees when
   deciding whether to load the skill — make the triggers concrete.
 # license: MIT        # only if adapted from a licensed source — see CREDITS.md
+# disable-model-invocation: true   # user-invoked only; see below
 ---
 
 # My New Skill
@@ -27,11 +28,19 @@ Short paragraph: what this skill is for and when to reach for it.
 - Keep it focused. A skill should do one thing well.
 ```
 
-## Conventions in this repo
+## Frontmatter notes
 
-- **Folder name == `name:` frontmatter == kebab-case.**
 - **`description:`** is the trigger. Write it for matching, not marketing: say what it does
   and when to use it.
-- **Borrowed something?** Add a row to [`CREDITS.md`](../CREDITS.md). If the source license
-  requires it (MIT/BSD/Apache), keep a `license:` line in the skill's frontmatter.
-- For a guided authoring flow, use the `skill-creator` skill (`/skill-creator`).
+- **`disable-model-invocation: true`** makes a skill user-invoked only (the user types its
+  `/command`; the agent never loads it on its own). Such a skill needs no "Use when ..."
+  trigger wording — the description just says what the command does.
+- Codex CLI ignores `disable-model-invocation`. To keep a skill from implicit invocation there,
+  add `agents/openai.yaml` next to `SKILL.md` with `policy: {allow_implicit_invocation: false}`.
+- **`license:`** — see [`AGENTS.md`](../AGENTS.md) for when to keep it.
+
+## Rules
+
+Naming, placement, the README row, credits, and the validation gate live in
+[`AGENTS.md`](../AGENTS.md). For a guided authoring flow, use the `skill-creator` skill
+(`/skill-creator`).

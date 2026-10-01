@@ -1,7 +1,7 @@
 # Working in this repo
 
 A curated, cross-agent **agent-skills** collection. Each skill is a folder with a `SKILL.md`
-(an open standard read by Claude Code, Codex CLI, and Cursor). [`README.md`](README.md) is the
+(an open standard read by Claude Code, Codex CLI, Cursor, and Hermes Agent). [`README.md`](README.md) is the
 human map of the layout and the install model — read it once; this file is the rules an agent
 needs that the README doesn't make obvious.
 
@@ -12,20 +12,28 @@ needs that the README doesn't make obvious.
 2. **Leaf folder names are unique across the whole repo** — even across domains and nesting
    depth. The installer maps every leaf into one flat dir, so a collision is fatal.
 
-Run `./scripts/validate-skills.sh` before you call work done — it checks both, plus that each
-skill is listed in its area README. This is the gate; don't declare "done" until it passes.
+Run `./scripts/validate-skills.sh` before you call work done — it checks both. This is the gate;
+don't declare "done" until it passes. It also warns (without failing) when a skill isn't listed in
+its area README — treat that as required anyway.
 
-## Where a new skill goes
+Other tests: `./scripts/test-install.sh`, `./scripts/test-validate-skills.sh`, and
+`python3 -m pytest _lib meta/brief/scripts software-development/review/walkthrough/scripts`.
 
-- Atomic skill → `<domain>/<group>/<name>/` (e.g. `software-development/review/<name>/`).
-- Playbook that composes atomic skills → `workflows/<name>/`.
-- Domain-agnostic → `meta/<name>/`.
+## Adding a skill
 
-Only the top-level domains listed in [`install.conf`](install.conf) install (default-deny). A new
-domain doesn't ship until it's added there. Grouping below the domain is for humans only.
+1. Pick the placement:
+   - Atomic skill → `<domain>/<group>/<name>/` (e.g. `software-development/review/<name>/`).
+   - Playbook that composes atomic skills → `workflows/<name>/`.
+   - Domain-agnostic → `meta/<name>/`.
+2. Copy [`docs/skill-template.md`](docs/skill-template.md) into that kebab-case folder as `SKILL.md`.
+3. Add a one-line row to the area's `README.md` table (and a `CREDITS.md` row if borrowed).
+4. Run `./scripts/validate-skills.sh` until clean.
 
-Fastest path: run `/add-skill` (scaffolds placement + frontmatter + README row + validation).
-Use the global `/skill-creator` for the authoring craft itself (drafting, evals, description tuning).
+Only the top-level domains in [`install.conf`](install.conf) install; see the README's
+[Install](README.md#install) for default-deny. Grouping below the domain is for humans only.
+
+Fastest path: run `/add-skill` (does steps 1–4). Use the global `/skill-creator` for the authoring
+craft itself (drafting, evals, description tuning).
 
 ## Conventions
 
