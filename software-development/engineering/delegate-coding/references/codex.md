@@ -20,8 +20,9 @@ Codex has no worktree flag. Create the isolated worktree via the **`git-worktree
 ## Stage 3 — delegate (first pass)
 
 ```bash
+LAST=$(mktemp -t codex_last.XXXXXX)   # honors $TMPDIR; keep this path for the resume call
 codex exec -C <worktree-path> -s workspace-write --json \
-  -o /tmp/codex_last.txt \
+  -o "$LAST" \
   "<delegation prompt>"  > events.jsonl
 ```
 
@@ -42,7 +43,7 @@ git -C <worktree-path> add -A && git -C <worktree-path> commit -m "<msg>"
 ## Stage 5 — bounded retry (resume the same session)
 
 ```bash
-( cd <worktree-path> && codex exec resume -o /tmp/codex_last.txt <session-id> "<exact failure + what to fix>" )
+( cd <worktree-path> && codex exec resume -o "$LAST" <session-id> "<exact failure + what to fix>" )
 ```
 
 **Resume constraints:**

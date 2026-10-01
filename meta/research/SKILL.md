@@ -5,7 +5,7 @@ description: Answer from sources fetched now with a citation per claim, never fr
 
 # Research
 
-Answer from evidence you can point to, not from what you think you know. Your training has a cutoff and your memory blurs versions, dates, and details — so a confident-sounding recollection is exactly the kind of claim that turns out wrong. This skill is the discipline that prevents that: fetch the source, quote it, cite it, or say you couldn't.
+Answer from evidence you can point to, not from what you think you know: fetch the source, quote it, cite it, or say you couldn't.
 
 ## The Iron Law
 
@@ -47,14 +47,6 @@ Lead with the answer, then make it checkable:
 - **Mark confidence** where it isn't obvious: *verified* (primary source, quoted) / *likely* (reputable secondary) / *unverified* (couldn't confirm — stated as such).
 - **An "Unverified / possibly stale" section** whenever it applies — list what you could not confirm, what you're relying on memory for, and what a reader should double-check.
 - **Sources** — URLs with access dates, and the source's own date where it matters.
-
-## Red flags — stop and fetch
-
-- You're about to write a version number, date, price, or API detail from memory.
-- "As of my knowledge…", "I believe…", "typically…", "should be…" — these are tells that you're recalling, not citing.
-- You're paraphrasing a source you found in search results but didn't open.
-- A single low-tier source is carrying a load-bearing claim.
-- The question is about "the latest" anything and your newest source predates this year.
 
 ## When not to use this
 

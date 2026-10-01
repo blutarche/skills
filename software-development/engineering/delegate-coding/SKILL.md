@@ -7,14 +7,13 @@ description: Hand an approved, self-contained spec to a headless coding CLI (cur
 
 Take an approved, self-contained implementation spec and drive it to verified code by handing the **coding** to a cheaper/faster headless agent CLI — the Cursor CLI (`agent`), `codex`, or similar — while you (the main agent) keep the parts where your judgment earns its cost: planning, verifying, and owning the merge.
 
-It works by asymmetry: a cheap, fast executor for the mechanical edits, a smart verifier for the gate. That only pays off if the verify gate is real — so the gate is non-negotiable, not an afterthought.
+**The decision rule — who codes it.** Your expensive "brain" (e.g. Opus) is for the work only it can do: shaping the plan and verifying the result. Route by the task, not by reflex:
 
-**The decision rule — delegate the middle band.** Your expensive "brain" (e.g. Opus) is for the work only it can do: shaping the plan and verifying the result. Route by the task, not by reflex:
-
-- **Too trivial** (a one-liner, a single-file rename, a typo, a quick fix) → **do it inline.** The delegation overhead — worktree, verify gate, round-trip — costs more dev time than it saves. Forcing trivial work through delegation is bad DX, not a win.
-- **The sweet spot** (non-trivial but cleanly specifiable, so a cheaper agent can execute it faithfully behind a real gate) → **delegate.** Most feature work, migrations, CRUD/resolvers, refactor-by-pattern, config bumps live here. Prefer a *different family* (cursor/codex) over the cheaper-claude executor when you want cross-family diversity, not just cost.
+- **Too trivial** (a one-liner, a single-file rename, a typo, a quick fix) → **do it inline.** The delegation overhead — worktree, verify gate, round-trip — costs more dev time than it saves.
+- **Non-trivial but cleanly specifiable** → the default delegate is **the host's default implementer subagent, where one exists** — not this skill. Where the host has no implementer subagent, do it inline or use this skill.
+- **This skill (an external headless CLI: cursor-agent, codex, or `claude -p`)** is for an **explicit request** ("have cursor do it") or **bulk mechanical work with no open decisions**. An open decision is one whose wrong guess forces a redo or review escalation (interface shape, data handling, user-visible behavior); repo conventions don't count. Close a single open decision in the spec first; with more than one, use the implementer subagent instead. Prefer a *different family* (cursor/codex) over the cheaper-claude executor when you want cross-family diversity, not just cost.
 - **Too hard to delegate safely** → **keep it with the brain**, for one of two distinct reasons:
-  - (a) the task genuinely needs implementation-time judgment a cheaper model lacks (subtle architecture, security-sensitive, deeply ambiguous) → Claude codes it directly;
+  - (a) the task genuinely needs implementation-time judgment a cheaper model lacks (subtle architecture, security-sensitive, deeply ambiguous) → you code it directly;
   - (b) your *plan* isn't thorough enough to keep a dumber model on rails → **notice that** and harden the plan first (`plan` / `writing-plans`). Shipping a thin spec to a weak model is exactly how it goes off the rails — the failure looks like the delegate's fault but it's an under-planning fault.
 
 The tell for (b): if you catch yourself hand-waving a step, that step is the brain's job. Fix the plan or do that part inline; don't outsource the hand-wave.
@@ -27,12 +26,11 @@ The per-tool invocation (preflight, headless flags, worktree, resume, output par
 |----------|-----------|-----------|-----------|
 | `agent` (Cursor CLI) | [`references/cursor-agent.md`](references/cursor-agent.md) | native `--worktree` | Cursor's headless CLI (`agent`; legacy alias `cursor-agent`); default = latest Cursor-subsidized model (see reference). |
 | `codex` | [`references/codex.md`](references/codex.md) | via the `git-worktree` skill | OpenAI Codex CLI (`codex exec`). |
-| `claude` | [`references/claude.md`](references/claude.md) | via the `git-worktree` skill | Headless `claude -p` on a cheaper model (Haiku/Sonnet). For in-process subagent orchestration with cross-model review, use `execute` instead. |
+| `claude` | [`references/claude.md`](references/claude.md) | via the `git-worktree` skill | An option, not the default: headless `claude -p` on a cheaper model (Haiku/Sonnet). For in-process subagent orchestration with cross-model review, use `execute` instead. |
 
 ## Operational guardrails
 
 - **No plan yet?** Don't delegate raw input — shape it first (`plan`, `writing-plans`), then come back. Delegation executes a spec; it doesn't author one.
-- **Fall back to `execute`** if no executor CLI is installed or authenticated (see Preflight) — don't simulate the delegation.
 
 ## The core idea: a clean division of labor
 
@@ -43,25 +41,13 @@ The whole design turns on one fact: a **git worktree shares `.git` but has its o
 | **Tier 1** — env-independent | the executor's worktree | the executor, self-looping | typecheck (`tsc --noEmit`), lint, build, pure unit tests |
 | **Tier 2** — env-dependent | your main working tree, **after merge** | you (main agent) | integration/e2e, anything needing `.env` / services / DBs, `/goal` acceptance |
 
-The flow is single-direction, no merge-thrash:
-
-```
-spawn executor in an isolated worktree  →  codes + iterates until Tier-1 checks pass (cheap, internal)
-you review the diff in the worktree
-        │
-   ┌────┴───────────────────────────────┐
-   │  merge worktree branch → main tree  │  ← COMMIT POINT
-   └─────────────────────────────────────┘
-you run Tier-2 (envs, services, /goal) in the main tree
-   pass → done
-   fail → you continue directly (the escalation, below)
-```
+The flow is single-direction, no merge-thrash (Stages 3–7 below).
 
 **The single rule that keeps this robust: the gate the executor iterates against must be env-independent.** If your real acceptance check needs envs or services, that check is yours, post-merge — never push it into the worktree.
 
 ## Preflight (fail loud)
 
-Before delegating anything, confirm the executor is actually installed **and** authenticated — the exact commands are in `references/<tool>.md`. A silent fallback to doing it yourself defeats the purpose; a silent failure is worse. If the CLI is missing or not logged in, stop, tell the user the one-time setup command (you can't auth for them), and fall back to `execute`.
+Before delegating anything, confirm the executor is actually installed **and** authenticated — the exact commands are in `references/<tool>.md`. If the CLI is missing or not logged in, stop, tell the user the one-time setup command (you can't auth for them), and fall back to `execute` — don't simulate the delegation.
 
 **Model:** inherit the executor's cheap default rather than pinning a model id per call (ids rot) — but **verify the default that governs headless runs is actually cheap**, and set it once if not. It may differ from what the CLI's model list labels "default" (e.g. the Cursor CLI's headless default lives in `~/.cursor/cli-config.json`, not `--list-models`). See the reference for where to set it.
 
@@ -72,7 +58,7 @@ Run in order. Each gate must pass before the next.
 ### 1. Load and sanity-check the spec
 Read the entire spec/plan. You must be able to restate, in your own words, what "done" looks like and **which checks prove it** — and you must classify each check as Tier 1 (env-independent, the executor's loop) or Tier 2 (env-dependent, yours). If the acceptance check is all Tier 2 and there's nothing cheap for the executor to iterate against, add a Tier-1 gate (at minimum "typechecks and builds") so it isn't coding blind.
 
-**On-rails check (decide go / no-go here).** Before delegating, gut-check that a *weaker* model could satisfy this spec without having to invent decisions about **the contract or what "done" means**. (Implementation latitude is fine — even wanted, on the diversity path — *as long as the acceptance gate pins correctness*.) Walk it: is the contract concrete and the gate decisive, or are you hand-waving? A hand-wave in the contract or the gate is the (b) backfire mode — **harden the plan first** (`plan` / `writing-plans`) or do the ambiguous parts inline. Better to not delegate than to ship a thin contract and babysit a derailment.
+**On-rails check (decide go / no-go here).** Before delegating, gut-check that a *weaker* model could satisfy this spec without having to invent decisions about **the contract or what "done" means**. (Implementation latitude is fine — even wanted, on the diversity path — *as long as the acceptance gate pins correctness*.) Walk it: is the contract concrete and the gate decisive, or are you hand-waving? A hand-wave in the contract or the gate is the (b) backfire mode — **harden the plan first** (`plan` / `writing-plans`) or do the ambiguous parts inline.
 *Gate:* you have a written spec thorough enough that a weaker model won't have to guess, **and** a concrete Tier-1 command set it can run in isolation. If not, fix the plan or keep it inline — don't proceed.
 
 ### 2. Write the delegation prompt
@@ -105,7 +91,7 @@ Bring the worktree's committed branch into your working tree:
 WT_BRANCH=$(git -C <worktree-path> branch --show-current)
 git merge --no-ff "$WT_BRANCH"        # from your main working tree
 ```
-Review the merged diff once more in the main tree. Everything past this line is yours — re-delegating across the merge boundary means branching a fresh worktree off updated HEAD, which isn't worth the friction.
+Review the merged diff once more in the main tree. Everything past this line is yours.
 
 ### 7. Tier 2 — verify in the main tree (yours), and escalate on failure
 Run the env-dependent verification where the env actually lives: integration/e2e, services, `/goal` acceptance.
@@ -115,4 +101,4 @@ Run the env-dependent verification where the env actually lives: integration/e2e
 ### 8. Review pass, then report
 Keep authoring and review separate — don't self-approve in the same breath. Run `slop-cleanup` over the diff (behavior-preserving) to strip characteristic AI slop, which a cheap executor tends to produce more of. If you get review feedback, apply `receiving-code-review` to weigh it with rigor. Then report what was implemented, which files changed, the Tier-1 evidence from the executor, and your Tier-2 evidence. **The skill stops here** — the natural follow-on is `finish` (which can also tear down the worktree).
 
-Soft references throughout: use the named skill if installed, apply the same discipline inline if not.
+Skills named here are soft references: if one isn't installed, apply the same discipline inline.

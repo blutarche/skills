@@ -19,12 +19,12 @@ If `agent status` says **"Not logged in"**, stop and tell the user to run `agent
 
 ## Model — inherit a Cursor-subsidized default (set it once)
 
-Don't pass `--model` per call — the id version-bumps, so pinning it in the skill rots. Instead set the CLI's default to the **latest Cursor-subsidized model** (the "Cursor Models" pool: the newest `cursor-grok-*`; Composer is the cheaper-per-token fallback) **once**; delegations then inherit it and the skill stays model-agnostic.
+Don't pass `--model` per call — the id version-bumps, so pinning it in the skill rots. Instead set the CLI's default to the **latest Cursor-subsidized model** (the "Cursor Models" pool; pick it from `agent --list-models`) **once**; delegations then inherit it and the skill stays model-agnostic.
 
 **Set the right knob.** The default that governs headless `agent -p` lives in **`~/.cursor/cli-config.json`** (`model` + `selectedModel`), *not* the `(default)` shown by `agent --list-models` — that's a server label the local config overrides. Set it either way:
 
 - **Interactive (recommended):** run `agent`, pick the model with the `/model` slash command → choose the subsidized model → it persists to cli-config.json.
-- **Direct:** set `model.modelId` and `selectedModel.modelId` in `~/.cursor/cli-config.json` to the **flattened** id from `--list-models`. A base id plus a `parameters` list does not govern `-p` — headless runs silently fall back to composer; the flattened id is what takes.
+- **Direct:** set `model.modelId` and `selectedModel.modelId` in `~/.cursor/cli-config.json` to the **flattened** id from `--list-models`. A base id plus a `parameters` list does not govern `-p` — headless runs silently fall back to a different model; the flattened id is what takes.
 
 Confirm: `agent` runs should record that id (`strings ~/.cursor/chats/*/<session-id>/store.db | grep modelName`). Then omit `--model` in delegations; pass it only as a deliberate premium escape hatch.
 

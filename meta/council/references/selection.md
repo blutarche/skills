@@ -6,7 +6,7 @@ come from the CLI's own listing or the account default at run time. This file de
 *which* CLI; the per-tool invocation lives in a file of its own:
 
 - [`codex.md`](codex.md) — OpenAI Codex (GPT family)
-- [`cursor-agent.md`](cursor-agent.md) — Cursor agent (pin a non-Claude model)
+- [`cursor-agent.md`](cursor-agent.md) — Cursor CLI (`agent`, legacy alias `cursor-agent`; pin a non-Claude model)
 - [`gemini.md`](gemini.md) — Google Gemini (opt-in via `COUNCIL_CLI=gemini`; recipe unverified)
 - GLM (Zhipu — an independent 4th family) — **deferred, not wired.** No recipe yet; to enable, add a `glm.md` recipe and a `COUNCIL_CLI=glm` path.
 
@@ -16,12 +16,14 @@ change when a CLI's flags do.
 
 ## Auto-detect, fixed order, overridable
 
-Default auto-detect order: **codex → cursor-agent**. `gemini` is **opt-in only**
+Default auto-detect order: **codex → cursor-agent** (the logical name for the Cursor CLI; the
+binary is `agent` if it runs, else the legacy `cursor-agent` — resolved by `council_cursor_bin`
+below). `gemini` is **opt-in only**
 (`COUNCIL_CLI=gemini`) — its invocation is not yet verified end-to-end (see
 [`gemini.md`](gemini.md)), so it must not be auto-selected silently. Override the whole
 order with `COUNCIL_CLI=<codex|cursor-agent|gemini>`.
 
-`--version` proves the binary runs, **not** that it's authed (`cursor-agent --version`
+`--version` proves the binary runs, **not** that it's authed (the Cursor CLI's `--version`
 returns 0 while logged out; the real call then fails "Authentication required"). So
 detection cannot end at one binary — it must yield the **ordered list of reachable
 candidates**, and the convene step tries them in order, dropping any that fail at auth or
@@ -33,10 +35,20 @@ space-defaulted variable — zsh does **not** word-split an unquoted
 detection silently fails. This works in both bash and zsh:
 
 ```sh
+council_cursor_bin() {                       # prints the working Cursor CLI name; non-zero if neither runs
+  for b in agent cursor-agent; do            # `agent` is Cursor's official command; `cursor-agent` is the legacy alias
+    "$b" --version >/dev/null 2>&1 && { printf '%s\n' "$b"; return 0; }
+  done
+  return 1
+}
+
 council_candidates() {                       # prints reachable CLIs, in order, one per line
   if [ -n "${COUNCIL_CLI:-}" ]; then set -- "$COUNCIL_CLI"; else set -- codex cursor-agent; fi  # ${..:-} so set -u doesn't trip on an unset override
   for cli in "$@"; do
-    "$cli" --version >/dev/null 2>&1 && echo "$cli"
+    case "$cli" in
+      cursor-agent) council_cursor_bin >/dev/null ;;   # Cursor CLI: `agent`, else legacy `cursor-agent`
+      *) "$cli" --version >/dev/null 2>&1 ;;
+    esac && echo "$cli"
   done
 }
 
@@ -57,7 +69,7 @@ candidate produced no verdict, so the loop clears `$verdict` and tries the next;
 candidate fails, degrade down the ladder. `run_council` must **wall-clock-bound** its CLI call so
 a convene can never wedge — the shape is below. `COUNCIL_CLI` is honored **strictly**: if set but unreachable or
 unauthed, council degrades rather than silently falling back to another family. The auth check itself is per tool
-(e.g. `cursor-agent --list-models` → "No models available for this account" means
+(e.g. the Cursor CLI's `--list-models` → "No models available for this account" means
 installed-but-not-authed).
 
 ## `run_council` — bound the convene, emit the verdict
@@ -107,7 +119,5 @@ feed the raw prompt, whichever CLI you pick.
 - At least **one** of the CLIs above installed *and authenticated*. Install + auth is
   per tool — see that tool's file; in every case **verify** with `<cli> --version`
   (presence) and one real call (auth).
-- The call needs the **Claude Code Bash-tool sandbox disabled** (`dangerouslyDisableSandbox`,
-  or pre-allow via `/sandbox`) so the process can spawn and persist its config dir — see
-  SKILL.md "two sandboxes." The sub-CLI's *own* sandbox stays read-only.
-- None installed? Council still runs — it degrades down its ladder and discloses the rung.
+- The call needs the **Claude Code Bash-tool sandbox disabled** — see SKILL.md "Two sandboxes."
+- None installed is not an error — council degrades down its ladder and discloses the rung.

@@ -27,7 +27,7 @@ Synthesise into **ranked candidate loci** + the fastest non-mutating proof step 
 
 If you have a fast, deterministic, automatically-runnable pass/fail signal for the bug, you will find the cause: bisection, hypothesis-testing, and instrumentation all just consume that signal. Without one, staring at code rarely helps.
 
-Spend disproportionate effort here. Be aggressive and creative; do not give up early.
+Spend disproportionate effort here.
 
 ### Ways to construct a loop — try them in roughly this order
 
@@ -42,8 +42,6 @@ Spend disproportionate effort here. Be aggressive and creative; do not give up e
 9. **Differential loop.** Run the same input through two versions or two configs and diff the outputs.
 10. **Human-in-the-loop, structured.** Last resort, when a human must perform a manual step. Script the surrounding steps so the human action is the only manual part, and feed the captured result back into the loop.
 
-Build the right feedback loop and the bug is most of the way to fixed.
-
 ### Iterate on the loop itself
 
 Treat the loop as a product. Once you have one, ask:
@@ -51,8 +49,6 @@ Treat the loop as a product. Once you have one, ask:
 - Can I make it **faster**? Cache setup, skip unrelated initialisation, narrow the scope.
 - Can I make the signal **sharper**? Assert on the specific symptom, not merely "did not crash".
 - Can I make it **more deterministic**? Pin time, seed randomness, isolate the filesystem, freeze the network.
-
-A 30-second flaky loop is barely better than no loop. A 2-second deterministic one is worth real effort to build.
 
 ### Non-deterministic bugs
 
@@ -96,11 +92,7 @@ For an **ambiguous, cross-layer** bug where several hypotheses stay plausible, g
 
 Each probe must map to a specific prediction from Phase 4. **Change one variable at a time.**
 
-Tool preference:
-
-1. **Debugger or REPL inspection** when the environment supports it. One breakpoint beats ten log lines.
-2. **Targeted logs** at the boundaries that distinguish hypotheses.
-3. Never "log everything and grep".
+Tool preference: a debugger or REPL inspection when the environment supports it (one breakpoint beats ten log lines); otherwise targeted logs at the boundaries that distinguish hypotheses. Never "log everything and grep".
 
 **Tag every temporary log** with a unique prefix (e.g. `[DEBUG-a4f2]`) so cleanup later is a single search. Untagged logs tend to survive; tagged logs are easy to remove.
 
@@ -135,9 +127,9 @@ A flaky test fails for one of two reasons: it races on timing, or it lies about 
 - *Mocking without understanding dependencies*: over-mocking strips a side effect the test relies on (e.g. mocking away a call that also does a config write), so the test passes or fails for the wrong reason. Fix: mock only the slow/external part; if unsure what a method's side effects are, run the real implementation first and observe.
 - *Incomplete mocks*: a mock missing fields the real API returns hides structural assumptions and breaks silently downstream. Fix: mirror the complete real structure, not just the fields the current assertion touches.
 
-**Confirm the fix:** run the de-flaked test many times, under load or in parallel, and in CI-like conditions — not just once locally. Then break the production logic on purpose and confirm the test goes red; if it stays green, the assertion was lying.
+Red flag: mock setup longer than the test logic.
 
-**Red flags:** `*-mock` test IDs in assertions; `sleep`/fixed delays in async tests; methods only ever called from test files; mock setup longer than the test logic; a test that stays green when you delete the behavior it claims to verify.
+**Confirm the fix:** run the de-flaked test many times, under load or in parallel, and in CI-like conditions — not just once locally. Then break the production logic on purpose and confirm the test goes red; if it stays green, the assertion was lying.
 
 ## Cleanup and post-mortem
 

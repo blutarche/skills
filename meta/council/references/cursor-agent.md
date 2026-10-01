@@ -1,10 +1,17 @@
-# cursor-agent — Cursor agent
+# Cursor CLI (`agent`, legacy `cursor-agent`)
 
-**Resolve a non-Claude `--model` at runtime** — cursor-agent can run Claude models too, and a
+**Resolve a non-Claude `--model` at runtime** — the Cursor CLI can run Claude models too, and a
 council on a Claude model is not cross-family and defeats the mechanism. `COUNCIL_MODEL`, if
 set, is used verbatim; otherwise `council_cursor_model` below resolves one from
-`cursor-agent --list-models` at convene time, so nothing here rots when model names change.
+`--list-models` at convene time, so nothing here rots when model names change.
 Selected per [`selection.md`](selection.md).
+
+## Resolving the binary
+
+Cursor's official command is `agent`; `cursor-agent` is the legacy alias (same binary). Use
+`agent` first, then `cursor-agent`; `--version` is run, not just `command -v`, so a PATH shim
+that fails when executed is skipped. The snippets below call `council_cursor_bin`, which is
+defined in [`selection.md`](selection.md) next to `council_candidates`; define it before using them.
 
 ## Resolving `--model`
 
@@ -14,8 +21,9 @@ POSIX-sh, no arrays — just grep/awk/head — safe under both bash and zsh:
 council_cursor_model() {
   if [ -n "${COUNCIL_MODEL:-}" ]; then printf '%s\n' "$COUNCIL_MODEL"; return 0; fi
   # NOTE: `--list-models` output format was not verified on this box (unauthed) — if
-  # resolution ever picks something odd, run `cursor-agent --list-models` yourself and eyeball it.
-  candidates="$(cursor-agent --list-models 2>/dev/null \
+  # resolution ever picks something odd, run `<cli> --list-models` yourself and eyeball it.
+  bin="$(council_cursor_bin)" || return 1
+  candidates="$("$bin" --list-models 2>/dev/null \
     | grep -E '^[A-Za-z0-9]' \
     | awk '{print $1}' \
     | grep -E '^[A-Za-z0-9][A-Za-z0-9._/-]*$' \
@@ -39,12 +47,13 @@ Read stdout as the verdict.
 Small artifact:
 
 ```sh
+bin="$(council_cursor_bin)" || exit 1       # neither `agent` nor `cursor-agent` runs
 model="$(council_cursor_model)" || exit 1   # no non-Claude id → model-selection failure, loop tries the next CLI
-cursor-agent -p --output-format text --mode ask --trust --model "$model" \
+"$bin" -p --output-format text --mode ask --trust --model "$model" \
   "<artifact + attack brief>" < /dev/null
 ```
 
-Large diff / PR-scale — unlike `codex exec`, cursor-agent does not ingest the artifact
+Large diff / PR-scale — unlike `codex exec`, the Cursor CLI does not ingest the artifact
 from stdin; write it to a file and have the agent read it (file reads are allowed in
 read-only `ask` mode):
 
@@ -52,8 +61,9 @@ read-only `ask` mode):
 # mktemp (not a fixed $TMPDIR/council.txt): a predictable name races concurrent runs; trap cleans up.
 art="$(mktemp -t council.XXXXXX)"; trap 'rm -f "$art"' EXIT
 { printf '%s\n\n' "<attack brief>"; git diff <range>; } > "$art"
+bin="$(council_cursor_bin)" || exit 1
 model="$(council_cursor_model)" || exit 1   # no non-Claude id → model-selection failure, loop tries the next CLI
-cursor-agent -p --output-format text --mode ask --trust --model "$model" \
+"$bin" -p --output-format text --mode ask --trust --model "$model" \
   "Read $art and review the artifact in it, per the brief at the top." < /dev/null
 ```
 
@@ -70,8 +80,8 @@ the file, not stdin. `ask` mode reads an absolute `mktemp` path fine.)
 
 ## Install / auth / verify
 
-Install via Cursor's installer and authenticate (`cursor-agent login`, or `CURSOR_API_KEY`),
-then verify: `cursor-agent --version` (presence) and `cursor-agent --list-models` (auth —
+Install via Cursor's installer and authenticate (`agent login`, or `CURSOR_API_KEY`),
+then verify: `agent --version` (presence) and `agent --list-models` (auth —
 "No models available for this account" means installed-but-not-authed). Note `--version`
 alone returns 0 even when unauthed, so detection (selection.md) treats an auth error on
 the first real call as a signal to fall through to the next provider.

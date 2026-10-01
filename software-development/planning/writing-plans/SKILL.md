@@ -19,13 +19,7 @@ If the spec covers multiple independent subsystems, it should have been broken i
 
 ## File Structure
 
-Before defining tasks, map out which files will be created or modified and what each one is responsible for. This is where decomposition decisions get locked in.
-
-- Design units with clear boundaries and well-defined interfaces. Each file should have one clear responsibility.
-- Files that change together should live together. Split by responsibility, not by technical layer.
-- In existing codebases, follow established patterns. If the codebase uses large files, don't unilaterally restructure - but if a file you're modifying has grown unwieldy, including a split in the plan is reasonable.
-
-This structure informs the task decomposition. Each task should produce self-contained changes that make sense independently.
+Before defining tasks, map out which files will be created or modified and what each one is responsible for. Each file should have one clear responsibility; files that change together should live together — split by responsibility, not by technical layer. In existing codebases, follow established patterns; don't unilaterally restructure, though a split of a file that has grown unwieldy is reasonable to include. Each task should produce self-contained changes that make sense independently.
 
 ## Bite-Sized Task Granularity
 
@@ -113,19 +107,16 @@ Every step must contain the actual content an engineer needs. These are **plan f
 
 ## Self-Review
 
-After writing the complete plan, look at the spec with fresh eyes and check the plan against it. This is a checklist you run yourself — not a subagent dispatch.
+After writing the complete plan, check it against the spec yourself — not as a subagent dispatch.
 
-**1. Spec coverage:** Skim each section/requirement in the spec. Can you point to a task that implements it? List any gaps.
+**1. Spec coverage:** Can you point to a task that implements each requirement in the spec? If a requirement has no task, add one.
 
-**2. Placeholder scan:** Search your plan for red flags — any of the patterns from the "No Placeholders" section above. Fix them.
+**2. Placeholder scan:** Search the plan for any of the patterns in "No Placeholders" above. Fix them.
 
 **3. Type consistency:** Do the types, method signatures, and property names you used in later tasks match what you defined in earlier tasks? A function called `clearLayers()` in Task 3 but `clearFullLayers()` in Task 7 is a bug.
 
-If you find issues, fix them inline. No need to re-review — just fix and move on. If you find a spec requirement with no task, add the task.
+Fix issues inline; no need to re-review.
 
 ## After the plan
 
-This skill's output is the saved plan file. Two things typically follow, but they are **separate steps owned by the caller or workflow** — don't auto-invoke them from here:
-
-- **Harden it** — a fresh plan is ideal grilling material (`grill-with-docs` against an existing codebase's domain model, or `grill-me` for greenfield / standalone plans).
-- **Execute it** — work the tasks in order, following each step exactly and running every verification. Never start implementation on `main`/`master` without explicit user consent.
+This skill's output is the saved plan file. Hardening it (`grill-with-docs` against an existing codebase's domain model, `grill-me` for greenfield) and executing it are **separate steps owned by the caller or workflow** — don't auto-invoke them from here. Never start implementation on `main`/`master` without explicit user consent.

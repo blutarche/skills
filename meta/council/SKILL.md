@@ -5,8 +5,6 @@ description: Convene a cross-model judge (Codex/GPT, Gemini, or a non-Claude Cur
 
 # Council — an independent cross-model judge
 
-A conclusion you trust is one you haven't cross-examined. This skill is a *different* model — handed your work cold, with orders to break it, because it doesn't share the blind spot you never considered.
-
 It is the **mechanism only**: convene the outside model and adjudicate. The *methodology* — what to look for — is the caller's: `scrutinize` for a code diff, citation-and-staleness checks for a research answer, plain critical reading for a decision. `vet`, `research-council`, `plan`, and autonomous `execute` all compose this skill so the cross-model machinery lives in one place.
 
 ## Convene the council — an outside adversary
@@ -18,7 +16,7 @@ Hand the artifact to a model of a *different family* and tell it to **attack, no
 - fed the artifact **blind** (artifact + attack brief only), via argv for small inputs or a file/stdin for large ones, **never leaving stdin open**;
 - read its stdout as the verdict.
 
-The concrete per-tool invocation — which CLI to auto-detect, the exact flags, the stdin-vs-file handling — lives in [`references/selection.md`](references/selection.md) (the detection order and cross-family rule) and one file per CLI ([`codex.md`](references/codex.md), [`cursor-agent.md`](references/cursor-agent.md), [`gemini.md`](references/gemini.md)). Detect whichever cross-model CLI is installed (default order codex → cursor-agent; gemini opt-in via `COUNCIL_CLI`), try candidates in order falling through on auth/model failure; pass the chosen one the **raw adversarial prompt**, not a canned `review` subcommand (which would replace your brief with its own and assume a diff).
+The concrete per-tool invocation — which CLI to auto-detect, the exact flags, the stdin-vs-file handling — lives in [`references/selection.md`](references/selection.md) (the detection order, cross-family rule, and prerequisites — at least one CLI installed *and* authenticated) and one file per CLI ([`codex.md`](references/codex.md), [`cursor-agent.md`](references/cursor-agent.md), [`gemini.md`](references/gemini.md)). Detect whichever cross-model CLI is installed (default order codex → Cursor CLI, `agent` else legacy `cursor-agent`; gemini opt-in via `COUNCIL_CLI`), try candidates in order falling through on auth/model failure; pass the chosen one the **raw adversarial prompt**, not a canned `review` subcommand (which would replace your brief with its own and assume a diff).
 
 **Two sandboxes — disable the right one.** "Sandbox disabled" here means the **Claude Code Bash-tool sandbox** (`dangerouslyDisableSandbox: true`, or pre-allow via `/sandbox`) so the cross-model process can spawn and persist its own config (e.g. `~/.codex`). The sub-CLI's *own* sandbox is left **read-only** — enough to read and review, never to edit. A nested/background subagent has its harness sandbox-disable rejected *before the command runs*, so it can't launch the CLI (`bypassPermissions` doesn't fix it); **make the call from the top level**, never a subagent.
 
@@ -45,10 +43,6 @@ The council convenes against *you*, so disbelieve it back. Reconcile its finding
 ## When no cross-model CLI can be reached — degrade down a ladder, disclose the rung
 
 If no cross-model CLI is reachable (none installed or authed, you're in a subagent, or the convene **wedged past its wall-clock bound** — every convene is time-bounded, never an unbounded wait), fall back to your own model — but say which rung you used. **Best:** run the caller's in-family review (`scrutinize`, etc.) in a **fresh subagent** (fresh context is what makes it a real *second* look). **If subagents are unavailable too:** run it **inline** — the weakest rung (same model, same context, least independent). Never fail the review for lack of isolation; just **say so** — name the rung and that the cross-model lens (and, if inline, the fresh-context lens) was lost, so the reader weights it accordingly.
-
-## Prerequisites
-
-At least one cross-model CLI installed *and authenticated* (`codex`, `cursor-agent`, or `gemini`); the call runs with the Claude Code Bash sandbox disabled (see *Two sandboxes*). Detection order and reachability checks are in [`references/selection.md`](references/selection.md); per-tool install/auth in [`codex.md`](references/codex.md), [`cursor-agent.md`](references/cursor-agent.md), [`gemini.md`](references/gemini.md). None installed is not an error — council degrades and discloses the rung.
 
 ## Rules
 

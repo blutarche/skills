@@ -8,7 +8,7 @@ description: Engineering record of a fixed bug or incident — root cause, mecha
 
 ## Overview
 
-The canonical engineering record of a bug fix. Written **after** debugging lands a real, validated fix, **for** the next engineer (and future-you, who will have forgotten everything in six months). Code identifiers are first-class here — this is the artifact that lets the next person recover the mental model fast and grep their way back to the offending lines.
+The canonical engineering record of a bug fix. Written **after** debugging lands a real, validated fix, **for** the next engineer.
 
 **Core principle:** Record what happened, not a hypothesis of what happened. No root cause without evidence; no validation claim broader than what you actually ran; no blame. If the facts aren't there, ask — don't fill the gap with plausible prose.
 
@@ -34,8 +34,6 @@ Before writing a line, confirm all four. If any is missing, list what's missing 
 [ ] Fix validated       — the original repro now passes; the failing workload/test now succeeds
 ```
 
-A post-mortem of a hypothesis is worse than no post-mortem. Don't draft one.
-
 **Skip it entirely** for trivial fixes (typo, obvious one-liner) — the PR description is the record. Don't manufacture ceremony.
 
 ## Structure (bug-fix mode)
@@ -48,7 +46,7 @@ Use these blocks in order. **Summary, Root cause, Fix, Validation are mandatory*
 4. **Why it produced the symptom** — link cause to symptom when it's non-obvious (the bug is in `prepare()` but the visible failure is a hang hours later). Let a reader who only knows the symptom connect it back without re-deriving.
 5. **Fix** *(mandatory)* — what changed and **why it addresses the root cause** rather than hiding the symptom. Link the PR. If a prior fix papered over the symptom, name it and what was wrong with it.
 6. **How it was found** — short: the repro that made it deterministic, the tools that cracked it, hypotheses tried and the one-line reason each was rejected, and the single experiment that confirmed the cause. For the next debugger — make it learnable.
-7. **Why it slipped through** — the real reason it reached the branch/release/customer: CI gap, latent code broken by a later change, workload gap, incomplete prior fix, or review miss. If the honest answer is "we should have caught this," say so. Describe the gap, never the person.
+7. **Why it slipped through** — the real reason it reached the branch/release/customer: CI gap, latent code broken by a later change, workload gap, incomplete prior fix, or review miss. If the honest answer is "we should have caught this," say so.
 8. **Validation** *(mandatory)* — how you know it works: failing test now passes (name/link), workload completes (id/link), perf number before→after, soak/stress duration. **State coverage honestly** — *"validated on config X; not retested on Y"* is information, not a hole. Implying broader coverage than you ran is the failure mode that breeds repeat regressions.
 9. **Action items** — concrete follow-ups not already in the fix PR, each with what + owner (role) + tracking artifact. If there are none, write *"None — fix is sufficient."* Don't invent items to look thorough.
 
@@ -64,8 +62,8 @@ Use these blocks in order. **Summary, Root cause, Fix, Validation are mandatory*
 
 - **Code identifiers are first-class** — keep function names, paths, fields, SHAs. They're the index the next engineer greps.
 - **Mechanism over narrative** — say which function skipped which step under which condition, not "a synchronization issue."
-- **No hedging** — drop "we believe / appears to / may have." State it or leave it out.
 - **Blameless** — describe the bug, the gap, the fix. Never "X should have caught this." The CI gap is the failure mode, not the person.
+- **No hedging** — drop "we believe / appears to / may have." State it or leave it out.
 - **No advocacy** — a post-mortem records what happened and what's next. Arguing for a refactor is a separate proposal; link to it from the action items.
 
 ## Output flow
