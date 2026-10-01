@@ -80,7 +80,7 @@ See [`AGENTS.md`](AGENTS.md) for placement, rules, and the validation gate, and
 ## Companion: agents
 
 The companion [`agents`](https://github.com/blutarche/agents) repo's subagent definitions reference
-the `scrutinize` skill from here by name. Install skills first so those agents get the
+the `scrutinize` and `diagnose` skills from here by name. Install skills first so those agents get the
 methodology they expect.
 
 ## License

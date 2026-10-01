@@ -60,9 +60,9 @@ Edit the source skill in its repo. Installed copies under `~/.claude/skills` and
 For each approved Accepted item, follow the Routing field exactly:
 
 - Trivial existing-skill edit (a one-line bullet, a tightened sentence, a stale fact corrected): parent does directly.
-- Substantive existing-skill edit (a new section, a new pattern table, more than ~10 lines): hand to the `skill-creator` skill and run its draft / test / iterate loop (if it is not installed, make the edit directly and test it on a sample prompt).
-- `tune description: <skill path>` (the skill exists but didn't trigger when it should have): hand to `skill-creator` and run its description-optimization loop (without it, rewrite the description by hand: what the skill does, then `Use when …` cues).
-- `new skill via skill-creator: <kebab-name>`: hand creation to `skill-creator` (without it, follow the target repo's skill conventions). Do not invent the shape ad hoc.
+- Substantive existing-skill edit (a new section, a new pattern table, more than ~10 lines): follow `writing-great-skills` (user-invoked: read its `SKILL.md` from the installed skills directory and follow it; if it isn't installed, apply its discipline inline), then test the edited skill on a sample prompt.
+- `tune description: <skill path>` (the skill exists but didn't trigger when it should have): rewrite the description per `writing-great-skills` (what the skill does, then `Use when …` cues), then test it on a sample prompt.
+- `new skill: <kebab-name>`: create it per `writing-great-skills` and the target repo's skill conventions, then test it on a sample prompt. Do not invent the shape ad hoc.
 
 Backlog items are listed in the reply. With user approval, write each as one MemPalace drawer in the `lessons` room, format `YYYY-MM-DD <rule> — why: <evidence>`. If MemPalace is unavailable, only list them.
 

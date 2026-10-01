@@ -1,6 +1,6 @@
 ---
 name: add-skill
-description: Scaffold a new skill in THIS repo — correct folder, valid frontmatter, README row, credits, and validation. (For the authoring craft, use the global skill-creator.)
+description: Scaffold a new skill in THIS repo — correct folder, valid frontmatter, README row, credits, and validation. (For the authoring craft, read meta/writing-great-skills.)
 disable-model-invocation: true
 ---
 
@@ -15,6 +15,7 @@ Place a new skill so it satisfies the repo's invariants and installs cleanly. Th
    - Atomic skill → `<domain>/<group>/<name>/` (e.g. `software-development/review/<name>/`).
    - Playbook composing atomic skills → `workflows/<name>/`.
    - Domain-agnostic → `meta/<name>/`.
+   - Experiment not yet graduated → `in-progress/<name>/`.
    - A brand-new top-level domain must be added to [`install.conf`](../../../install.conf) or it
      won't install (default-deny).
 
@@ -30,7 +31,7 @@ Place a new skill so it satisfies the repo's invariants and installs cleanly. Th
    license requires attribution (MIT/BSD/Apache) keep a `license:` line in the frontmatter.
 
 5. **Add a one-line row to the area's `README.md` table** (`software-development/`, `workflows/`,
-   or `meta/`). Keep it thin.
+   `meta/`, or `in-progress/`). Keep it thin.
 
 6. **Validate, then preview the install:**
    ```bash

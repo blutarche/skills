@@ -25,6 +25,7 @@ Other tests: `./scripts/test-install.sh`, `./scripts/test-validate-skills.sh`, a
    - Atomic skill → `<domain>/<group>/<name>/` (e.g. `software-development/review/<name>/`).
    - Playbook that composes atomic skills → `workflows/<name>/`.
    - Domain-agnostic → `meta/<name>/`.
+   - Experiment not yet graduated → `in-progress/<name>/`.
 2. Copy [`docs/skill-template.md`](docs/skill-template.md) into that kebab-case folder as `SKILL.md`.
 3. Add a one-line row to the area's `README.md` table (and a `CREDITS.md` row if borrowed).
 4. Run `./scripts/validate-skills.sh` until clean.
@@ -32,8 +33,7 @@ Other tests: `./scripts/test-install.sh`, `./scripts/test-validate-skills.sh`, a
 Only the top-level domains in [`install.conf`](install.conf) install; see the README's
 [Install](README.md#install) for default-deny. Grouping below the domain is for humans only.
 
-Fastest path: run `/add-skill` (does steps 1–4). In Claude, Anthropic's built-in `/skill-creator` covers the authoring
-craft itself (drafting, evals, description tuning).
+Fastest path: run `/add-skill` (does steps 1–4). For the authoring craft itself, read [`meta/writing-great-skills`](meta/writing-great-skills/SKILL.md), then test the new skill on a sample prompt.
 
 ## Conventions
 
