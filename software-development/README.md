@@ -1,7 +1,7 @@
 # software-development
 
 Atomic, single-purpose skills for building software with an agent, grouped by **phase**
-(design → planning → review → engineering). Each skill does one job and is unaware of the others —
+(design → planning → review → engineering → verification). Each skill does one job and is unaware of the others —
 sequencing lives in [`workflows/`](../workflows/README.md), not here. Sources for adapted skills are in
 [`../CREDITS.md`](../CREDITS.md).
 
@@ -37,3 +37,10 @@ sequencing lives in [`workflows/`](../workflows/README.md), not here. Sources fo
 | [`git-commit`](engineering/git-commit/SKILL.md) | Turn a working tree into clean, atomic, bisect-safe commits — Conventional-Commit messages, no co-author trailer, push left to the user. |
 | [`git-worktree`](engineering/git-worktree/SKILL.md) | Create/enter an isolated feature worktree and bootstrap-or-surface its environment (setup), then remove/prune it (teardown). Use when starting or wrapping up isolated agentic work. |
 | [`delegate-coding`](engineering/delegate-coding/SKILL.md) | When the plan is clear enough for a cheaper agent to execute, delegate the coding to a headless executor CLI — `cursor-agent`, `codex`, or a cheaper `claude` — while your expensive "brain" model only plans, verifies, and owns the merge. Executor self-loops on env-independent checks in its worktree; you own env-dependent checks post-merge; bounded retries, then you finish. Per-tool invocation in `references/`. |
+
+## verification — prove the running app works the way a user sees it
+
+| Skill | What it does |
+|-------|--------------|
+| [`create-verification-skill`](verification/create-verification-skill/SKILL.md) | Generate a project-local `verify-<app>` skill (launch, doctor, drive, evidence, cleanup) plus a per-feature map, then prove it by running it once. Manual `/command` only. |
+| [`maintain-verification-skill`](verification/maintain-verification-skill/SKILL.md) | Audit a `verify-<app>` skill: per-feature source readers in parallel, one live pass driving every feature, one local commit of proven map/harness fixes. Manual `/command` only. |

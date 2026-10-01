@@ -10,5 +10,6 @@ Skills here draw on prior art from the agent-skills community. Thanks to:
 - [anthropics/skills](https://github.com/anthropics/skills)
 - [dimillian/skills](https://github.com/dimillian/skills)
 - [cathrynlavery/diagram-design](https://github.com/cathrynlavery/diagram-design)
+- [cursor/plugins pstack](https://github.com/cursor/plugins/tree/main/pstack) — `create-verification-skill`, `maintain-verification-skill` (MIT © 2026 Lauren Tan)
 - [coldteadotai/pr-lens](https://github.com/coldteadotai/pr-lens) — PR Lens agent skill (MIT © Coldtea AI)
 - Cleverse/aerogram-akl `review-tour-report` (private) — walkthrough's spec + build-script architecture
