@@ -12,8 +12,8 @@ Take an approved, self-contained implementation spec and drive it to verified co
 - **Too trivial** (a one-liner, a single-file rename, a typo, a quick fix) → **do it inline.** The delegation overhead — worktree, verify gate, round-trip — costs more dev time than it saves.
 - **Non-trivial but cleanly specifiable** → the default delegate is **the host's default implementer subagent, where one exists** — not this skill. Where the host has no implementer subagent, do it inline or use this skill.
 - **This skill (an external headless CLI: cursor-agent, codex, or `claude -p`)** is for an **explicit request** ("have cursor do it") or **bulk mechanical work with no open decisions**. An open decision is one whose wrong guess forces a redo or review escalation (interface shape, data handling, user-visible behavior); repo conventions don't count. Close a single open decision in the spec first; with more than one, use the implementer subagent instead. Prefer a *different family* (cursor/codex) over the cheaper-claude executor when you want cross-family diversity, not just cost.
-- **Too hard to delegate safely** → **keep it with the brain**, for one of two distinct reasons:
-  - (a) the task genuinely needs implementation-time judgment a cheaper model lacks (subtle architecture, security-sensitive, deeply ambiguous) → you code it directly;
+- **Too hard to delegate to an external CLI** → **keep it in-host**, for one of two distinct reasons:
+  - (a) the task genuinely needs implementation-time judgment a cheaper model lacks (subtle architecture, security-sensitive, deeply ambiguous) → **never an external CLI**: it goes to the host's implementer subagent on the strongest model (judgment-heavy or security-sensitive work is high blast radius), and you own the spec and the verification; with no implementer subagent in the host, you code it directly;
   - (b) your *plan* isn't thorough enough to keep a dumber model on rails → **notice that** and harden the plan first (`plan` / `writing-plans`). Shipping a thin spec to a weak model is exactly how it goes off the rails — the failure looks like the delegate's fault but it's an under-planning fault.
 
 The tell for (b): if you catch yourself hand-waving a step, that step is the brain's job. Fix the plan or do that part inline; don't outsource the hand-wave.
@@ -24,7 +24,7 @@ The per-tool invocation (preflight, headless flags, worktree, resume, output par
 
 | Executor | Reference | Isolation | What it is |
 |----------|-----------|-----------|-----------|
-| `agent` (Cursor CLI) | [`references/cursor-agent.md`](references/cursor-agent.md) | native `--worktree` | Cursor's headless CLI (`agent`; legacy alias `cursor-agent`); default = latest Cursor-subsidized model (see reference). |
+| `agent` (Cursor CLI) | [`references/cursor-agent.md`](references/cursor-agent.md) | via the `git-worktree` skill (`--workspace`) | Cursor's headless CLI (`agent`; legacy alias `cursor-agent`); default = latest Cursor-subsidized model (see reference). |
 | `codex` | [`references/codex.md`](references/codex.md) | via the `git-worktree` skill | OpenAI Codex CLI (`codex exec`). |
 | `claude` | [`references/claude.md`](references/claude.md) | via the `git-worktree` skill | An option, not the default: headless `claude -p` on a cheaper model (Haiku/Sonnet). For in-process subagent orchestration with cross-model review, use `execute` instead. |
 
@@ -34,7 +34,7 @@ The per-tool invocation (preflight, headless flags, worktree, resume, output par
 
 ## The core idea: a clean division of labor
 
-The whole design turns on one fact: a **git worktree shares `.git` but has its own working files**, so gitignored things — `.env`, `node_modules`, build caches — are *absent* from the executor's worktree, and running services/ports are configured for your main tree. That makes full, env-dependent verification fragile inside the worktree. So split verification into two tiers, with **the merge as the commit point**:
+The whole design turns on one fact: a **git worktree shares `.git` but has its own working files**, so gitignored things — `.env`, `node_modules`, build caches — are *absent* from the executor's worktree, and running services/ports are configured for your main tree. That makes full, env-dependent verification fragile inside the worktree. Keep it that way: the executor runs with bypassed approvals or workspace-write, so its worktree must stay secret-free — never copy `.env` or local config into it (`git-worktree` setup copies env files only for the host's own agents, not for an executor's tree). A secret-free tree removes copies, not access: `bypassPermissions`/`--force` executors have no filesystem confinement and can read `$MAIN/.env` or `~`. Never hand an executor a task that needs secrets, and prefer an executor sandbox/read-deny where the tool offers one. So split verification into two tiers, with **the merge as the commit point**:
 
 | Tier | Where it runs | Who owns it | What it covers |
 |------|---------------|-------------|----------------|
@@ -47,7 +47,7 @@ The flow is single-direction, no merge-thrash (Stages 3–7 below).
 
 ## Preflight (fail loud)
 
-Before delegating anything, confirm the executor is actually installed **and** authenticated — the exact commands are in `references/<tool>.md`. If the CLI is missing or not logged in, stop, tell the user the one-time setup command (you can't auth for them), and fall back to `execute` — don't simulate the delegation.
+Before delegating anything, confirm the executor is actually installed **and** authenticated — the exact commands are in `references/<tool>.md`. If the CLI is missing or not logged in, stop, tell the user the one-time setup command (you can't auth for them), and fall back to the host's implementer subagent (or inline if small and local) — don't simulate the delegation.
 
 **Model:** inherit the executor's cheap default rather than pinning a model id per call (ids rot) — but **verify the default that governs headless runs is actually cheap**, and set it once if not. It may differ from what the CLI's model list labels "default" (e.g. the Cursor CLI's headless default lives in `~/.cursor/cli-config.json`, not `--list-models`). See the reference for where to set it.
 
@@ -65,15 +65,27 @@ Read the entire spec/plan. You must be able to restate, in your own words, what 
 The executor gets one self-contained brief — it does not share your context. Include:
 - **The task** — spec tightness follows your intent (see cost-vs-diversity above). For **cost**: fully determined (files, signatures, behavior) so the executor just types it. For **diversity**: the contract, interfaces, and acceptance gate, with implementation deliberately left open. Either way: surgical scope, no adjacent "improvements", and the **acceptance gate is always unambiguous** — that's what catches a wrong result regardless of how it was written.
 - **Guardrails for a weaker model (vital):** embed surgical-execution rules directly in the prompt — surgical changes only, reuse before adding, read before writing, no speculative abstraction or defensive cruft, surface conflicts/assumptions instead of guessing, fail loud. The external executor can't load your skills, and a cheaper model drifts into slop and over-engineering without these rails — this is what keeps it from going off track. Paste the rules inline; don't just name a skill.
-- **The Tier-1 gate**: the exact commands to run and the instruction to *iterate until they pass*.
-- **Boundaries**: do **not** run integration/e2e tests or anything needing `.env`/services/DBs — those are verified later, elsewhere. If deps aren't installed in the worktree, install them first (e.g. `pnpm install`) so Tier-1 can run.
+- **Delegate guardrails** (below), pasted verbatim.
+- **The Tier-1 gate**: the exact commands to run — each a single command, since the executor can't chain — and the instruction to *iterate until they pass*.
+- **Boundaries**: do **not** run integration/e2e tests or anything needing `.env`/services/DBs — those are verified later, elsewhere. You (the orchestrator) install deps in the worktree before dispatch so Tier-1 can run; the executor never installs.
 - **Commit when green**: once Tier-1 passes, the work gets committed in the worktree so there's a clean branch to merge — by the executor, or by you if it can't commit under its sandbox (see the executor's reference).
 - **Report**: status (DONE / BLOCKED / NEEDS_CONTEXT) and what was changed.
+
+### Delegate guardrails
+
+Every spec handed to an executor or implementer subagent carries these, verbatim (Hermes/Cursor/Codex never see global rules):
+
+- Work only in the given tree; never switch any checkout's branch.
+- No `git stash`.
+- Stage explicit paths only (never `git add -A` / `git add .`); never stage `.env` or secrets.
+- In `git commit`, put `-m` before any `--`.
+- One plain command per Bash call: no chaining (`&&`, `;`, pipes into other commands). A call blocked on a permission prompt can't be unblocked. (Binds the executor's/subagent's own calls; the orchestrator's recipes in this skill may chain.)
+- Don't install dependencies or run docker: the orchestrator installs deps before dispatch (Codex has no network).
 
 *Gate:* the prompt is self-contained — someone with no other context could act on it.
 
 ### 3. Delegate (first pass)
-Invoke the executor **headless, in an isolated worktree**, per `references/<tool>.md`. Capture whatever that tool needs for the retry loop — typically a session/chat id (to resume) and the worktree path. Tools with no native worktree are isolated via the `git-worktree` skill, pointing the executor at that path.
+Invoke the executor **headless, in an isolated worktree**, per `references/<tool>.md`. Capture whatever that tool needs for the retry loop — typically a session/chat id (to resume) and the worktree path. Tools with no native worktree are isolated via the `git-worktree` skill, telling it the tree is for an external executor (no env files) and pointing the executor at that path.
 
 ### 4. Verify Tier 1 yourself — don't trust the report
 Re-run the Tier-1 checks in the worktree on fresh evidence. A weaker executor will report "done" optimistically; the gate is the actual command output and exit code, not the prose.
@@ -91,7 +103,7 @@ Bring the worktree's committed branch into your working tree:
 WT_BRANCH=$(git -C <worktree-path> branch --show-current)
 git merge --no-ff "$WT_BRANCH"        # from your main working tree
 ```
-Review the merged diff once more in the main tree. Everything past this line is yours.
+Review the merged diff once more in the main tree. Before Tier 2 runs executor-authored code with secrets present, check it for execution hooks: changed scripts (`package.json` scripts, Makefile, conftest, CI config, test setup), and `git config core.hooksPath` / `.git/hooks` for changes (an unconfined executor can write the shared `.git`). Everything past this line is yours.
 
 ### 7. Tier 2 — verify in the main tree (yours), and escalate on failure
 Run the env-dependent verification where the env actually lives: integration/e2e, services, `/goal` acceptance.

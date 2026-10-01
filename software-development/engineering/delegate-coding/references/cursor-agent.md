@@ -11,7 +11,7 @@ The command is **`agent`** — Cursor's headless CLI ([cursor.com/docs/cli](http
 Official install (macOS/Linux/WSL): `curl https://cursor.com/install -fsS | bash` ([docs/cli/installation](https://cursor.com/docs/cli/installation)).
 
 ```bash
-command -v agent >/dev/null || echo "Cursor CLI not installed"   # → fall back to execute
+command -v agent >/dev/null || echo "Cursor CLI not installed"   # → fall back to the implementer subagent
 agent status                                                     # must report logged in
 ```
 
@@ -30,31 +30,33 @@ Confirm: `agent` runs should record that id (`strings ~/.cursor/chats/*/<session
 
 ## Stage 3 — delegate (first pass)
 
+Create the worktree yourself via the `git-worktree` skill (external executor: no env files) and install deps in it, then point cursor at it:
+
 ```bash
-agent -p "<delegation prompt>" \
+( cd <worktree-path> && agent -p "<delegation prompt>" \
   --output-format json \
   --force --trust \
-  --worktree <task-slug>
+  --workspace <worktree-path> )
 ```
 
 - `-p` / `--print` — headless print mode (full write + shell access).
 - `--force` (alias `--yolo`) — auto-approve commands so it runs unattended.
 - `--trust` — required for headless workspace trust (only works with `-p`).
-- `--worktree <task-slug>` (`-w`) — isolated worktree at `~/.cursor/worktrees/<repo>/<task-slug>`; cursor manages it. `--worktree-base <branch>` bases it on a ref other than current HEAD.
+- `--workspace <path>` — the worktree you prepared. Native `--worktree <task-slug>` (`-w`, at `~/.cursor/worktrees/<repo>/<task-slug>`, `--worktree-base <branch>` for another base) creates the tree at dispatch, so deps can't be installed first; use it only when the task needs no deps (see Deps below).
 - `--output-format json` — so you can capture the result and the session id (for `--resume`). `text` (default) and `stream-json` are the other formats.
 
-Other flags that may help: `--workspace <path>` (point at an explicit dir), `--skip-worktree-setup` (skip `.cursor/worktrees.json` setup scripts), `--approve-mcps`, `--sandbox enabled|disabled`.
+Other flags that may help: `--skip-worktree-setup` (skip `.cursor/worktrees.json` setup scripts), `--approve-mcps`, `--sandbox enabled|disabled`.
 
-**Deps in a fresh worktree.** A `--worktree` starts with none of your gitignored deps (`node_modules`, etc.), so include the install step in the Tier-1 instructions you give the executor — or rely on the repo's `.cursor/worktrees.json` setup scripts. Don't assume deps are present.
+**Deps in a fresh worktree.** A fresh worktree has none of your gitignored deps (`node_modules`, etc.), and the executor never installs. Prefer creating the worktree yourself via `git-worktree` (install deps there, no env files) and pointing cursor at it with `--workspace <path>`. If you use native `--worktree` (no-deps tasks only), pass `--skip-worktree-setup` unless you've read `.cursor/worktrees.json` and it copies no env/secrets.
 
 **Parsing the output.** With `--output-format json`, stdout is *not* pure JSON: it prints a human line first, then the JSON object as the **last line**. Parse the last line:
 
 ```bash
-WORKTREE=$(grep -m1 '^Using worktree:' stdout.txt | sed 's/^Using worktree: //')   # the worktree path
+WORKTREE=$(grep -m1 '^Using worktree:' stdout.txt | sed 's/^Using worktree: //')   # native --worktree only: the worktree path
 tail -1 stdout.txt | python3 -c 'import json,sys;d=json.load(sys.stdin);print(d["session_id"], d["is_error"])'
 ```
 
-JSON fields (per [docs/cli/reference/output-format](https://cursor.com/docs/cli/reference/output-format)): `type`, `subtype`, `is_error` (bool — your real success signal, not the prose), `duration_ms`, `duration_api_ms`, `result` (the agent's text), `session_id` (the thread id — use this for `--resume`; there is **no** `chatId` field), `request_id`. The worktree path comes on the leading `Using worktree: …` line, matching `~/.cursor/worktrees/<repo>/<task-slug>`.
+JSON fields (per [docs/cli/reference/output-format](https://cursor.com/docs/cli/reference/output-format)): `type`, `subtype`, `is_error` (bool — your real success signal, not the prose), `duration_ms`, `duration_api_ms`, `result` (the agent's text), `session_id` (the thread id — use this for `--resume`; there is **no** `chatId` field), `request_id`. With native `--worktree`, the path comes on the leading `Using worktree: …` line, matching `~/.cursor/worktrees/<repo>/<task-slug>`; with `--workspace` you already have it.
 
 ## Stage 5 — bounded retry (resume the same session)
 
@@ -63,10 +65,10 @@ Resume by thread id with `--resume <session_id>` (or `--continue` for the most r
 **Run resume with the worktree as cwd — load-bearing.** `--resume` does **not** reattach to the session's worktree; it operates in whatever directory you launch it from. Resume from your main repo and it edits — and can commit — there. Always `cd` into the worktree first:
 
 ```bash
-( cd ~/.cursor/worktrees/<repo>/<task-slug> \
+( cd <worktree-path> \
   && agent --resume <session_id> -p "<exact failure output + what to fix>" --output-format json --force --trust )
 ```
 
 ## Cleanup
 
-Cursor's worktree auto-cleans in some cases; otherwise remove it after merge with `git worktree remove ~/.cursor/worktrees/<repo>/<task-slug>` (or leave it to the `finish` workflow).
+A `git-worktree` tree is torn down by that skill after merge (or by the `finish` workflow). A native Cursor worktree auto-cleans in some cases; otherwise `git worktree remove ~/.cursor/worktrees/<repo>/<task-slug>`.

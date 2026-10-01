@@ -1,6 +1,6 @@
 ---
 name: git-worktree
-description: Create and bootstrap an isolated feature worktree, or tear one down. Use when starting or wrapping up isolated agentic work.
+description: Create and bootstrap an isolated feature worktree, or tear one down. Use when the user or a workflow (execute autonomous, delegate-coding) asks for an isolated worktree, or to tear one down.
 ---
 
 # Git Worktree
@@ -11,10 +11,17 @@ A worktree is an isolated checkout of the same repo on its own branch, so an age
 
 ## Setup
 
-1. **Create + enter the worktree.**
+1. **Create + enter the worktree.** First, for both paths: `MAIN=$(git rev-parse --show-toplevel)` — capture the main tree now, before any `cd`; step 2 needs it.
+
+   **Orca first.** If `orca` is on PATH and the repo is Orca-managed, create the worktree with Orca so it shows in the app (the user checks Orca; a plain `git worktree add` is invisible there). Detect from the main root, mirroring `finish`: `command -v orca >/dev/null 2>&1 && orca worktree current --json >/dev/null 2>&1` (any failure means "not Orca"; the CLI may print a harmless codesign `ERROR` line to stderr). Then:
 
    ```bash
-   MAIN=$(git rev-parse --show-toplevel)           # capture the main tree NOW — needed for env copy after we cd
+   orca worktree create --name "<branch>" --base-branch "<base>" --json   # needs the Bash sandbox disabled
+   ```
+
+   Take the path and branch from the JSON, `cd` into it, and still apply step 2. Not Orca → the git path below.
+
+   ```bash
    WT="$MAIN/.worktrees/<branch>"                  # under the repo's .worktrees/ convention
    git worktree add "$WT" -b "<branch>" "<base>"  # name <base> (e.g. origin/main, HEAD) — don't omit it
    touch "$(git -C "$WT" rev-parse --git-dir)/council-worktree"  # provenance marker in git metadata, NOT the working tree
@@ -28,7 +35,7 @@ A worktree is an isolated checkout of the same repo on its own branch, so an age
    Detect the project's setup and run it — for example:
    - JS/TS: the lockfile-appropriate install (`npm ci` / `pnpm install` / `yarn`).
    - Python: create/sync the venv (`uv sync`, `poetry install`, `pip install -e .`).
-   - copy any gitignored env the project relies on (`.env`, local config) from the main tree `$MAIN` (captured in step 1) if present.
+   - copy any gitignored env the project relies on (`.env`, local config) from the main tree `$MAIN` (captured in step 1) if present — **only when the worktree is for the host's own agent/subagents; the caller states whether it is for an external executor** (`delegate-coding` says so explicitly). Never copy secrets into a worktree an external executor (`delegate-coding`) will run in: that tree stays secret-free, and env-dependent checks run post-merge (Tier 2).
 
    **If the setup can't be determined** — no recognisable manifest, or an env file you can't safely reproduce — **STOP and surface it**: `set up the env at <path> before autonomous runs` (name what's missing). **Never run tests in a half-built tree** and call the result a failure; an unbootstrapped tree is a setup gap, not a code defect.
 

@@ -15,7 +15,7 @@ Codex auth is a one-time `codex login` (or `CODEX_HOME`/API-key setup). If unaut
 
 ## Isolation (no native worktree)
 
-Codex has no worktree flag. Create the isolated worktree via the **`git-worktree` skill** (or `git worktree add <path> -b <branch>`), bootstrap its env so Tier-1 can run, then pin codex to it with **`-C <worktree>`** (sets the working root — cleaner than `cd`).
+Codex has no worktree flag. Create the isolated worktree via the **`git-worktree` skill** (or `git worktree add <path> -b <branch>`), install deps only (no env files) so Tier-1 can run, then pin codex to it with **`-C <worktree>`** (sets the working root — cleaner than `cd`).
 
 ## Stage 3 — delegate (first pass)
 
@@ -31,11 +31,15 @@ codex exec -C <worktree-path> -s workspace-write --json \
 - `--json` — emit JSONL events to stdout; the **session/thread id is a UUID in these events** (grep `[0-9a-f-]{36}`). You need it for resume.
 - `-o <file>` — write the agent's final message to a file (cleaner than parsing the result text out of JSONL).
 
+**No network.** Codex's sandbox has no network access: it can't run `pnpm`/`npm install`, docker, or anything that fetches. Install deps in the worktree yourself before dispatch.
+
 **Commit gotcha: do NOT ask codex to commit in a linked worktree.** A linked worktree's git index lives under the *main* repo's `.git/worktrees/...`, which is outside the `workspace-write` sandbox, so `git commit` fails ("cannot write the worktree's git index"). Instead, let codex only edit files, and have **the orchestrator commit** after Tier-1 passes:
 
 ```bash
 ( cd <worktree-path> && python3 -m pytest -q )      # your Tier-1, verified by you
-git -C <worktree-path> add -A && git -C <worktree-path> commit -m "<msg>"
+git -C <worktree-path> status --porcelain -uall      # list what codex changed, one line per untracked file; confirm none is `.env` or a secret
+git -C <worktree-path> add -- <path1> <path2>           # stage files, not directories; never -A or .
+git -C <worktree-path> commit -m "<msg>"
 ```
 
 (Alternatives if you really want codex to commit: `--add-dir <main-repo>` to widen the sandbox, or `--dangerously-bypass-approvals-and-sandbox`. The orchestrator-commit path is simpler.)

@@ -9,7 +9,7 @@ Your "brain" is an expensive Claude (Opus); when the spec is clear, hand the *co
 ## Preflight
 
 ```bash
-command -v claude >/dev/null || echo "claude CLI not installed"   # → fall back to execute / inline
+command -v claude >/dev/null || echo "claude CLI not installed"   # → fall back to the implementer subagent / inline
 ```
 
 `claude` is already authenticated for the session you're in, so there's usually no separate login step. Confirm the cheaper model is available to the account (`claude --model haiku -p "say ok"` as a smoke test).
@@ -18,25 +18,25 @@ command -v claude >/dev/null || echo "claude CLI not installed"   # → fall bac
 
 ## Isolation (no native worktree)
 
-`claude` has no `--worktree` flag, so create the isolated worktree yourself via the **`git-worktree` skill** (setup), then point the executor at it. Bootstrap its env (the skill's setup runs the project install, or stops and surfaces that it must be set up) so Tier-1 (`tsc`, unit tests) can actually run — a fresh worktree has no `node_modules`.
+`claude` has no `--worktree` flag, so create the isolated worktree yourself via the **`git-worktree` skill** (setup), then point the executor at it. Install deps only (no env files; the skill's setup runs the project install, or stops and surfaces that it must be set up) so Tier-1 (`tsc`, unit tests) can actually run — a fresh worktree has no `node_modules`.
 
 ## Stage 3 — delegate (first pass)
 
 Run the cheaper Claude headless, scoped to the worktree:
 
 ```bash
-claude -p "<delegation prompt>" \
+( cd <worktree-path> && claude -p "<delegation prompt>" \
   --model haiku \
   --output-format json \
   --permission-mode bypassPermissions \
-  --add-dir <worktree-path>
+  --add-dir <worktree-path> )
 ```
 
 - `-p / --print` — non-interactive; prints the result and exits.
 - `--model haiku` (or `sonnet`) — the cheaper executor model. Don't use the brain's model here.
 - `--output-format json` — capture the result and the **session id** (for `--resume`). `stream-json` is available if you want incremental output.
-- `--permission-mode bypassPermissions` — run unattended (it's confined to a throwaway worktree). Verify the exact mode name with `claude --help`; `--add-dir` grants the worktree as a working root.
-- Run it with the worktree as cwd (or via `--add-dir`) so all edits land there, not in your main tree.
+- `--permission-mode bypassPermissions` — run unattended. It is confined only by cwd, not by the filesystem: it can still read paths outside the worktree. Verify the exact mode name with `claude --help`; `--add-dir` grants the worktree as a working root.
+- Always run it with the worktree as cwd; `--add-dir` alone leaves cwd in the main tree (where `.env` lives), so edits and reads land there.
 
 ## Stage 5 — bounded retry (resume the same session)
 
