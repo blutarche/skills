@@ -46,6 +46,7 @@ sequencing lives in [`workflows/`](../workflows/README.md), not here. Sources fo
 | [`review-animations`](frontend/review-animations/SKILL.md) | Strict review of motion code against Emil Kowalski's craft bar. Explicit invocation only. |
 | [`mobile-native`](frontend/mobile-native/SKILL.md) | Fixes that make a web app feel native on a phone: sticky hover, 100vh, input zoom, safe areas, tap delay. |
 | [`prototype`](frontend/prototype/SKILL.md) | Build several genuinely different variants of a UI piece behind a live picker. Explicit invocation only. |
+| [`find-animation-opportunities`](frontend/find-animation-opportunities/SKILL.md) | Read-only sweep of a UI for the few places motion earns its keep, with exact values and a required list of rejected candidates; hands off to `animate`. Explicit invocation only. |
 
 ## verification — prove the running app works the way a user sees it
 
