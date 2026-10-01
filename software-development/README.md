@@ -1,7 +1,7 @@
 # software-development
 
 Atomic, single-purpose skills for building software with an agent, grouped by **phase**
-(design → planning → review → engineering, plus frontend and verification). Each skill does one job and is unaware of the others —
+(design → planning → review → engineering, plus frontend, verification, and languages). Each skill does one job and is unaware of the others —
 sequencing lives in [`workflows/`](../workflows/README.md), not here. Sources for adapted skills are in
 [`../CREDITS.md`](../CREDITS.md).
 
@@ -53,3 +53,9 @@ sequencing lives in [`workflows/`](../workflows/README.md), not here. Sources fo
 |-------|--------------|
 | [`create-verification-skill`](verification/create-verification-skill/SKILL.md) | Generate a project-local `verify-<app>` skill (launch, doctor, drive, evidence, cleanup) plus a per-feature map, then prove it by running it once. Manual `/command` only. |
 | [`maintain-verification-skill`](verification/maintain-verification-skill/SKILL.md) | Audit a `verify-<app>` skill: per-feature source readers in parallel, one live pass driving every feature, one local commit of proven map/harness fixes. Manual `/command` only. |
+
+## languages — idiomatic code per language
+
+| Skill | What it does |
+|-------|--------------|
+| [`write-swift`](languages/write-swift/SKILL.md) | Write modern Swift: value types, Swift 6 concurrency and Sendable, generics (`some` vs `any`), API design, ARC, Swift Testing. |
