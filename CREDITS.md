@@ -12,4 +12,5 @@ Skills here draw on prior art from the agent-skills community. Thanks to:
 - [cathrynlavery/diagram-design](https://github.com/cathrynlavery/diagram-design)
 - [coldteadotai/pr-lens](https://github.com/coldteadotai/pr-lens)
 - [emilkowalski/skills](https://github.com/emilkowalski/skills)
+- [cursor/plugins pstack](https://github.com/cursor/plugins/tree/main/pstack)
 
