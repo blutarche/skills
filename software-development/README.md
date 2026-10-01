@@ -1,7 +1,7 @@
 # software-development
 
 Atomic, single-purpose skills for building software with an agent, grouped by **phase**
-(design → planning → review → engineering). Each skill does one job and is unaware of the others —
+(design → planning → review → engineering, plus frontend). Each skill does one job and is unaware of the others —
 sequencing lives in [`workflows/`](../workflows/README.md), not here. Sources for adapted skills are in
 [`../CREDITS.md`](../CREDITS.md).
 
@@ -37,3 +37,12 @@ sequencing lives in [`workflows/`](../workflows/README.md), not here. Sources fo
 | [`git-commit`](engineering/git-commit/SKILL.md) | Turn a working tree into clean, atomic, bisect-safe commits — Conventional-Commit messages, no co-author trailer, push left to the user. |
 | [`git-worktree`](engineering/git-worktree/SKILL.md) | Create/enter an isolated feature worktree and bootstrap-or-surface its environment (setup), then remove/prune it (teardown). Use when starting or wrapping up isolated agentic work. |
 | [`delegate-coding`](engineering/delegate-coding/SKILL.md) | When the plan is clear enough for a cheaper agent to execute, delegate the coding to a headless executor CLI — `cursor-agent`, `codex`, or a cheaper `claude` — while your expensive "brain" model only plans, verifies, and owns the merge. Executor self-loops on env-independent checks in its worktree; you own env-dependent checks post-merge; bounded retries, then you finish. Per-tool invocation in `references/`. |
+
+## frontend — UI motion and feel
+
+| Skill | What it does |
+|-------|--------------|
+| [`animate`](frontend/animate/SKILL.md) | Build a web animation in decision order: should it animate, purpose, tool, properties, curve/duration, interruption, reduced motion. |
+| [`review-animations`](frontend/review-animations/SKILL.md) | Strict review of motion code against Emil Kowalski's craft bar. Explicit invocation only. |
+| [`mobile-native`](frontend/mobile-native/SKILL.md) | Fixes that make a web app feel native on a phone: sticky hover, 100vh, input zoom, safe areas, tap delay. |
+| [`prototype`](frontend/prototype/SKILL.md) | Build several genuinely different variants of a UI piece behind a live picker. Explicit invocation only. |
