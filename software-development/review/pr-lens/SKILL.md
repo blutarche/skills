@@ -1,14 +1,12 @@
 ---
 name: pr-lens
-description: "WHAT: Draws a code change or part of a codebase as an animated architecture or data-flow diagram, on its own or in a pull request. WHEN: asked to diagram, visualise or explain a change or a system, or when a pull request should carry a diagram. KEYWORDS: PR Lens, diagram, architecture, data flow, visualise, visualize, pull request"
+description: "PR Lens: draws a code change or part of a codebase as an animated architecture or data-flow diagram, standalone or on a pull request. Use when asked to diagram, visualise or visualize, or explain a change or a system, or when a pull request should carry a diagram."
 license: MIT
 ---
 
 # PR Lens
 
-PR Lens draws code as visually rich animated diagrams. It can represent diffs, architecture, data flows, and more.
-
-The diff or code is represented as one JSON document (lanes, nodes, edges, ordered flows) and it renders the JSON as an animated SVG
+PR Lens represents a diff or a piece of code as one JSON document (lanes, nodes, edges, ordered flows) and renders it as an animated SVG.
 
 ## Operating manual
 
@@ -70,7 +68,7 @@ If the user asked for a canvas, decide that before you write the document: only 
    gh has three rules:
    - The reference has to be a Markdown image, `![alt](path)`. An HTML `<img>` or `<picture>` is left as written, and the file is appended at the bottom of the body instead.
    - The alt text is the caption a reader without images gets. Say what the diagram shows, in one line.
-   - `--attach` arrived in GitHub CLI 2.99. Check with `gh --version` before you write a body around it.
+   - `--attach` is recent in GitHub CLI. Check that `gh pr create --help` lists it before you write a body around it.
 
    Attach the views a reviewer needs and leave the rest in `.pr-lens/`: the top architecture view first, then a data flow if the change has a sequence worth following. A body with four diagrams reads worse than one with two, except the four are really needed to understand the change e.g., in the case of a complex feature or refactor.
 
@@ -104,140 +102,36 @@ A reviewer should understand the change before reading the diff, so the diagram 
 
 ## Choosing architecture views
 
-Treat architecture views as a C4-inspired decision tree, not a checklist. One useful view is enough for a small change. Start with system context when the change affects a user, an external system or a system boundary. Use a container view for the affected applications, services, jobs, data stores and runtimes. Add a component child only when an affected container's internals matter. Do not add code-level views by default.
-
-Every child moves down one level and covers a materially narrower scope. Skip empty, repetitive or speculative levels, and do not infer architecture from folder names alone. Two views should not carry substantially the same nodes and edges. Keep the unchanged direct neighbours that explain blast radius.
-
-Keep data-flow views as separate roots rather than nesting them in the architecture tree. Set `defaultOpen: true` on the highest useful architecture view. Lower levels should normally keep the default, `false`.
+Treat architecture views as a C4-inspired decision tree, not a checklist; one useful view is enough for a small change. Read "Choosing architecture views" in `references/graph-document.md` before writing `views`.
 
 ## Writing a walkthrough
 
-Write a walkthrough only when the user asked for a canvas: only a canvas plays it.
+A walkthrough is a short guided tour of the diagrams: each step shows one diagram, points at one part of it, and says a few words about it. Only a canvas plays it, so write one only when the user asked for a canvas. The format leaves it optional, but for a canvas write one for anything that is not trivial: more than one diagram, a diagram with several changed parts, or any flow. Skip it only when the document is one small diagram whose single step would just repeat the title. The JSON shape, field limits and validator checks are in `references/graph-document.md`, "Walkthrough".
 
-A walkthrough is a short guided tour of the diagrams. It has two to twelve steps. Each step shows one diagram, points at one part of it, and says a few words about it. A canvas plays it, and the reader scrolls through it.
-
-The contract leaves a walkthrough optional. Write one anyway for anything that is not trivial: more than one diagram, a diagram with several changed parts, or any flow. Skip it only when the document is one small diagram whose single step would just repeat the title.
-
-Aim for three to seven steps.
+Aim for three to seven steps (the format allows two to twelve).
 
 A walkthrough is the fastest read of a pull request. Each step is one change: something added, changed, removed or moved, in the order a reviewer needs it. A step is never a description of the diagram.
 
 What counts as a step: a behaviour change, an API change, an architecture change, a data-flow change, or an addition. Unchanged parts appear only where a step needs them to make sense. The headline change is step one. An overview of everything touched, if there is one, is the last step.
 
-```json
-"walkthrough": {
-  "steps": [
-    {
-      "id": "four-batch-calls",
-      "heading": "Postmark now gets 500 emails per call",
-      "body": "One call per batch, and Postmark answers with a result for each message.",
-      "stage": { "kind": "flow", "flow": "send-pipeline" },
-      "focus": { "kind": "selection", "messages": ["batch-post", "batch-results"] }
-    },
-    {
-      "id": "blast-radius",
-      "heading": "4 parts added, 2 removed, across 3 lanes",
-      "body": "A 2,000-person broadcast used to make 2,000 calls to Postmark. It now makes 4.",
-      "stage": { "kind": "view", "view": "overview" }
-    }
-  ]
-}
-```
-
-Each step has:
-
-- `heading`: the thing and what happened to it, up to 48 characters, in sentence case. Build it from change words: added, removed, replaced, now, moved, split. If a heading could have been true before the pull request, it is not a change heading.
-- `body`: one line under the heading, up to 140 characters, on what the change means for behaviour: what happens now that did not before, or what stops happening, with the numbers when they matter. Not a restatement of the heading, and not a description of the code. A heading with no body reads as unfinished, so the body is required.
-- `stage`: which diagram to show. A document can have several diagrams: its views (the drill-down diagrams) and its flows (the sequence diagrams). `{ "kind": "view", "view": "overview" }` shows the view called `overview`. `{ "kind": "flow", "flow": "send-pipeline" }` shows the flow called `send-pipeline`. Leave `stage` out and the step uses the diagram the reader is already on. Open on the widest view with the focus left out, so the reader sees the whole thing before it narrows.
-- `focus`: what to zoom in on inside that diagram. `{ "kind": "all" }`, the default, means the whole diagram. A selection means "just these things": name any lanes, nodes, edges or flow steps (`messages`) by id, and the camera zooms to them while everything else dims. Focus the elements the step's change touched, so the veil lights the change. Point at two or three of them. A step that lights half the diagram has not said anything.
+- `heading`: the thing and what happened to it. Build it from change words: added, removed, replaced, now, moved, split. If a heading could have been true before the pull request, it is not a change heading.
+- `body`: one line under the heading on what the change means for behaviour: what happens now that did not before, or what stops happening, with the numbers when they matter. Not a restatement of the heading, and not a description of the code. A heading with no body reads as unfinished, so the body is required.
+- `stage`: open on the widest view with the focus left out, so the reader sees the whole thing before it narrows.
+- `focus`: focus the elements the step's change touched, so the veil lights the change. Point at two or three of them. A step that lights half the diagram has not said anything.
 
 Write every word for a smart twelve-year-old: short common words, one idea per line, active voice, things named as the diagram names them, numbers as digits. If a line needs a second read, rewrite it. Words like leverages, orchestrates, asynchronous pipeline and fan-out never belong in a step. This holds in whatever language the document is written in.
 
-The same three steps, written well and written badly. Heading first, then the body after the slash:
-
-| Write this | Not this |
-| -------- | -------- |
-| Route now queues the job instead of sending / The API call finishes at once. A worker sends the mail later. | Broadcast fan-out moves behind the queue / The API route now enqueues broadcast jobs for asynchronous batch processing instead of sending emails inline. |
-| Postmark now gets 500 emails per call / One call per batch instead of one call per person. | Batched delivery replaces single sends / The worker leverages the shared library to send emails in chunks of 500 via Postmark's batch endpoint. |
-| processBroadcast and sendSingleEmail removed / sendBroadcastBulk does their job for whole batches. | Single send functions are retired / sendBroadcastBulk replaces processBroadcast and sendSingleEmail to handle bulk deliveries in chunks. |
-
 Keep consecutive steps on the same stage together. Every change of stage flies the camera across the canvas, so a tour that alternates between two diagrams spends its time travelling.
-
-The validator checks:
-
-- Every id you name exists in the document. A flow step you name must belong to the flow the stage shows, because flow step ids are only unique inside their own flow.
-- `messages` needs a stage that shows a flow. Leave it out when the stage is an architecture view.
-- Step ids are unique within the walkthrough. Two steps minimum, twelve maximum.
-- A stored map never carries a walkthrough. A map describes the system; a walkthrough tells the story of one change.
-
-The field arrived with contract 0.1.1. A CLI older than 0.4.0 does not know it and rejects the whole document as an invented field, so validate with a current one.
 
 ## Sample traffic on a flow step
 
-A flow step can carry a `payload`: what travels on it. Only the canvas draws it, in the rail that opens when a reader clicks a step. Nothing in an SVG or a pull request comment changes. Write it when the document is going to a canvas (step 4, `canvas push`) and leave it out otherwise. Six payloads on the reference document add half its length again, so this is not a field to fill by default.
+A flow step can carry a `payload`: what travels on it. Only the canvas draws it, in the rail that opens when a reader clicks a step. Nothing in an SVG or a pull request comment changes. Write it when the document is going to a canvas (step 4, `canvas push`) and leave it out otherwise. Payloads add a lot of length to a document, so this is not a field to fill by default.
 
-On a canvas document, add it to a step that moves data: a request body, a job record, a query, a result. Leave it off a step that only signals, such as a trigger with nothing attached.
-
-```json
-{
-  "id": "batch-post",
-  "from": "send-broadcast-bulk",
-  "to": "postmark",
-  "label": "POST /email/batch",
-  "kind": "sync",
-  "delta": "added",
-  "repeat": 4,
-  "payload": {
-    "request": {
-      "type": "EmailBatch[500]",
-      "shape": "Email[]  // max 500\nEmail = { From: string; To: string; Subject: string; HtmlBody: string; MessageStream: \"broadcast\"; Metadata: { campaignId: string; batchId: string } }",
-      "sample": [
-        {
-          "From": "news@example.com",
-          "To": "ada@example.com",
-          "Subject": "The batching issue, fixed",
-          "HtmlBody": "<!doctype html><html><body>…",
-          "MessageStream": "broadcast",
-          "Metadata": { "campaignId": "cmp_0001", "batchId": "b_0001" }
-        }
-      ],
-      "before": [
-        {
-          "From": "news@example.com",
-          "To": "ada@example.com",
-          "Subject": "The batching issue, fixed",
-          "HtmlBody": "<!doctype html><html><body>…",
-          "Metadata": { "campaignId": "cmp_0001" }
-        }
-      ],
-      "source": { "path": "tests/fixtures/postmark-batch.json" }
-    },
-    "response": {
-      "type": "BatchResult[500]",
-      "shape": "SendResult[]  // one per Email, same order",
-      "sample": [{ "ErrorCode": 0, "Message": "OK", "To": "ada@example.com", "MessageID": "b7fa5c1e-…" }]
-    }
-  }
-}
-```
-
-A payload has a `request` side, a `response` side, or both. Each side has:
-
-- `type`: the name a reader of the code would recognise. Put the count in it when the step carries a collection: `EmailBatch[500]`, not `EmailBatch`. Write `{ "type": "void" }` for a side that carries nothing, such as the answer to a fire and forget call.
-- `shape`: the type signature as text, taken from the code's own types. Up to 2048 bytes.
-- `sample`: one exemplar instance after the change, written inline as JSON. It is a JSON value, not a JSON string: `"sample": [{ "To": "ada@example.com" }]`, never `"sample": "[{\"To\": ...}]"`. A string here is rejected. Every key once, one element in any array, long strings cut with an ellipsis. At most 8 levels deep and 4096 bytes once serialised. The parser refuses a sample over either cap rather than trimming it.
-- `before`: the same exemplar as it was before the change, when it differs. Same rules as `sample`, and it needs a `sample` to differ from.
-- `source`: the fixture or type the shape and sample came from, as a file reference. It becomes the permalink.
-
-Use placeholder values: `ada@example.com`, `cmp_0001`. Never copy a value from a fixture that could belong to a real person or unlock something, even in test data.
-
-Do not write `changedPaths`. The paths that differ between `before` and `sample` are worked out when the document is stored. A list you write is discarded.
-
-The field arrived with contract 0.2.0. A CLI built before it rejects the whole document as an invented field, so validate with a current one.
+On a canvas document, add it to a step that moves data: a request body, a job record, a query, a result. Leave it off a step that only signals, such as a trigger with nothing attached. The JSON shape and field rules are in `references/graph-document.md`, "Sample traffic". Write `sample` as one exemplar instance after the change, with every key once, one element in any array, and long strings cut with an ellipsis. Do not write `changedPaths`; a list you write is discarded.
 
 ## What the validator will catch
 
-Read `references/graph-document.md` before writing. The four failures that account for nearly everything:
+The four failures that account for nearly everything:
 
 | Code                         | What you did                                                         |
 | ---------------------------- | -------------------------------------------------------------------- |
@@ -246,39 +140,8 @@ Read `references/graph-document.md` before writing. The four failures that accou
 | `DUPLICATE_ID`               | two nodes, edges or views sharing an id                              |
 | `UNSUPPORTED_SCHEMA_VERSION` | `schemaVersion` is not the contract version installed                |
 
-Seven rules cannot be expressed in JSON Schema and are checked only by the parser, so structured output alone does not make a document valid: referential integrity, a line range that ends before it starts, a `self` message whose endpoints disagree, a patch whose two commits are the same, more views than a render manifest could describe, a walkthrough step focusing flow steps the diagram on its stage does not draw, and sample traffic past its depth or byte caps. Always validate.
+Seven rules cannot be expressed in JSON Schema and are checked only by the parser, so structured output alone does not make a document valid: referential integrity, a line range that ends before it starts, a `self` message whose endpoints disagree, a patch whose two commits are the same, more views than a render manifest could describe, a walkthrough step focusing flow steps the diagram on its stage does not draw, and sample traffic past its depth or byte caps.
 
 ## Fixing a map instead of writing one
 
-When someone says the diagram is wrong (a node is misnamed, a folder should not be on it, something sits in the wrong lane), do not edit the generated document. It is regenerated on every run. Write the correction into `.github/pr-lens.yml`, which is an overlay applied over fresh inference every time:
-
-```yaml
-schemaVersion: 0.2.0
-map:
-  rename:
-    - match: functions/src/broadcast/sendBroadcastBulk.ts
-      to: Broadcast sender
-  exclude:
-    - "**/*.test.ts"
-  lane:
-    - match: packages/broadcast-lib/**
-      lane: functions
-```
-
-`references/config.md` has the full format and the recipes. Validate it the same way: `npx @coldtea/pr-lens-cli@latest validate .github/pr-lens.yml`.
-
-A `match` beginning with `id:` addresses one node exactly; anything else is a path glob matched against a node's file paths. Prefer the glob, because it keeps holding when the next run names the node differently. A lane pin may name a lane the document never declared: the band is created, and takes the id for its label, so give it one a reader would want to see.
-
-`pr-lens render` says so when a correction matched nothing, which is how a config that has drifted, because the file it named moved or was deleted, becomes visible instead of quietly doing nothing.
-
-## What ships with this skill
-
-Everything you need is beside this page. Nothing here asks you to install a package first.
-
-|                                 |                                                                                    |
-| ------------------------------- | ---------------------------------------------------------------------------------- |
-| `references/graph-document.md`  | the document, field by field: enums, limits, and where documents actually go wrong |
-| `references/config.md`          | `.github/pr-lens.yml`, the correction overlay, in full                             |
-| `references/example.graph.json` | one complete document that validates, to read and to copy the shape of             |
-
-The same document ships as `postmark-refactor.graph.json` in `@coldtea/pr-lens-schema`, and the JSON Schema the validator enforces is published at `https://unpkg.com/@coldtea/pr-lens-schema/json-schema/graph-doc.schema.json`. Neither is something you need to fetch to write a document.
+When someone says an inferred diagram is wrong (a node is misnamed, a folder should not be on it, something sits in the wrong lane), and the document came from `analyze` or the hosted App, do not edit it: it is regenerated on every run. Write the correction into `.github/pr-lens.yml`, an overlay applied over fresh inference, and read `references/config.md` for the format, selectors and recipes. A document you wrote yourself (steps 1-4) is edited directly instead.

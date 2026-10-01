@@ -16,7 +16,8 @@ readable with JavaScript off.
   update".
 - `overview`: first sentence says what changed and why. 100 to 250 words. State the alternative
   you rejected and why, in one sentence, without the words "deliberately" or "left out". Counts
-  belong in the strip the build renders, never in prose.
+  belong in the strip the build renders, never in prose. An overview claims something the reader
+  can check.
 - `focus`: three to five items, each naming a chapter with `<a href="#ch-id">` and saying what to
   check there. This is where a reader who has ten minutes should spend them. Use "Check that" at
   most twice per page; otherwise name the property directly.

@@ -1,14 +1,13 @@
 ---
 name: walkthrough
-description: "Build a browser walkthrough of a finished implementation (branch or working-tree diff) as one self-contained HTML page: every PR Lens view, chapters by concept, git-validated lines, verification, and feedback notes. Use when the user asks to walk through, explain, share, or tour a diff or implementation result before reviewing it."
+description: "Build a self-contained HTML walkthrough of a finished implementation (branch or working-tree diff): PR Lens views, chapters by concept, git-validated lines, verification, feedback notes. Use when the user asks to walk through, explain, share, or tour a diff or implementation result before reviewing it."
 ---
 
 # Walkthrough
 
-One page a reader shares instead of the raw diff. It is a **pure explainer**: every PR Lens
-architecture and data-flow view first, then chapters cut by concept in reading order. Each
-chapter shows only the hunks its prose claims, with every line number checked against the real
-diff by the build. No verdicts, findings, or severities. If a review is wanted, use another skill.
+A **pure explainer**: every PR Lens architecture and data-flow view first, then chapters cut by
+concept in reading order. No verdicts, findings, or severities. If a review is wanted, use
+another skill.
 
 **REQUIRED SUB-SKILL:** Use `pr-lens` to render the architecture and data-flow views embedded in
 the shared page. Its graph orients the explanation; the diff and `build_tour.py` remain
@@ -104,9 +103,8 @@ every PR Lens view, the focus list, every chapter title, and the verify table ea
 order.
 
 Done when: the build prints
-`build_tour: ok files=... placed=... else=... hunks=... chapters=... pr-lens=...` and those
-numbers match what you expected, AND every PR Lens view, the focus list, chapter titles, and
-verify table were seen rendered.
+`build_tour: ok files=... placed=... else=... hunks=... chapters=... pr-lens=...`, those
+numbers match what you expected, and you have looked at the page as described above.
 
 ### 5. Deliver
 
@@ -114,8 +112,8 @@ verify table were seen rendered.
 comes back through the page: Notes, then "Copy feedback", then paste into the chat.
 
 **On top of that, only when the user explicitly asks to publish or share the tour online:** on
-Claude Code, publish `tour.fragment.html` as an artifact (title = the spec title, favicon a
-compass), and give the user the link. Feedback comes back as comment threads on the artifact;
+Claude Code, publish `tour.fragment.html` as an artifact (title = the spec title, `icon` = one
+generic word such as `compass`), and give the user the link. Feedback comes back as comment threads on the artifact;
 read them with the ArtifactComments tool when the user says they have commented. If there is
 no Artifact tool, say the tour was not published and point back to the local path already given.
 
@@ -128,21 +126,10 @@ Report the local path, and the link if a requested publish succeeded (or a note 
 the chapter count, and one line on how to send feedback. Do not wait for comments. Do not apply
 feedback inside this skill; that is the next request.
 
-## Rules that decide the shape
+## Revision-bound
 
-- **Self-contained and local.** Every PR Lens view is embedded; the page is never uploaded unless
-  the user asks.
-- **Hunk rule.** A hunk is shown only when the prose makes a claim about it. The reader can open
-  the file; the page says where to look and why.
-- **Coverage is derived.** The build refuses a changed file with no home and a placed file that
-  is not in the diff. `everythingElse` keeps the count honest.
-- **Counts come from the build**, never from prose. Prose says why; the strip says how many.
-- **Revision-bound.** The banner names the revision and reader progress is scoped to it. If the
-  branch moves or the tree changes, rebuild; never patch a line number by hand.
-- **Voice.** Sentences of at most 25 words. No verdicts, no emoji, no em dashes. A chapter title
-  says what changed, not which folder. An overview claims something the reader can check.
-- **Anti-patterns.** A chapter per folder. Every hunk shown for completeness. Line numbers typed
-  from memory. Counting files in prose. Grading the change.
+The banner names the revision and reader progress is scoped to it. If the branch moves or the
+tree changes, rebuild; never patch a line number by hand.
 
 ## Files
 
@@ -154,6 +141,3 @@ feedback inside this skill; that is the next request.
   build splices into. It holds no prose.
 - `lib/`: symlink to the repo's shared `_lib/` page machinery (theme, layout, `pagelib.py`).
   Never edit through this symlink; edit `_lib/` itself.
-- `references/spec.md`: the `review-tour.json` format and every check the build runs.
-- `references/authoring.md`: chapter, overview, hunk, verify, and voice rules.
-- `examples/review-tour.example.json`: a complete spec to copy the shape from.

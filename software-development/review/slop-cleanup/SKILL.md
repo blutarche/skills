@@ -30,8 +30,6 @@ When in doubt about whether a guard or check is load-bearing, treat it as behavi
 
 ## Comments: judge each one on its own
 
-Comment slop is the most common residue and the easiest to misjudge, in both directions.
-
 **Pick the right baseline.** A file that predates this diff sets its own baseline — some areas (parsers, crypto, gnarly math) legitimately carry dense explanation. But a file the AI wrote wholesale has no trustworthy local baseline — "consistent with the rest of the file" will argue for keeping all of it — so compare against how the *repo* comments equivalent code. Either way, put each comment through the value test below, individually; density is never itself a reason to delete.
 
 **The value test:** a comment earns its place only if it tells the reader something the code cannot — an invariant or caller contract, a non-obvious *why*, an external system's quirk, or a plain actionable TODO. Everything else goes:
@@ -49,8 +47,6 @@ For everything human-read, the value test protects the keepers too: ordinary tes
 
 ## Workflow
 
-Run the cleanup as a regression-safe sequence, not a single sweeping edit.
-
 1. **Lock behavior first.** Identify what must not change. Run the existing tests for the touched area; add the narrowest regression tests needed to pin down behavior you're unsure about. If tests genuinely aren't feasible, write down an explicit verification plan before editing.
 
 2. **Make a small plan.** List the specific smells you intend to remove, bounded to the diff. Order them safest-first (deletions before consolidations).
@@ -64,10 +60,8 @@ Run the cleanup as a regression-safe sequence, not a single sweeping edit.
 
    On a **large, multi-file** diff the per-file *scan* is read-only, so you may **fan out one read-only sub-agent per file (non-overlapping scopes) to harvest candidates** — faster slop-spotting. But a per-file pass only sees **file-local** smells; the **cross-file** ones (duplication, boundary violations, missing tests) are invisible from inside one file, so follow the fan-out with **one global classification pass** (step 3 above) over the merged candidates before any edit. The editing below does **not** parallelize. (On a small diff, just scan it yourself — the coordination isn't worth it.)
 
-4. **One pass per smell.** Make a single focused pass at a time, each addressing one category plus the slop patterns above. Prefer deletion over rewriting. Reuse existing utilities before adding anything, and add no new dependencies unless the user asks. Don't bundle unrelated refactors into the same edit. **Apply serially — never parallel writers** (concurrent edits to the same tree conflict, and each pass must clear the verify gate before the next).
+4. **One pass per smell.** Make a single focused pass at a time, each addressing one category plus the slop patterns above. Prefer deletion over rewriting. Reuse existing utilities before adding anything, and add no new dependencies unless the user asks. Don't bundle unrelated refactors into the same edit. **Apply serially — never parallel writers**; each pass must clear the verify gate before the next.
 
 5. **Verify after every pass.** Re-run the regression tests, plus the relevant lint, type check, and unit/integration checks for the area. If a gate fails, fix it or back the risky change out — never force it through.
 
 6. **Report.** Close with a concise summary: which files changed, what you removed or simplified, what you deliberately kept and why, how behavior was verified, and any risks left open. If the caller asked for a specific deliverable (a summary file, a PR comment), produce that deliverable — the chat summary supplements it, never replaces it.
-
-Related (advisory, not auto-invoked): surgical, read-before-write execution discipline prevents slop at write-time.

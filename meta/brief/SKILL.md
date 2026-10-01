@@ -5,11 +5,6 @@ description: Render the current session as one visual HTML page: chapters, a dia
 
 # Brief
 
-One page the user opens instead of the long markdown the agent would otherwise write after a
-long planning, execution, research, or debugging stretch. Chapters by concept; every chapter
-carries a diagram or an explicit reason it has none; decisions and evidence go in tables; prose
-is capped.
-
 All prose lives in `brief.json`. The agent never edits HTML: `scripts/build_brief.py` validates
 the spec and renders the page. A rejected spec is a defect in the summary, not a formatting
 problem.
@@ -33,24 +28,26 @@ take effort.
 | Flow, sequence, state, architecture, layer stack, before/after with emphasis, timeline/swimlane, quadrant, Venn, fishbone, Wardley, bar, line, scatter, simple ER, anything needing editorial layout | `diagram-design` skill (Claude Code) | (a) load the skill and pick the visual type from its §3 selection table; (b) load that type's own reference file before drawing; (c) follow its §6 connector rules and §7 4px grid and complexity budget; (d) run `python3 <diagram-design skill dir>/scripts/self_check.py <figure.svg>` on the saved figure and paste nothing into the spec until it prints `OK`; (e) then take the `<svg>` and paste it into `svg` |
 | Flow, sequence, state, git, gantt, simple ER | mermaid | when the `diagram-design` skill is not installed, or for `gitGraph`/`gantt` where mermaid's renderer is adequate; write source into the spec |
 | Heatmap, small multiples, stat tiles | `dataviz` skill (Claude Code) | follow it for form and palette; author inline SVG; paste into `svg` |
-| A mechanism sketch not worth a library | hand-authored inline SVG per `artifact-diagramming` rules | `viewBox`, `currentColor`, marker arrowheads, grid-aligned, 11-13px text |
+| A mechanism sketch not worth a library | hand-authored inline SVG per `references/authoring.md` | `viewBox`, `currentColor`, marker arrowheads, grid-aligned, 11-13px text |
 
 Hand-drawn boxes-and-lines with no type reference behind them is an anti-pattern, not a shortcut.
 On agents without those skills: mermaid, or hand-authored SVG following `references/authoring.md`.
 `diagram-design`'s style-guide gate applies too: if the project has no `.diagram-design` marker,
 pass the default profile; never prompt the user for brand tokens from inside brief. Mermaid
 renders only where the host loads the mermaid script (the Artifact host, or the full document
-opened online); elsewhere, including offline, a mermaid figure shows as its source text. A
-chapter's figures stack full width by default; set `"figureLayout": "row"` only when every figure
-in it is narrow, roughly `viewBox` width under 500. Full rules (what earns a diagram, mermaid type
-picker, dataviz condensation): `references/authoring.md`.
+opened online); elsewhere, including offline, a mermaid figure shows as its source text.
+
+Read `references/authoring.md` before drawing: what earns a diagram, the mermaid type picker,
+inline SVG mechanics, dataviz condensation, and figure layout (`figureLayout`).
 
 Done when: each chapter has a one-line claim as its title.
 
 ### 2. Write the spec
 
 Write `brief.json` in `${TMPDIR:-/tmp}/brief/<repo-or-cwd-name>-<slug>-<YYYYMMDD-HHMM>/`.
-Format: `references/spec.md`. Shape to copy: `examples/brief.example.json`.
+Format: `references/spec.md`. Shape to copy: `examples/brief.example.json`. Voice rules are in
+`references/authoring.md`: sentences of at most 25 words; no verdicts, emoji, em dashes,
+"successfully", or "comprehensive".
 
 Evidence rows only for commands actually run this session, with their real exit codes; a
 command not run gets `exit: null`. Do not describe a green suite you did not see.
@@ -91,7 +88,7 @@ back through the page: Notes, then "Copy feedback", then paste into the chat.
 each of these in order, and use the first that applies:
 
 a. **Claude Code with the Artifact tool:** publish `brief.fragment.html` (title = the spec
-   title, favicon 🗺️). Feedback comes back as artifact comments.
+   title, `icon` = one generic word such as `map`). Feedback comes back as artifact comments.
 b. **`orca status --json` succeeds:** `ORCA` below is a placeholder for the resolved binary:
    `$ORCA_CLI_COMMAND` when set, otherwise `orca`; on Linux outside an Orca terminal use
    `orca-ide`, never bare `orca` (it is the GNOME screen reader there). The `orca-cli` skill,
@@ -110,18 +107,6 @@ Report the local path, and the link if a requested publish succeeded (or a note 
 the chapter count, and how feedback comes back. Do not act on feedback in this skill; that is the
 next request.
 
-## Rules that decide the shape
-
-- **One concept per chapter.** Never a chapter per file or per commit.
-- **A diagram earns its place.** It depicts the mechanism, not its name; `noVisual` is a real
-  reason, not an excuse.
-- **Counts come from the build**, never from prose. The stats strip is where they live.
-- **Evidence is what ran.** A command not run this session is `exit: null`, not a guess.
-- **Voice.** Sentences of at most 25 words. No verdicts, no emoji, no em dashes, no
-  "successfully", no "comprehensive".
-- **Offline-safe.** The mermaid CDN script loads only in the full document; if it can't reach
-  the network, the `<pre class="mermaid">` source stays readable as text.
-
 ## Files
 
 - `scripts/build_brief.py`: validator and renderer, stdlib only, Python 3.10 or newer.
@@ -133,6 +118,3 @@ next request.
   build splices into. It holds no prose.
 - `lib/`: symlink to the repo's shared `_lib/` page machinery (theme, layout, `pagelib.py`).
   Never edit through this symlink; edit `_lib/` itself.
-- `references/spec.md`: the `brief.json` format and every check the build runs.
-- `references/authoring.md`: chapter, diagram, decision, evidence, and voice rules.
-- `examples/brief.example.json`: a complete spec to copy the shape from.

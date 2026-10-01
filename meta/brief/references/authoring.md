@@ -27,24 +27,11 @@ reader opens rather than scrolls past.
 - Deletion is the highest-quality move: cut a node, a swimlane, or a whole diagram before adding
   one. Above roughly nine nodes, it is two diagrams, not one crowded diagram. Keep one or two
   focal elements; everything else is context around them.
+
 ## Choosing a figure source
 
-For every chapter the default is a figure; `noVisual` is the exception, and its reason must name
-why prose beats a picture here, not that drawing would take effort.
-
-| Need | Source | How |
-|---|---|---|
-| Flow, sequence, state, architecture, layer stack, before/after with emphasis, timeline/swimlane, quadrant, Venn, fishbone, Wardley, bar, line, scatter, simple ER, anything needing editorial layout | `diagram-design` skill (Claude Code) | (a) load the skill and pick the visual type from its §3 selection table; (b) load that type's own reference file before drawing; (c) follow its §6 connector rules and §7 4px grid and complexity budget; (d) run `python3 <diagram-design skill dir>/scripts/self_check.py <figure.svg>` on the saved figure and paste nothing into the spec until it prints `OK`; (e) then take the `<svg>` and paste it into `svg` |
-| Flow, sequence, state, git, gantt, simple ER | mermaid | when the `diagram-design` skill is not installed, or for `gitGraph`/`gantt` where mermaid's renderer is adequate; write the source into the spec |
-| Heatmap, small multiples, stat tiles | `dataviz` skill (Claude Code) | follow it for form and palette; author inline SVG; paste into `svg` |
-| A mechanism sketch not worth a library | hand-authored inline SVG per the rules below | `viewBox`, `currentColor`, marker arrowheads, grid-aligned, 11-13px text |
-
-Hand-drawn boxes-and-lines with no type reference behind them is an anti-pattern, not a shortcut.
-On agents without those skills: use mermaid, or a hand-authored SVG following the rules below.
-`diagram-design`'s style-guide gate applies here too: if the project has no `.diagram-design`
-marker, pass the default profile; brief never prompts the user for brand tokens. Mermaid renders
-only where the host loads the mermaid script (the Claude Code Artifact host, or the full document
-opened online); anywhere else, including offline, a mermaid figure shows as its source text.
+The source table and its gates (`diagram-design`, mermaid, `dataviz`, hand-authored SVG) are in
+SKILL.md step 1.
 
 A chapter can carry 1 to 4 figures, mixing mermaid and svg, when more than one picture earns its
 place; each one still needs its own caption and still has to clear the bar below. More often one

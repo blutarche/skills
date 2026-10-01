@@ -146,7 +146,7 @@ Up to 16, for the data-flow lens.
 - `before` needs a `sample` to differ from.
 - `source` is a file reference, the fixture or type the side was taken from.
 - `changedPaths` is filled in when the document is stored, from `before` and `sample`. Do not write it. Up to 64 paths of the form `Metadata.batchId`, `[0].Cc` or `headers["Content-Type"]`.
-- Use placeholder values in samples: `ada@example.com`, `cmp_0001`. Never one that could belong to a real person or unlock anything.
+- Use placeholder values in samples: `ada@example.com`, `cmp_0001`. Never copy a value from a fixture that could belong to a real person or unlock anything, even in test data.
 
 ## Stats
 
@@ -239,7 +239,7 @@ This compact fragment shows the shape. The selected ids refer to elements declar
 
 ## Walkthrough
 
-Optional in the format, but write one for anything that is not trivial: more than one diagram, a diagram with several changed parts, or any flow. Skip it only when the document is one small diagram whose single step would just repeat the title. A canvas or a share page plays it.
+Optional in the format. The skill page says when to write one; a canvas or a share page plays it.
 
 ```json
 {
@@ -266,7 +266,7 @@ Optional in the format, but write one for anything that is not trivial: more tha
 
 A walkthrough is a short guided tour of the diagrams. It has two to twelve steps. Each step shows one diagram, points at one part of it, and says a few words about it.
 
-Every step is one change, never a description of the diagram: the heading names the thing and what happened to it, built from change words such as added, removed, replaced, now, moved and split, and the body is one line on what that means for behaviour, with the numbers when they matter. The headline change is step one. Write it all for a smart twelve-year-old, in short common words and active voice. The skill page has the rule in full, with examples of a step written well and the same step written badly.
+Every step is one change, never a description of the diagram: the heading names the thing and what happened to it, built from change words such as added, removed, replaced, now, moved and split, and the body is one line on what that means for behaviour, with the numbers when they matter. The headline change is step one. Write it all for a smart twelve-year-old, in short common words and active voice. The skill page has the rule in full.
 
 Each step has:
 

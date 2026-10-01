@@ -5,18 +5,11 @@ description: Outsider end-to-end review of a diff, PR, or design doc — questio
 
 # Scrutinize
 
-## Overview
-
-A review is worthless if it only checks whether the code matches the diff. The diff is the *answer*; scrutiny starts at the *question*. Stand outside the change as someone who does not already believe it should exist.
-
-**Core principle:** Question the intent before the implementation. Trace the real code path, not the diff. Verify the claim against evidence, not against the author's confidence. Report findings and a verdict — then stop. You diagnose; you do not operate.
+Stand outside the change as someone who does not already believe it should exist. The diff is the *answer*; scrutiny starts at the *question*. Report findings and a verdict, then stop: you diagnose, you do not operate.
 
 ## When to use this skill
 
-Use scrutinize when there is a **concrete artifact already produced** to review:
-- a PR, a diff, a commit, a completed code change
-- a design doc or a written plan
-- the user asks to "review", "audit", "sanity-check", or get a "second opinion"
+Use scrutinize when there is a **concrete artifact already produced** to review (a PR, diff, commit, completed change, design doc, or written plan).
 
 **When NOT to use it (hand off instead):**
 
@@ -31,7 +24,7 @@ Scrutinize **reports**; those skills **edit**. If scrutiny surfaces over-enginee
 
 ## The Workflow
 
-Run these four phases **in order. Do not skip ahead.** Skipping to the report is how reviews become rubber stamps.
+Run these four phases **in order. Do not skip ahead.**
 
 ```
 1. INTENT   — what is this for, and is there a smaller way?
@@ -67,8 +60,6 @@ Treat the diff as the **entry point, not the scope.** Follow the actual code pat
 - What existing behaviour shares this path and could break?
 ```
 
-You are reconstructing reality, not reading the author's summary of it.
-
 ### 3. Verify
 
 For each claim the change makes ("fixes X", "is faster", "handles Y"), find the **evidence** that it is true — don't take it on confidence.
@@ -101,8 +92,6 @@ VERDICT: ship | fix-then-ship | rework | reject
 REASON:  <the single most important factor>
 ```
 
-No finding without a consequence. No verdict without a reason.
-
 ## Specialist lenses
 
 Sweep the trace through these five lenses before reporting. The lens *set* is the coverage floor — **name every lens and say what you found, even if "nothing"**; silently dropping a lens is how a security or contract regression ships unreviewed. What scales is *how* you run them, not *whether*:
@@ -119,18 +108,3 @@ Sweep the trace through these five lenses before reporting. The lens *set* is th
 | **Simplification** | over-engineering, speculative generality, abstraction that earns nothing. |
 
 Consolidate: if two lenses flag the same issue, it is one finding, ranked by its worst consequence. Report only what materially affects correctness, security, reliability, compatibility, or confidence — a missed nit beats burying the real findings in noise.
-
-## Common Mistakes
-
-| Mistake | Fix |
-|---|---|
-| Reviewing the diff as the whole scope | Trace the real path the diff sits in |
-| Accepting "it works" without running it | Find the failing-then-passing test, or run it |
-| Listing principles violated | State the concrete consequence instead |
-| Findings with no severity | Order blocker → major → nit; no flat lists |
-| Hedging the verdict | One verdict, one biggest reason |
-| Fixing the code while reviewing | Report and hand off to simplify / slop-cleanup |
-
-## The Bottom Line
-
-Question the intent, trace the reality, verify the claim, then report once — clearly enough that the author can act without a meeting. Diagnose; don't operate.
