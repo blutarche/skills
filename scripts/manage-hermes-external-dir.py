@@ -76,7 +76,7 @@ def update(path: Path, external_dir: str, action: str) -> bool:
         # in ruamel round-trip mode, a fresh list drops the per-node comment
         # and indent metadata the original CommentedSeq carries.
         dirs = raw_dirs
-    elif raw_dirs in (None, []):
+    elif raw_dirs is None:
         dirs = []
     else:
         raise SystemExit(
@@ -84,10 +84,10 @@ def update(path: Path, external_dir: str, action: str) -> bool:
         )
 
     target = normalize(external_dir)
-    matches = [value for value in dirs if normalize(str(value)) == target]
+    indices = [i for i, value in enumerate(dirs) if normalize(str(value)) == target]
 
     if action == "install":
-        if not matches:
+        if not indices:
             dirs.append(target)
             skills["external_dirs"] = dirs
             write_config(path, data)
@@ -95,7 +95,6 @@ def update(path: Path, external_dir: str, action: str) -> bool:
         return False
 
     if action == "uninstall":
-        indices = [i for i, value in enumerate(dirs) if normalize(str(value)) == target]
         if not indices:
             return False
         for i in reversed(indices):

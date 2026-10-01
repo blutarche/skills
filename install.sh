@@ -4,9 +4,10 @@ set -euo pipefail
 # install.sh — link this repo's skills into the skill dirs of every supported agent.
 #
 # SKILL.md is a cross-agent open standard, but each agent reads a different user-level
-# dir. The union of two dirs covers all three (verified 2026-05-30; see README):
+# dir (see README):
 #   ~/.claude/skills   <- Claude Code            (reads ONLY this)
 #   ~/.agents/skills   <- Codex CLI + Cursor      (Codex reads ONLY this; Cursor reads both)
+#   ~/.hermes/external-skills/<repo>/  <- Hermes Agent (registered via skills.external_dirs)
 #
 # Only the top-level domains listed in install.conf are installed (default-deny): a new
 # folder — e.g. a non-coding domain — won't leak into your coding agents until you add it
@@ -25,7 +26,7 @@ HERMES_EXTERNAL_ROOT=""
 HERMES_SELECTED=0
 HERMES_ARG=0
 HERMES_SOURCE_MARKER=".agent-skills-source"
-HERMES_PYTHON="python3"
+HERMES_PYTHON=""
 
 usage() {
   cat <<'EOF'
@@ -104,9 +105,7 @@ fi
 # .claude helpers are not accidentally exposed to Hermes.
 detect_hermes() {
   [ "$HERMES_SELECTED" -eq 1 ] || return 0
-  if ! HERMES_BIN="$(command -v hermes 2>/dev/null || true)"; then
-    HERMES_BIN=""
-  fi
+  HERMES_BIN="$(command -v hermes 2>/dev/null || true)"
   if [ -z "$HERMES_BIN" ]; then
     # Silent on the default run (most users have no Hermes); explicit --hermes
     # still reports it so a typo'd install is not mistaken for success.
@@ -364,7 +363,6 @@ link_one() { # src target_dir
   fi
 }
 
-LINKED=0
 for dest in "${TARGETS[@]:-}"; do
   [ -n "$dest" ] || continue
   # Safety: refuse to write into a dir that is itself a symlink back into this repo
@@ -383,7 +381,6 @@ for dest in "${TARGETS[@]:-}"; do
   echo "==> $dest"
   for src in "${SKILL_DIRS[@]}"; do
     link_one "$src" "$dest"
-    [ "$DRY_RUN" -eq 1 ] || LINKED=$((LINKED + 1))
   done
   prune_stale "$dest"
 done
@@ -411,7 +408,6 @@ install_hermes() {
       REFUSED=$((REFUSED + 1))
       return 0
     fi
-    prune_stale "$HERMES_EXTERNAL_ROOT"
     rm -rf "$HERMES_EXTERNAL_ROOT"
   fi
 

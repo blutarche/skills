@@ -22,7 +22,7 @@ while read -r domain _rest || [ -n "$domain" ]; do
   ALLOWED+=("$domain")
 done < "$CONF"
 
-# Discover SKILL.md under allowed domains (mirror install.sh's prune list).
+# Discover SKILL.md under allowed domains (same prune list as install.sh).
 declare -a SKILL_MDS=()
 while IFS= read -r -d '' f; do
   rel="${f#"$REPO"/}"; top="${rel%%/*}"
@@ -59,10 +59,10 @@ for f in "${SKILL_MDS[@]:-}"; do
   SEEN_NAMES+=("$folder")
 
   # Warning: leaf name should appear in the domain's README.
-  # Match "<folder>/SKILL.md" (present in every README link) so a short name can't
-  # false-match a longer sibling entry and silently suppress its own warning.
+  # Match "<folder>/SKILL.md" (present in every README link), anchored to the start of
+  # the line or a "(" or "/" so "council" can't be satisfied by "research-council/SKILL.md".
   readme="$REPO/${rel%%/*}/README.md"
-  if [ -f "$readme" ] && ! grep -q "$folder/SKILL.md" "$readme"; then
+  if [ -f "$readme" ] && ! grep -Eq "(^|[(/])$folder/SKILL\.md" "$readme"; then
     echo "warn  ${rel%%/*}/README.md: no entry for '$folder'" >&2; warnings=$((warnings+1))
   fi
 done

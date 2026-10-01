@@ -4,8 +4,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VALIDATE_SRC="$SCRIPT_DIR/validate-skills.sh"
 
-TMPDIR="$(mktemp -d)"
-trap 'rm -rf "$TMPDIR"' EXIT
+WORK="$(mktemp -d "${TMPDIR:-/tmp}/skills-test.XXXXXX")"
+trap 'rm -rf "$WORK"' EXIT
 
 passed=0
 total=0
@@ -47,6 +47,22 @@ assert_exit() {
   fi
 }
 
+# Run validate and check whether stderr warns about a skill missing from the README.
+assert_readme_warning() {
+  local name="$1" expect_warn="$2" root="$3" skill="$4" err warned=0
+
+  total=$((total + 1))
+  err="$(bash "$root/scripts/validate-skills.sh" 2>&1 >/dev/null || true)"
+  case "$err" in *"no entry for '$skill'"*) warned=1 ;; esac
+
+  if [ "$warned" -eq "$expect_warn" ]; then
+    echo "PASS  $name"
+    passed=$((passed + 1))
+  else
+    echo "FAIL  $name (expected warning=$expect_warn, got $warned)"
+  fi
+}
+
 write_skill() {
   local path="$1"
   local body="$2"
@@ -55,7 +71,7 @@ write_skill() {
 }
 
 # 1. Valid skill: name matches folder, kebab-case, listed in README.
-root="$TMPDIR/valid-skill"
+root="$WORK/valid-skill"
 setup_fixture "$root"
 write_skill "$root/testdomain/my-skill/SKILL.md" '---
 name: my-skill
@@ -67,7 +83,7 @@ printf '%s\n' '# testdomain' '' '| Skill | Path |' '| my-skill | [my-skill](my-s
 assert_exit "valid skill passes validation" 1 "$root"
 
 # 2. name: does not equal leaf folder name.
-root="$TMPDIR/name-mismatch"
+root="$WORK/name-mismatch"
 setup_fixture "$root"
 write_skill "$root/testdomain/wrong-folder/SKILL.md" '---
 name: different-name
@@ -78,7 +94,7 @@ description: test skill
 assert_exit "name mismatch fails validation" 0 "$root"
 
 # 3. Duplicate leaf folder name at different paths.
-root="$TMPDIR/duplicate-leaf"
+root="$WORK/duplicate-leaf"
 setup_fixture "$root"
 write_skill "$root/testdomain/a/my-skill/SKILL.md" '---
 name: my-skill
@@ -95,7 +111,7 @@ description: second
 assert_exit "duplicate leaf name fails validation" 0 "$root"
 
 # 4. SKILL.md with no name: in frontmatter.
-root="$TMPDIR/missing-name"
+root="$WORK/missing-name"
 setup_fixture "$root"
 write_skill "$root/testdomain/no-name/SKILL.md" '---
 description: test skill without name
@@ -103,6 +119,25 @@ description: test skill without name
 # no-name
 '
 assert_exit "missing name in frontmatter fails validation" 0 "$root"
+
+# 5. README entry for a longer sibling must not satisfy a shorter skill's README check.
+root="$WORK/readme-suffix"
+setup_fixture "$root"
+write_skill "$root/testdomain/council/SKILL.md" '---
+name: council
+description: short name
+---
+# council
+'
+write_skill "$root/testdomain/research-council/SKILL.md" '---
+name: research-council
+description: longer sibling
+---
+# research-council
+'
+printf '%s\n' '# testdomain' '' '| [research-council](research-council/SKILL.md) | x |' > "$root/testdomain/README.md"
+assert_readme_warning "README entry for research-council does not cover council" 1 "$root" "council"
+assert_readme_warning "README entry for research-council still covers itself" 0 "$root" "research-council"
 
 echo "$passed/$total assertions passed"
 [ "$passed" -eq "$total" ]

@@ -2,8 +2,10 @@
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TMPDIR="$(mktemp -d)"
-trap 'rm -rf "$TMPDIR"' EXIT
+WORK="$(mktemp -d "${TMPDIR:-/tmp}/skills-test.XXXXXX")"
+# Hermes registration stores the resolved path; resolve here too (macOS /var -> /private/var).
+WORK="$(cd "$WORK" && pwd -P)"
+trap 'rm -rf "$WORK"' EXIT
 
 passed=0
 total=0
@@ -55,7 +57,7 @@ if [ -x "$hermes_runtime_python" ] && "$hermes_runtime_python" -c 'import yaml' 
 fi
 
 if [ "$hermes_runtime_ok" -eq 1 ]; then
-  hermes_bin="$TMPDIR/bin"
+  hermes_bin="$WORK/bin"
   mkdir -p "$hermes_bin"
 
   # HERMES_HOME/hermes-agent/venv/bin/python mirrors the real Hermes layout so
@@ -66,7 +68,7 @@ if [ "$hermes_runtime_ok" -eq 1 ]; then
   # dir rather than just bin/python: a venv interpreter locates its
   # site-packages relative to its own invoked path, so a bare bin/python
   # symlink elsewhere can't find pyvenv.cfg/lib/ and silently loses PyYAML.
-  hermes_home="$TMPDIR/hermes-home"
+  hermes_home="$WORK/hermes-home"
   mkdir -p "$hermes_home/hermes-agent"
   real_venv_root="$(cd "$(dirname "$hermes_runtime_python")/.." 2>/dev/null && pwd || true)"
   if [ -n "$real_venv_root" ] && [ -f "$real_venv_root/pyvenv.cfg" ]; then
@@ -90,7 +92,7 @@ if [ "$hermes_runtime_ok" -eq 1 ]; then
   printf '%s\n' 'skills:' '  external_dirs:' '    - /unrelated' > "$hermes_config"
 
   install_output="$(
-    HOME="$TMPDIR/home" \
+    HOME="$WORK/home" \
     PATH="$hermes_bin:/usr/bin:/bin:/usr/sbin:/sbin" \
     FAKE_HERMES_CONFIG_PATH="$hermes_config" \
     bash "$REPO/install.sh" --hermes
@@ -113,7 +115,7 @@ if [ "$hermes_runtime_ok" -eq 1 ]; then
     || fail "unrelated Hermes external directory is preserved"
 
   # Re-running is idempotent and must not duplicate the config entry.
-  HOME="$TMPDIR/home" \
+  HOME="$WORK/home" \
   PATH="$hermes_bin:/usr/bin:/bin:/usr/sbin:/sbin" \
   FAKE_HERMES_CONFIG_PATH="$hermes_config" \
   bash "$REPO/install.sh" --hermes >/dev/null
@@ -128,7 +130,7 @@ if [ "$hermes_runtime_ok" -eq 1 ]; then
   printf '%s' "/some/other/repo" > "$staging/$hermes_source_marker"
   touch "$staging/sentinel-foreign-file"
 
-  HOME="$TMPDIR/home" \
+  HOME="$WORK/home" \
   PATH="$hermes_bin:/usr/bin:/bin:/usr/sbin:/sbin" \
   FAKE_HERMES_CONFIG_PATH="$hermes_config" \
   bash "$REPO/install.sh" --hermes >/dev/null 2>&1
@@ -136,7 +138,7 @@ if [ "$hermes_runtime_ok" -eq 1 ]; then
     && pass "foreign Hermes staging directory is refused without --force" \
     || fail "foreign Hermes staging directory is refused without --force"
 
-  HOME="$TMPDIR/home" \
+  HOME="$WORK/home" \
   PATH="$hermes_bin:/usr/bin:/bin:/usr/sbin:/sbin" \
   FAKE_HERMES_CONFIG_PATH="$hermes_config" \
   bash "$REPO/install.sh" --hermes --force >/dev/null
@@ -145,7 +147,7 @@ if [ "$hermes_runtime_ok" -eq 1 ]; then
     || fail "foreign Hermes staging directory is overwritten with --force"
 
   # Uninstall removes only this repo's staging and registration.
-  HOME="$TMPDIR/home" \
+  HOME="$WORK/home" \
   PATH="$hermes_bin:/usr/bin:/bin:/usr/sbin:/sbin" \
   FAKE_HERMES_CONFIG_PATH="$hermes_config" \
   bash "$REPO/install.sh" --hermes --uninstall >/dev/null
@@ -177,7 +179,7 @@ fi
 # The installer should skip Hermes without failing, and stay quiet about it on
 # a default run (no --hermes) since most users have no Hermes installed.
 hermes_absent_stderr="$(
-  HOME="$TMPDIR/no-hermes-home" \
+  HOME="$WORK/no-hermes-home" \
   PATH="/usr/bin:/bin:/usr/sbin:/sbin" \
   bash "$REPO/install.sh" --dry-run 2>&1 >/dev/null
 )"
@@ -186,7 +188,7 @@ hermes_absent_stderr="$(
   || fail "Hermes target is skipped silently when Hermes is absent (stderr: $hermes_absent_stderr)"
 
 # --- --copy stages real directories, not symlinks -------------------------------
-copy_home="$TMPDIR/copy-home"
+copy_home="$WORK/copy-home"
 HOME="$copy_home" \
 PATH="/usr/bin:/bin:/usr/sbin:/sbin" \
 bash "$REPO/install.sh" --claude --copy >/dev/null
@@ -201,7 +203,7 @@ done
   || fail "--copy stages real directories, not symlinks"
 
 # --- --force refusal on a per-agent target --------------------------------------
-force_home="$TMPDIR/force-home"
+force_home="$WORK/force-home"
 mkdir -p "$force_home/.claude/skills/$first_skill_name"
 touch "$force_home/.claude/skills/$first_skill_name/sentinel-foreign-file"
 
