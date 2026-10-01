@@ -35,7 +35,7 @@ sequencing lives in [`workflows/`](../workflows/README.md), not here. Sources fo
 |-------|--------------|
 | [`diagnose`](engineering/diagnose/SKILL.md) | A feedback-loop-first loop for hard bugs and perf regressions: reproduce → minimise → hypothesise → instrument → fix → regression-test. Also covers flaky tests. |
 | [`post-mortem`](engineering/post-mortem/SKILL.md) | Write the blameless record of a fixed bug or resolved incident, once the fix is validated; pairs with `diagnose`. |
-| [`git-commit`](engineering/git-commit/SKILL.md) | Turn a working tree into clean, atomic, bisect-safe Conventional-Commit commits with a neutral agent `Co-Authored-By` trailer, leaving push to the user. |
+| [`git-commit`](engineering/git-commit/SKILL.md) | Turn a working tree into clean, atomic, bisect-safe Conventional-Commit commits with no agent trailer, leaving push to the user. |
 | [`git-worktree`](engineering/git-worktree/SKILL.md) | Create/enter an isolated feature worktree and bootstrap-or-surface its environment (setup), then remove/prune it (teardown). Use when starting or wrapping up isolated agentic work. |
 | [`delegate-coding`](engineering/delegate-coding/SKILL.md) | Hand a clear plan to a headless executor CLI (`cursor-agent`, `codex`, or a cheaper `claude`) while the brain model plans, verifies, and owns the merge. |
 

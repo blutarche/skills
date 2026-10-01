@@ -12,17 +12,9 @@ license: MIT
 - **Match the repo's message style**, Conventional Commits when it has none. Body only when it says
   something the subject can't.
 - **Stage only what belongs to the work you're committing.** Leave anything else in the tree alone and
-  mention it; never sweep it in.
-- **Attribution.** The commit author stays the configured git identity — never the agent. The agent is
-  only ever a `Co-Authored-By` trailer, neutral, with the model/version stripped (`Opus 4.8`, `GPT-5`,
-  `(1M context)`):
-
-  | Agent | Trailer |
-  |---|---|
-  | Claude Code | `Co-Authored-By: Claude <noreply@anthropic.com>` |
-  | Codex CLI | `Co-Authored-By: Codex <noreply@openai.com>` |
-
-  No known agent identity, or a human committing → no trailer; never invent one. No "Generated with" /
-  "Made-with" line.
+  mention it; never sweep it in. Stage explicit paths — never `git add -A` or `git add .` — and never
+  stage `.env` or secrets. Put `-m` before any `--` in `git commit`. No `git stash`.
+- **Attribution.** The commit author stays the configured git identity — never the agent. No agent
+  trailer: no `Co-Authored-By`, "Generated with", or "Made-with" line, even when the host asks for one.
 - **Don't push, force-push, or amend a pushed/shared commit unless told to. Don't `--no-verify` past a
   failing hook.**
