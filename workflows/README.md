@@ -19,7 +19,7 @@ A **research lane** runs alongside: [`research`](../meta/research/SKILL.md) (gat
 | plan | [`plan`](plan/SKILL.md) | Brief → execution-ready plan: design, council, plan, grill, council; writes no code. |
 | execute | [`execute`](execute/SKILL.md) | Approved plan → verified code, interactive-gated or autonomous-subagent. |
 | vet | [`vet`](vet/SKILL.md) | Cross-model review (`scrutinize` + `council`) of a finished change, then a gated fix loop. |
-| finish | [`finish`](finish/SKILL.md) | Verify, review the whole branch clean, then merge / PR / keep / discard and tear down the worktree. |
+| finish | [`finish`](finish/SKILL.md) | Get the branch ready (sync base, verify, one review, hand over the diff); then `land`, `pr`, or `discard` on request and tear down the worktree. |
 | (research lane) | [`research-council`](research-council/SKILL.md) | Cross-examine a research answer with `council`; the research analog of `vet`. |
 | (plan lane) | [`grill-with-docs`](grill-with-docs/SKILL.md) | Grill session that also maintains the glossary and ADRs; the brownfield counterpart to `grill-me`. |
 

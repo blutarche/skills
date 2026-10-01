@@ -98,7 +98,7 @@ Tasks run **serially** — never dispatch implementer subagents in parallel (con
 
 **Both review stages run at the controller / top level; only the implementer is a subagent** — a subagent can't reach `council`'s cross-model CLI (see `council`). Stage 1 is at the controller because it holds the spec.
 
-After the loop completes, the natural follow-on is the `finish` workflow — which tears down the worktree (via the `git-worktree` skill).
+After the loop completes, the natural follow-on is the `finish` workflow — it gets the branch ready for the user's review, then lands, PRs, or discards it on request and tears down the worktree.
 
 ## Degrade visibly (autonomous)
 

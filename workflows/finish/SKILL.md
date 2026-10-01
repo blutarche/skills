@@ -1,35 +1,45 @@
 ---
 name: finish
 disable-model-invocation: true
-description: "Wrap up a finished branch: verify, cross-model review loop, merge / PR / keep / discard, cleanup."
+description: "Get a finished branch ready for review (sync base, verify, one review, hand over the diff), then land, PR, or discard it on request."
+argument-hint: "[land|pr|discard]"
 license: MIT
 ---
 
 # Finish (workflow)
 
-Follow the steps in order. Each gate must pass before moving on.
+Two phases, selected by the argument. The user reviews the diff between them.
 
-## Step 1 — Verify Tests (gate)
+| Invocation | Phase |
+|---|---|
+| `/finish` | **Ready** — commit, sync with base, verify, one review, hand over the diff. Then stop. |
+| `/finish land` | Merge into the base branch locally, then clean up. |
+| `/finish pr` | Push and open a pull request. |
+| `/finish discard` | Delete the work (typed confirmation), then clean up. |
 
-Run the project's test suite before offering any options. Read the real output and exit code before calling it green.
+No menu. Every phase starts with **Detect**, because shell variables don't survive across tool calls or runs.
 
-**If tests fail:** stop and show the failures. Don't proceed to merge/PR until they pass. If a failure is an intermittent/flaky test rather than a real regression, use **`diagnose`**'s flaky-tests section to make it deterministic; never paper over it to get past this gate.
+## Detect (every phase)
 
-## Step 2 — Detect Environment (gate)
-
-Determine the workspace state; it decides which menu to show and how cleanup works.
+### Environment
 
 ```bash
 GIT_DIR=$(cd "$(git rev-parse --git-dir)" 2>/dev/null && pwd -P)
 GIT_COMMON=$(cd "$(git rev-parse --git-common-dir)" 2>/dev/null && pwd -P)
-WT=$(git rev-parse --show-toplevel)   # capture the worktree path before any cd — Step 7 passes it to git-worktree teardown
+WT=$(git rev-parse --show-toplevel)   # capture the worktree path before any cd — cleanup needs it
+MAIN_ROOT=$(git -C "$(git rev-parse --git-common-dir)/.." rev-parse --show-toplevel)
+
+# Orca-managed? Absence of the CLI or any failure means "not Orca".
+ORCA=0
+command -v orca >/dev/null 2>&1 && orca worktree current --json >/dev/null 2>&1 && ORCA=1
+echo "orca=$ORCA"
 ```
 
-| State | Menu | Cleanup |
-|---|---|---|
-| `GIT_DIR == GIT_COMMON` (normal repo) | Standard 4 options | No worktree to clean up |
-| `GIT_DIR != GIT_COMMON`, named branch | Standard 4 options | Provenance-based (Step 7) |
-| `GIT_DIR != GIT_COMMON`, detached HEAD | Reduced 3 options (no local merge) | None (externally managed) |
+| State | `land` | `pr` | Cleanup |
+|---|---|---|---|
+| `GIT_DIR == GIT_COMMON` (normal repo) | yes | yes | No worktree to remove |
+| `GIT_DIR != GIT_COMMON`, named branch | yes | yes | Orca → `orca worktree rm`; else `git-worktree` teardown |
+| `GIT_DIR != GIT_COMMON`, detached HEAD | no (no branch to merge) | yes, as a new branch | None (externally managed) |
 
 Detect detached HEAD with:
 
@@ -37,9 +47,9 @@ Detect detached HEAD with:
 git symbolic-ref -q HEAD >/dev/null || echo "detached HEAD"
 ```
 
-## Step 3 — Determine Base Branch
+### Base branch
 
-The menu, the merge command, and the review gate's diff range all need a base **branch name**, not a commit SHA. Pick the first base branch that exists:
+Merge, diff range, and review all need a base **branch name**, not a commit SHA. Pick the first that exists:
 
 ```bash
 BASE=""
@@ -49,78 +59,94 @@ done
 echo "${BASE:-<unknown>}"
 ```
 
-If neither exists (`BASE` empty), **ask** — don't assume `main`: "I can't find a `main` or `master` branch — what's the base branch for this work?"
+If neither exists, **ask** — don't assume `main`: "I can't find a `main` or `master` branch — what's the base branch for this work?"
 
-## Step 4 — Present Options (gate)
+## Ready (`/finish`, no argument)
 
-Ask via the host's question tool when available (one question); otherwise present short prose options. Keep it concise — no extra explanation — and wait for the choice.
+Run in order; each gate must pass before the next. Nothing leaves the machine and nothing merges in this phase.
 
-**Normal repo or named-branch worktree — present exactly these 4 options** ("Implementation complete. What would you like to do?"):
+### 1. Detect
 
-1. Merge back to `<base-branch>` locally
-2. Push and open a Pull Request
-3. Keep the branch as-is (handle it later)
-4. Discard this work
+As above.
 
-**Detached HEAD — merge-locally (Option 1) isn't available; present these, keeping the same numbers as Step 6 so execution matches** ("Implementation complete. You're on a detached HEAD (externally managed workspace)."):
+### 2. Commit pending work
 
-2. Push as a new branch and open a Pull Request
-3. Keep as-is (handle it later)
-4. Discard this work
-
-(The numbers intentionally skip 1 — they index Step 6's options directly, so "4" always means Discard, never Keep.)
-
-## Step 5 — Review Gate (Options 1 & 2 only)
-
-**Runs only when the chosen option integrates the work — Merge locally (1) or Push/PR (2).** Keep (3) and Discard (4) skip straight to Step 6: nothing is shipping, so there is nothing to review clean.
-
-Before the branch merges or leaves the machine, the **whole branch diff** must pass a clean cross-model review.
-
-**Why the whole diff, before the push — not commit-by-commit after.** A half-reviewed branch pushed in pieces lets a server-side reviewer (e.g. a GitHub-configured Codex reviewer) drip comments commit-by-commit, forcing a fix → push → new-comments ping-pong. One thorough local review of the *entire* diff, with everything fixed before it ever leaves the machine, collapses that loop — the server-side reviewer meets an already-clean change. The same applies to a local merge: review the whole change once, not each commit.
-
-### 5a — Commit any pending work
-
-The review diff (`<BASE>...HEAD`) and the integration both operate on **commits** — uncommitted changes are invisible to the review and would be dropped by merge or left behind by push. So before reviewing, the working tree must be clean:
+The review diff (`<BASE>...HEAD`), merges, and pushes all operate on **commits**; uncommitted changes are invisible to them.
 
 ```bash
-git status --porcelain   # if non-empty, there is uncommitted work to commit first
+git status --porcelain   # non-empty → uncommitted work to commit first
 ```
 
-If anything is uncommitted, hand off to the **`git-commit`** skill — it produces clean, atomic, bisect-safe commits in the repo's convention. (It does **not** push; the push in Option 2 stays separate.) Do not stage-and-commit ad hoc here; let `git-commit` own the message and the splitting.
+If anything is uncommitted, hand off to **`git-commit`** — it produces clean, atomic, bisect-safe commits in the repo's convention and does not push. Don't stage-and-commit ad hoc.
 
-### 5b — Comprehensive review loop (until two consecutive clean passes)
+### 3. Sync with base
 
-**Pick the reviewer, in order of preference:**
+Merge the latest base **into** the feature branch. Don't rebase — that rewrites history the user may have already seen.
 
-- **`/codex:review`** if it is available in this session — your configured Codex reviewer, the primary. It only *reports*; you own the adjudication and fix loop below.
-- **otherwise `vet`** — `scrutinize` + `council` over `--base <BASE>`. `vet` bundles the fix loop, and `council` carries the degrade ladder (fresh-subagent `scrutinize` → inline) when Codex itself is unreachable, disclosing the rung. This is why the skill names no hard dependency on the plugin: `vet`/`council` is the portable equivalent, so machines without `/codex:review` still get a real cross-model review.
+```bash
+BASE=<base-branch>   # from Detect
+UP=$(git rev-parse --abbrev-ref --symbolic-full-name "$BASE@{u}" 2>/dev/null || true)   # empty if base has no upstream
+[ -z "$UP" ] || git fetch "$(git config "branch.$BASE.remote")"
 
-**Loop over the whole-branch diff (`<BASE>...HEAD`):**
+# Upstream first (it may be ahead of local base), then local base; each is skipped if already contained in HEAD.
+for ref in $UP "$BASE"; do
+  git merge-base --is-ancestor "$ref" HEAD || git merge --no-edit "$ref"
+done
+```
 
-1. Run the chosen reviewer on the full diff.
-2. **Adjudicate disbelieve-it-back** — every finding is a claim to verify against the actual code, not an order. Reject the wrong ones out loud (see `council` / `vet`).
-3. **If any finding is accepted:** fix it — hand off to `receiving-code-review`, then `/simplify` or `slop-cleanup` as the finding warrants, **re-verify tests** (Step 1's command), and commit the fix with **`git-commit`**. Reset the clean streak to 0 and go to 1.
-   **If none accepted:** clean streak += 1.
-4. **Stop when the clean streak reaches 2** — two *consecutive* passes that surface zero accepted findings. A single clean pass from a non-deterministic reviewer can be a fluke; require it twice in a row before calling the branch clean.
+Already up to date → nothing merges. On conflicts, resolve them yourself — that is part of the merge — then `git commit` to finish it. Surface only a conflict that needs a product decision (two intents that can't both hold). Don't `git merge --abort` and give up, and don't take one side wholesale to make it go away.
 
-**Bounded — never spin.** Cap at 5 fix rounds. If the loop hasn't reached two consecutive clean passes by then, **stop and surface the remaining findings to the user** — do not push or merge a branch that won't converge.
+### 4. Verify (gate)
 
-Only once the branch is clean (two consecutive clean passes) does it proceed to Step 6 for the chosen integration.
+Run the project's test suite, plus any lint / typecheck / build the repo documents, on the merged result. Read the real output and exit code before calling it green.
 
-## Step 6 — Execute the Choice
+**If checks fail:** fix the cause — via **`diagnose`** discipline when it isn't trivial, and use its flaky-tests section for an intermittent failure rather than papering over it — then re-run; or stop and surface the failure. Never hand over red.
 
-### Option 1 — Merge Locally
+### 5. Review once
 
-(Step 5 review gate has already passed — the branch is clean.)
+Skip this step if this branch's current diff vs base already had a cross-model review in this session or run (e.g. `vet` or `execute` reviewed it) or the user says it did.
+
+Otherwise run **one** review of the whole diff (`<BASE>...HEAD`). Pick the reviewer, in order:
+
+- **`/codex:review`** if available in this session. It only *reports*; you adjudicate.
+- **otherwise `vet`** — `scrutinize` + `council` over `--base <BASE>`. `vet` bundles the fix loop, and `council` carries the degrade ladder when Codex is unreachable, disclosing the rung.
+
+Adjudicate disbelieve-it-back: every finding is a claim to verify against the code, not an order; reject wrong ones out loud. Fix accepted findings (`receiving-code-review`, then `/simplify` or `slop-cleanup` as warranted, then `git-commit`) and re-run Step 4 yourself.
+
+**Do not loop the cross-model review again for those fixes.** Fixing a finding is a revision of a decision already reviewed, not a new decision; you verify the fixes. If the findings amount to rework (the approach is wrong, not the details), stop and hand back to `execute` instead of patching.
+
+### 6. Hand over, then stop
+
+One short report:
+
+- branch (or "detached HEAD") and base
+- `git diff <base>...<branch>` for the user to run, plus `--shortstat` output
+- each check: command and exit code
+- review outcome: what was fixed, what was rejected and why (or "already reviewed in this session")
+- deliberate behavior changes, if any
+
+Offer **`walkthrough`** if the diff is large; don't run it unasked. End by naming the next moves: `/finish land`, `/finish pr`, `/finish discard`. **Do not merge, push, or ask a menu.**
+
+## Precondition for `land` and `pr`
+
+The branch must be **ready**: clean working tree, base already merged in, checks green.
+
+```bash
+git status --porcelain                                  # must be empty
+git merge-base --is-ancestor "$BASE" HEAD && echo in-sync
+```
+
+If the tree is dirty or base has moved since Ready, redo Ready steps 2–4 (commit, sync, verify). Don't redo the review — the user's choosing `land`/`pr` after reading the hand-over counts as it — unless the base merge brought conflicts in the branch's own changes, in which case run Ready step 5 on the new diff.
+
+## Land (`/finish land`)
+
+Not available on detached HEAD (no branch to merge) — offer `pr` instead.
 
 Don't switch any existing checkout's branch to merge. Merge in the worktree where the base branch is already checked out (the main root counts); if it is checked out nowhere, merge in a temporary worktree of your own.
 
 ```bash
-BASE=<base-branch>   # from Step 3 — set here because shell variables don't survive across tool calls
-
-# Move to the main repo root for CWD safety (works in normal repos and worktrees):
-MAIN_ROOT=$(git -C "$(git rev-parse --git-common-dir)/.." rev-parse --show-toplevel)
-cd "$MAIN_ROOT"
+BASE=<base-branch>   # from Detect — shell variables don't survive across tool calls
+cd "$MAIN_ROOT"      # CWD safety (works in normal repos and worktrees)
 
 # Find the worktree that has the base branch checked out (empty if none):
 BASE_WT=$(git worktree list --porcelain | awk -v b="refs/heads/$BASE" '$1=="worktree"{p=substr($0,10)} $1=="branch"&&$2==b{print p; exit}')
@@ -134,27 +160,25 @@ if [ -z "$BASE_WT" ]; then
 fi
 
 # Merge — confirm success before removing anything:
-git -C "$BASE_WT" rev-parse --abbrev-ref --symbolic-full-name @{u} >/dev/null 2>&1 && git -C "$BASE_WT" pull   # only if base has an upstream
+git -C "$BASE_WT" rev-parse --abbrev-ref --symbolic-full-name @{u} >/dev/null 2>&1 && git -C "$BASE_WT" pull --ff-only   # only if base has an upstream; a diverged base fails here — surface it, don't guess
 git -C "$BASE_WT" merge <feature-branch>
 
 # Re-run tests on the merged result, in "$BASE_WT":
 ( cd "$BASE_WT" && <test command> )
-
-# Only if the merge and tests succeeded; if they failed, leave the temporary worktree for inspection and surface it:
-[ -z "$TMP_WT" ] || git worktree remove "$TMP_WT"
 ```
 
-Only after the merge and tests succeed: clean up the feature worktree (Step 7), then delete the branch:
+If the merge or tests fail, **leave the temporary worktree in place for inspection and surface it**; do not clean up.
 
-```bash
-git -C "$MAIN_ROOT" branch -d <feature-branch>
-```
+On success:
 
-In a normal repo (no worktree) the feature branch is still checked out in `$MAIN_ROOT`, so git refuses the delete. Don't switch off it; tell the user the branch can be deleted once they switch.
+1. **Post-merge step.** If the repo documents one (AGENTS.md / README / CONTRIBUTING mentions an install, post-merge, or bootstrap command), name it and run it if it is local and non-destructive; otherwise skip. Run it in a real base checkout. If you merged in a temporary worktree, don't run it there (it is about to be deleted) — name the command and tell the user to run it once base is checked out.
+2. **Push base only if the user asked:** `git -C "$BASE_WT" push`.
+3. **Remove the temporary worktree**, if you made one: `[ -z "$TMP_WT" ] || git worktree remove "$TMP_WT"`.
+4. **Clean up** the feature workspace and branch (below).
 
-### Option 2 — Push and Open a PR
+## PR (`/finish pr`)
 
-(Step 5 review gate has already passed.)
+Choosing `pr` is the user's request for this external write. The whole branch diff is reviewed locally before it leaves the machine so a server-side reviewer meets an already-clean change instead of dripping comments across pushes.
 
 ```bash
 # Detached HEAD has no branch to push — push HEAD to a new remote branch; the checkout is left untouched:
@@ -172,50 +196,61 @@ EOF
 )"
 ```
 
-Don't force-push unless explicitly asked. Do not clean up the worktree — it is needed to iterate on PR feedback.
+Don't force-push unless explicitly asked. Don't clean up the worktree — the PR is open and the worktree is needed to iterate on feedback — unless the user asks.
 
-### Option 3 — Keep As-Is
+## Discard (`/finish discard`, typed confirmation required)
 
-Report: "Keeping branch `<name>`. Worktree preserved at `<path>`." Do not clean up. (No review gate — nothing is shipping.)
-
-### Option 4 — Discard (typed confirmation required)
-
-What "discard" deletes depends on the environment detected in Step 2 — show the accurate list:
-- **Normal repo (no worktree):** branch `<name>` and its commits. (Step 7 has no worktree to remove here.)
-- **Named-branch worktree (ours):** branch `<name>`, its commits, and the worktree.
-- **Detached HEAD (externally-managed workspace):** the commits only (they become unreachable). There's no branch, and **the workspace is the host's, not ours — it is left in place** (Step 2 classifies it as externally managed). Don't promise to delete a workspace you didn't create.
+What "discard" deletes depends on the environment from Detect — show the accurate list:
+- **Normal repo (no worktree):** branch `<name>` and its commits.
+- **Named-branch worktree:** branch `<name>`, its commits, and the worktree.
+- **Detached HEAD (externally-managed workspace):** the commits only (they become unreachable). There's no branch, and **the workspace is the host's, not ours — it is left in place.** Don't promise to delete a workspace you didn't create.
 
 ```
 This will permanently delete:
-- <branch + its commits + worktree>   (normal repo / our worktree)
+- <branch + its commits + worktree>   (normal repo / named-branch worktree)
 - <the commits, now unreachable>      (detached HEAD — workspace left in place)
 
 Type 'discard' to confirm.
 ```
 
-Wait for the exact word `discard`. If confirmed, order matters — **git refuses to delete a branch any worktree still has checked out, so remove the worktree before the branch.** By environment (Step 2):
+Wait for the exact word `discard`. Anything else aborts. If confirmed, **git refuses to delete a branch any worktree still has checked out, so the worktree goes before the branch.** By environment:
 
-- **Named-branch worktree (ours):** run Step 7 teardown **first** (removes the worktree, freeing the branch), then delete the branch from the main root:
+- **Named-branch worktree:** run Clean up (below, forced) first, then, if the branch still exists, delete it from the main root:
   ```bash
-  # (Step 7 git-worktree teardown removes $WT first)
-  git -C "$MAIN_ROOT" branch -D <feature-branch>
+  git -C "$MAIN_ROOT" show-ref --verify --quiet refs/heads/<feature-branch> && git -C "$MAIN_ROOT" branch -D <feature-branch>
   ```
-- **Normal repo (no worktree):** the branch is checked out here, and git refuses to delete a checked-out branch. Don't switch the checkout's branch to get around that: tell the user to switch off it and run `git branch -D <feature-branch>` (no Step 7 worktree to remove).
-- **Detached HEAD (externally-managed):** no branch to delete and the workspace isn't ours — just abandon the commits (unreachable; git gc reclaims them). Step 7 is a no-op here.
+- **Normal repo (no worktree):** the branch is checked out here, and git refuses to delete a checked-out branch. Don't switch the checkout's branch to get around that: tell the user to switch off it and run `git branch -D <feature-branch>`.
+- **Detached HEAD:** no branch to delete and the workspace isn't ours — just abandon the commits (unreachable; git gc reclaims them). Clean up is a no-op.
 
-## Step 7 — Clean Up the Workspace
+## Clean up (after `land` and `discard`)
 
-Runs only for Options 1 and 4. Options 2 and 3 always preserve the worktree.
+Run from the main root, **never from inside the worktree being removed**: `cd "$MAIN_ROOT"`, and use the `WT` path captured in Detect — by now you have `cd`'d away, and removal must target `WT`, not the current directory. A normal repo (`GIT_DIR == GIT_COMMON`) has no worktree to remove; an externally-managed workspace (detached HEAD) is left in place.
 
-**Delegate worktree teardown to the `git-worktree` skill (teardown), passing the `WT` path captured in Step 2.** Pass `WT` explicitly — by now you may have `cd`'d to the main root (Options 1/4 do), and teardown must operate on the captured worktree path, not the current directory. A normal repo (`GIT_DIR == GIT_COMMON`) has no worktree to remove; an externally-managed workspace is left in place. Don't re-implement the provenance check or removal here.
+**Orca-managed worktree (`ORCA=1`):**
 
-Use `--force` removal only on the Option 4 discard path.
+```bash
+cd "$MAIN_ROOT"
+orca worktree rm --worktree path:"$WT"            # discard: add --force (it never forces the branch delete)
+git -C "$MAIN_ROOT" show-ref --verify --quiet refs/heads/<feature-branch> && git -C "$MAIN_ROOT" branch -d <feature-branch>
+```
+
+`orca worktree rm` removes the worktree from Orca and git and attempts the local branch delete, but retains branches it can't prove merged. After `land` the fallback `git branch -d` finishes the job. Never `-D` except on `discard` after the typed confirmation.
+
+**Not Orca:** delegate teardown to the **`git-worktree`** skill (teardown), passing `WT` explicitly. Don't re-implement its provenance check or removal here. Use `--force` removal only on `discard`. Then delete the branch from the main root:
+
+```bash
+git -C "$MAIN_ROOT" branch -d <feature-branch>   # discard: -D, after confirmation
+```
+
+`-d` judges "merged" against the main root's current HEAD. If that HEAD isn't base, `-d` can refuse a branch that did land; confirm with `git merge-base --is-ancestor <feature-branch> <BASE>`, then tell the user rather than reaching for `-D`.
+
+**Normal repo without a worktree:** the feature branch is still checked out in `$MAIN_ROOT`, so git refuses the delete. Don't switch off it; tell the user the branch can be deleted once they switch.
 
 ## Quick Reference
 
-| Option | Review gate first | Merge | Push | Keep Worktree | Delete Branch |
-|---|---|---|---|---|---|
-| 1. Merge locally | yes | yes | – | – | yes |
-| 2. Open PR | yes | – | yes | yes | – |
-| 3. Keep as-is | – | – | – | yes | – |
-| 4. Discard | – | – | – | – | yes (force) |
+| Phase | Commit + sync + verify | Cross-model review | Merge | Push | Clean up | Delete branch |
+|---|---|---|---|---|---|---|
+| `/finish` (ready) | yes | once, if not already reviewed | – | – | – | – |
+| `land` | re-check; redo if base moved | only if base conflicts hit the branch's own changes | yes | only if asked | yes | yes (`-d`) |
+| `pr` | re-check; redo if base moved | same as `land` | – | yes | only if asked | – |
+| `discard` | – | – | – | – | yes (force) | yes (`-D`) |
