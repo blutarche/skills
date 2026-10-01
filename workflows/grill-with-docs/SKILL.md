@@ -14,10 +14,6 @@ Run a `grill-me` session, but carry the `domain-modeling` discipline alongside i
 ## How it runs
 
 - **Drive the interview with `grill-me`.** Walk each branch of the decision tree, recommending an answer per question and resolving each branch before moving on.
-- **Throughout, apply `domain-modeling`.** Challenge terms that conflict with `CONTEXT.md`, sharpen fuzzy language to a canonical term, stress-test relationships with concrete edge-case scenarios, cross-reference claims against the code, and update `CONTEXT.md` the moment a term resolves. Offer an ADR only when the decision is hard to reverse, surprising without context, and a real trade-off.
+- **Throughout, apply `domain-modeling`** — read it for the term-challenging discipline, when to offer an ADR, lazy file creation, and the `CONTEXT.md` / ADR formats. Update `CONTEXT.md` the moment a term resolves; the point of this workflow over a plain `grill-me` is that the glossary and decisions get captured as you go.
 
-Create docs lazily — only when there's something to write. See `domain-modeling` for the file structure and the `CONTEXT.md` / ADR formats.
-
-## Composed skills are soft references
-
-If `domain-modeling` isn't installed, apply its discipline inline from the description above rather than skipping the doc-keeping — the point of this workflow over a plain `grill-me` is that the glossary and decisions get captured as you go.
+If `domain-modeling` isn't installed, apply its discipline inline instead of skipping the doc-keeping: challenge terms that conflict with `CONTEXT.md`, sharpen fuzzy language to a canonical term, stress-test relationships with concrete edge-case scenarios, cross-reference claims against the code, and update `CONTEXT.md` the moment a term resolves. Offer an ADR only when the decision is hard to reverse, surprising without context, and a real trade-off.

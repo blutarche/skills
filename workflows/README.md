@@ -16,12 +16,12 @@ A **research lane** runs alongside: [`research`](../meta/research/SKILL.md) (gat
 
 | Stage | Workflow | What it does |
 |-------|----------|--------------|
-| plan | [`plan`](plan/SKILL.md) | Drive a raw brief through design → **council the approach** → plan → grill → **council the finished plan** to an execution-ready plan. Composes `brainstorming`, `writing-plans`, a grill skill, and `council` (cross-model blindspot diversity vs grill's self-adversarial depth). Does not write code. |
-| execute | [`execute`](execute/SKILL.md) | Drive an approved plan to verified code. Picks a mode: **interactive-gated** (main agent, one task at a time, surface blockers — with the state-in-files loop discipline for long efforts) or **autonomous-subagent** (fresh implementer subagent per task + two controller-run review stages: spec-compliance, then `scrutinize` + `council`; wired to `/goal` and the `git-worktree` skill). |
-| vet | [`vet`](vet/SKILL.md) | Deliberate cross-model review + gated fix loop on a finished change. Runs `scrutinize` (Claude's outsider pass) concurrently with `council` (cross-model attack, which adjudicates the two disagreement-first), **stops** for a decision, then hands fixes to `receiving-code-review` → `/simplify` / `slop-cleanup` and re-reviews until clean. |
-| finish | [`finish`](finish/SKILL.md) | Wrap up a finished branch: verify tests → **drain the council** (hard block on pending reviews) → present merge / open-PR / keep / discard → execute → tear down the worktree via the `git-worktree` skill. |
-| (research lane) | [`research-council`](research-council/SKILL.md) | Cross-examine a research answer: run your own citation/staleness review (per-citation fetch-checks fanned out) concurrently with `council` (cross-model attack + adjudication). The research analog of `vet` — same composer shape; pairs with the `research` skill in `meta/`. |
-| (plan lane) | [`grill-with-docs`](grill-with-docs/SKILL.md) | Grill a plan *and* maintain the domain model as you go. Thin composer of `grill-me` (the interview, in `meta/`) and `domain-modeling` (glossary + ADRs, in `software-development/`). The brownfield counterpart to running `grill-me` alone. |
+| plan | [`plan`](plan/SKILL.md) | Brief → execution-ready plan: design, council, plan, grill, council; writes no code. |
+| execute | [`execute`](execute/SKILL.md) | Approved plan → verified code, interactive-gated or autonomous-subagent. |
+| vet | [`vet`](vet/SKILL.md) | Cross-model review (`scrutinize` + `council`) of a finished change, then a gated fix loop. |
+| finish | [`finish`](finish/SKILL.md) | Verify, review the whole branch clean, then merge / PR / keep / discard and tear down the worktree. |
+| (research lane) | [`research-council`](research-council/SKILL.md) | Cross-examine a research answer with `council`; the research analog of `vet`. |
+| (plan lane) | [`grill-with-docs`](grill-with-docs/SKILL.md) | Grill session that also maintains the glossary and ADRs; the brownfield counterpart to `grill-me`. |
 
 ## Three composition principles
 
@@ -33,7 +33,7 @@ These are why the pipeline is shaped the way it is — and the rule for adding t
    workflows recombine the same skills differently. Don't push sequencing logic down into a skill.
 
 2. **Compose the official built-ins.** Where the host provides a capability — `/goal` for autonomy,
-   `/review` / `/security-review`, `/simplify` — the workflow composes it rather than reimplementing
+   `/code-review` / `/security-review`, `/simplify` — the workflow composes it rather than reimplementing
    it. Soft references: use the built-in if present, apply the same discipline inline if not.
 
 3. **Compose our atomic skills.** The workflows are thin sequencers over this repo's own atomic skills
