@@ -7,13 +7,11 @@ disable-model-invocation: true
 
 # Reflect
 
-Mine the current conversation for durable learnings, then route them into skill edits.
-
 Adapted from pstack's `reflect` (MIT, © 2026 Lauren Tan); see [`CREDITS.md`](../../CREDITS.md).
 
-## When to invoke
+## When to skip
 
-Invoke when the user says "reflect" or "/reflect". Skip when the conversation is trivial, off-topic, or already covered by an existing skill the parent followed correctly. One-offs are not learnings.
+Skip when the conversation is trivial, off-topic, or already covered by an existing skill the parent followed correctly. One-offs are not learnings.
 
 ## Process
 
@@ -35,7 +33,7 @@ For each candidate (newest first, at most ~10), read the first user message and 
 
 In one step, spawn three parallel subagents using whatever subagent mechanism the agent has (Claude Code: the Agent tool). Reviewers never edit files. They may use MCP tools to look up context the transcript references.
 
-| Lens | Prompt template |
+| Lens | Prompt template (read at this step) |
 |---|---|
 | Judgment | `references/judgment-reviewer.md` |
 | Tooling | `references/tooling-reviewer.md` |
@@ -62,11 +60,11 @@ Edit the source skill in its repo. Installed copies under `~/.claude/skills` and
 For each approved Accepted item, follow the Routing field exactly:
 
 - Trivial existing-skill edit (a one-line bullet, a tightened sentence, a stale fact corrected): parent does directly.
-- Substantive existing-skill edit (a new section, a new pattern table, more than ~10 lines): hand to the `skill-creator` skill and run its draft / test / iterate loop.
-- `tune description: <skill path>` (the skill exists but didn't trigger when it should have): hand to `skill-creator` and run its description-optimization loop.
-- `new skill via skill-creator: <kebab-name>`: hand creation to `skill-creator`. Do not invent the shape ad hoc.
+- Substantive existing-skill edit (a new section, a new pattern table, more than ~10 lines): hand to the `skill-creator` skill and run its draft / test / iterate loop (if it is not installed, make the edit directly and test it on a sample prompt).
+- `tune description: <skill path>` (the skill exists but didn't trigger when it should have): hand to `skill-creator` and run its description-optimization loop (without it, rewrite the description by hand: what the skill does, then `Use when …` cues).
+- `new skill via skill-creator: <kebab-name>`: hand creation to `skill-creator` (without it, follow the target repo's skill conventions). Do not invent the shape ad hoc.
 
-Backlog items are listed in the reply. With user approval, write each as one MemPalace drawer in the `lessons` room, format `YYYY-MM-DD <rule> — why: <evidence>`. Only the Accepted list needs approval before edits; backlog drawers are written after approval too.
+Backlog items are listed in the reply. With user approval, write each as one MemPalace drawer in the `lessons` room, format `YYYY-MM-DD <rule> — why: <evidence>`. If MemPalace is unavailable, only list them.
 
 Run `./scripts/validate-skills.sh` (in the skills repo) on every touched skill before declaring done. Skip if the repo ships no validator.
 
