@@ -7,15 +7,13 @@ disable-model-invocation: true
 
 # Blast radius
 
-Find what a change breaks somewhere else, before it ships. Use for "blast radius of X", "what could this break", or reviewing a small diff you don't trust yet.
-
 Companion to `scrutinize`. `scrutinize` judges whether the change is right. Blast radius finds what it breaks somewhere else.
 
 Listing the callers is not the job. The agent can grep those in a second. The job is the breakage grep won't show you.
 
 ## Don't trust your own writeup
 
-A blast-radius writeup that sounds right is worthless. It reads as convincing whether or not it's true. So don't hand back the writeup. Find the one or two facts the whole thing depends on and prove them by running code.
+A blast-radius writeup that sounds right proves nothing: it reads as convincing whether or not it's true. Don't hand back the writeup alone. Find the one or two facts the whole thing depends on and prove them by running code.
 
 ### How sure are you
 
@@ -46,6 +44,4 @@ Step 4 is usually one small script that imports the same library the app ships a
 - **Cleared.** What you checked and why it's fine.
 - **Before you merge.** The cheapest test or repro that catches the real bug, including the script you wrote.
 
-Write it plainly, cite real code, and strip anything private before it goes anywhere public.
-
-**Reply:** the writeup above, with the one safety fact either proven or marked unproven.
+Write it plainly, and strip anything private before it goes anywhere public.
