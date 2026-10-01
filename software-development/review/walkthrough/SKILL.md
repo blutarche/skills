@@ -30,10 +30,14 @@ Head: `worktree` when `git status --porcelain` is non-empty (the default, so unc
 included), otherwise `git rev-parse HEAD`.
 
 Arguments override the default: a commit range uses its two ends; a PR number means
-`gh pr checkout <n>` first, then the same flow. Local git only in this version. A path filter is
+fetch it without checking it out: take `<baseRefName>` from `gh pr view <n> --json baseRefName`,
+run `git fetch origin <baseRefName>`, then `git fetch origin pull/<n>/head` (last, so `FETCH_HEAD`
+is the PR); head = `git rev-parse FETCH_HEAD`, base = `git merge-base origin/<baseRefName> <head>`.
+Read the PR's files with `git show <head>:<path>`, not from the working tree. Never switch the
+user's branch. Local git only in this version. A path filter is
 not supported; if the user asks for one, say so and walk the whole diff.
 
-Done when: `BASE` and the head value are written down, and `git diff --name-status $BASE..HEAD`
+Done when: `BASE` and the head value are written down, and `git diff --name-status $BASE..<head>`
 (or `git diff --name-status $BASE` for a working tree) is in front of you.
 
 ### 2. Map and read the change

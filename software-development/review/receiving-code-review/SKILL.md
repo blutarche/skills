@@ -46,7 +46,7 @@ Test each fix individually, then verify no regressions.
 
 ## Replying to Inline GitHub Comments
 
-Reply inside the comment thread, not as a new top-level PR comment:
+Posting replies is an external write: do it only when the user asked for replies to be posted; otherwise draft them locally and show them. When posting, reply inside the comment thread, not as a new top-level PR comment:
 
 ```bash
 gh api repos/{owner}/{repo}/pulls/{pr}/comments/{id}/replies -f body="..."

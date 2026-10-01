@@ -10,10 +10,10 @@ Remove the tell-tale residue of AI-generated code while keeping behavior identic
 
 ## Scope
 
-By default, work only on what changed:
+By default, work only on what changed, against the first of `main` or `master` that exists (if neither does, ask which branch to compare against):
 
 ```
-git diff main...HEAD
+git diff <base>...HEAD
 ```
 
 If the change set has a different base branch or you were given an explicit file list, use that instead. Do not expand into surrounding code that the diff didn't touch unless explicitly asked — that includes adjacent hygiene like adding a `.gitignore` or reformatting untouched code. Flag those in the report instead of fixing them. One standing exception: adding or extending tests to lock current behavior (step 1 below) is always in scope, even when the test files aren't part of the diff.
