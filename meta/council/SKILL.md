@@ -20,6 +20,8 @@ The concrete per-tool invocation — which CLI to auto-detect, the exact flags, 
 
 **Two sandboxes — disable the right one.** "Sandbox disabled" here means the **Claude Code Bash-tool sandbox** (`dangerouslyDisableSandbox: true`, or pre-allow via `/sandbox`) so the cross-model process can spawn and persist its own config (e.g. `~/.codex`). The sub-CLI's *own* sandbox is left **read-only** — enough to read and review, never to edit. A nested/background subagent has its harness sandbox-disable rejected *before the command runs*, so it can't launch the CLI (`bypassPermissions` doesn't fix it); **make the call from the top level**, never a subagent.
 
+**Preflight.** Build diff inputs with `command git diff` (or `git --no-pager diff`) into a file: a shell wrapper such as rtk can rewrite or compact `git diff` output (seen: 39 KB vs 363 KB). Sanity-check the input size before convening.
+
 **Cross-context — keep the council blind.** Hand over the artifact and its context, **never your preferred answer, your reasoning, or your own review's findings** — that's the anti-sycophancy lever; an anchored second model isn't independent. Your in-family findings meet the council's only at adjudication, never as the council's input. Give it license to be harsh; a rubber-stamp council manufactures false confidence. Tier reasoning effort by stakes (high for a decision or a `vet` pass; a frequent low-stakes caller, e.g. an autonomous in-loop judge, sets its own lower tier — see references for the per-tool flag), and resolve a non-Claude model at run time where the CLI can run several (never a literal id in the skill; `COUNCIL_MODEL` overrides — a Cursor agent left on a Claude model is not cross-family).
 
 ## Run it concurrently — the convene is the long pole
