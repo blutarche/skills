@@ -71,10 +71,16 @@ done
 # Warning: voice lint. Skipped silently when the linter or its library is absent.
 LINT="$REPO/scripts/lint-voice.py"
 if command -v python3 >/dev/null 2>&1 && [ -f "$LINT" ] && [ -f "$REPO/_lib/voice.py" ]; then
+  lint_code=0
+  lint_out="$(python3 "$LINT" 2>/dev/null)" || lint_code=$?
   while IFS= read -r issue; do
     [ -n "$issue" ] || continue
     echo "warn  voice $issue" >&2; warnings=$((warnings+1))
-  done < <(python3 "$LINT" 2>/dev/null || true)
+  done <<< "$lint_out"
+  # Issues exit 1 with output; a crash exits non-zero with none. It must not pass as clean.
+  if [ "$lint_code" -ne 0 ] && [ -z "$lint_out" ]; then
+    echo "warn  voice lint did not run (exit $lint_code): python3 scripts/lint-voice.py" >&2; warnings=$((warnings+1))
+  fi
 fi
 
 count="${#SKILL_MDS[@]}"
