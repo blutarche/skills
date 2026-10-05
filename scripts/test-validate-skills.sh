@@ -191,5 +191,19 @@ assert_voice_warning "voice lint warns without failing" 1 "$WORK/voice-bad"
 voice_fixture "$WORK/voice-clean" 'Run the tests. Fix any failure.'
 assert_voice_warning "clean workflow doc has no voice warnings" 0 "$WORK/voice-clean"
 
+# A linter crash must show as a warning, not pass as clean.
+voice_fixture "$WORK/voice-crash" 'Run the tests. Fix any failure.'
+echo "raise RuntimeError('boom')" >> "$WORK/voice-crash/_lib/voice.py"
+total=$((total + 1))
+set +e
+bash "$WORK/voice-crash/scripts/validate-skills.sh" >/dev/null 2>"$WORK/voice.err"
+code=$?
+set -e
+if [ "$code" -eq 0 ] && grep -q 'warn  voice lint did not run' "$WORK/voice.err"; then
+  echo "PASS  voice lint crash shows as a warning"; passed=$((passed + 1))
+else
+  echo "FAIL  voice lint crash shows as a warning (exit $code)"
+fi
+
 echo "$passed/$total assertions passed"
 [ "$passed" -eq "$total" ]
