@@ -733,6 +733,83 @@ class BuildTourTest(unittest.TestCase):
         self.assertRegex(page, r'class="tk-\w+"')
 
 
+class SheetTest(unittest.TestCase):
+    """The optional `sheet` block; borrows the fixture repo and build helper without rerunning its tests."""
+
+    setUp = BuildTourTest.setUp
+    add_pr_lens = BuildTourTest.add_pr_lens
+    build = BuildTourTest.build
+
+    def sheet_spec(self) -> dict:
+        spec = valid_spec(self.base, self.head)
+        spec["sheet"] = {
+            "state": "One change set. Nothing needs you.",
+            "panels": [
+                {"role": "needs you", "type": "asks", "rows": []},
+                {"role": "tasks", "type": "tasks", "rows": [{"id": "T1", "name": "Add delta", "status": "done"}]},
+                {"role": "review", "type": "findings", "rows": [
+                    {"id": "F1", "sev": "P2", "claim": "Delta has no test.", "where": "alpha.py:11",
+                     "foundBy": ["scrutinize"], "default": "skip"}]},
+                {"role": "decisions", "type": "decisions", "rows": [
+                    {"decision": "Where delta lives", "chosen": "In alpha", "why": "It shares the helpers."}]},
+            ],
+        }
+        return spec
+
+    def page(self, spec: dict) -> str:
+        r = self.build(spec)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return self.out.read_text(encoding="utf-8")
+
+    def test_no_sheet_means_no_sheet_markup_and_a_stats_strip(self) -> None:
+        page = self.page(valid_spec(self.base, self.head))
+        self.assertNotIn('class="sheet"', page)
+        self.assertNotIn("SHEET:", page)
+        self.assertIn('<div class="strip">', page)
+
+    def test_sheet_renders_with_auto_panels_and_no_stats_strip(self) -> None:
+        page = self.page(self.sheet_spec())
+        self.assertIn('class="sheet"', page)
+        self.assertIn('data-kind="execute"', page)
+        self.assertNotIn('<div class="strip">', page)
+        self.assertNotIn("SHEET:", page)
+        m = re.search(r'<section class="[^"]*" data-letter="B" data-role="checks">(.*?)</section>', page, re.S)
+        self.assertIsNotNone(m)
+        self.assertIn("python3 -m unittest", m.group(1))
+        self.assertIn("exit 0", m.group(1))
+        m = re.search(r'<section class="[^"]*" data-letter="C" data-role="files">(.*?)</section>', page, re.S)
+        self.assertIsNotNone(m)
+        changed = json.loads(self.stats.read_text(encoding="utf-8"))["filesChanged"]
+        self.assertEqual(len(re.findall(r'class="frow', m.group(1))), changed)
+
+    def test_agent_may_not_supply_checks_or_files(self) -> None:
+        for role, typ in (("checks", "checks"), ("files", "files")):
+            spec = self.sheet_spec()
+            spec["sheet"]["panels"].append({"role": role, "type": typ, "rows": []})
+            r = self.build(spec)
+            self.assertEqual(r.returncode, 1)
+            self.assertIn("walkthrough builds checks and files itself", r.stderr)
+
+    def test_missing_required_role_fails(self) -> None:
+        spec = self.sheet_spec()
+        spec["sheet"]["panels"] = [p for p in spec["sheet"]["panels"] if p["role"] != "review"]
+        r = self.build(spec)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("review", r.stderr)
+
+    def test_failure_page_is_written_when_a_sheet_build_fails(self) -> None:
+        spec = self.sheet_spec()
+        spec["sheet"]["panels"] = spec["sheet"]["panels"][:1]
+        r = self.build(spec)
+        self.assertEqual(r.returncode, 1)
+        page = self.out.read_text(encoding="utf-8")
+        self.assertIn("BUILD FAILED", page)
+
+    def test_one_copy_feedback_button(self) -> None:
+        page = self.page(self.sheet_spec())
+        self.assertEqual(page.count("data-export>"), 1)
+
+
 class HighlightTest(unittest.TestCase):
     def strip(self, rendered: str) -> str:
         return re.sub(r"<[^>]+>", "", rendered)

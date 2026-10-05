@@ -67,6 +67,37 @@ executing.
 Required: `title`, `base`, `head`, `prLens`, `overview`, `chapters`. Everything else is optional.
 `repo` only enables GitHub blob links; leave it out and the page carries no external link.
 
+## `sheet` (optional)
+
+An optional top-level `sheet` block puts a report sheet above the tour, so one page carries the run
+facts and the walkthrough. Without it the page is unchanged. Write the words by `lib/voice.md`.
+
+```json
+"sheet": {
+  "state": "Two sentences at most. What was built and what needs the reader.",
+  "blocked": false,
+  "facts": [{ "k": "branch", "v": "feat/outbox" }],
+  "panels": [
+    { "role": "needs you", "type": "asks", "rows": [{ "ask": "A short question?", "why": "Why it matters." }] },
+    { "role": "tasks", "type": "tasks", "rows": [{ "id": "T1", "name": "Add the table", "status": "done" }] },
+    { "role": "review", "type": "findings", "rows": [] },
+    { "role": "decisions", "type": "decisions", "rows": [] }
+  ]
+}
+```
+
+- `title` and `kind` come from the tour. The kind is always `execute`. Do not write `title`, `kind`, or `tree`.
+- The builder makes two panels. `checks` comes from `verify.ran` (command, cwd, exit code). A row
+  shows a result only when its `summary` is one short plain sentence. `files` comes from the tour's
+  base and head. Do not write either panel: the build fails with "walkthrough builds checks and files itself".
+- You write the other panels: `needs you` (first), `tasks`, `review`, and `decisions`. Each is
+  required. Panel fields, row fields, and the voice lint are the same as in `brief`.
+- Panel letters follow the order on the page: `needs you` is A, `checks` is B, `files` is C.
+- The stats strip in Overview is hidden when a sheet is present.
+- One Copy feedback button covers both: it adds the sheet notes and fix or skip choices after the tour notes.
+- If a sheet build fails, the page at `--out` becomes a BUILD FAILED page that shows the error.
+  A build without a sheet leaves the old page in place.
+
 ## PR Lens views
 
 `prLens.graph` and `prLens.manifest` are POSIX paths relative to `review-tour.json`. Absolute
@@ -126,7 +157,7 @@ the output remains one self-contained HTML file with light/dark theme selection.
   manifest revisions, asset hashes, byte counts, paths, and SVG trust boundary all validate.
 
 Prose fields are sanitized, never rejected; see Trust boundary above. A failure prints `build_tour: <the defect>` on stderr, exits 1, and writes nothing, so a failed
-build leaves the previous page in place. Fix the spec, never the page.
+build leaves the previous page in place (a build with a `sheet` writes a BUILD FAILED page instead). Fix the spec, never the page.
 
 ## What the build derives
 

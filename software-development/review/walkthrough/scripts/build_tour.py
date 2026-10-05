@@ -38,9 +38,12 @@ SKILL_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_TEMPLATE = SKILL_DIR / "templates" / "tour-shell.html"
 LIB_DIR = SKILL_DIR / "lib"
 LIB_STYLE, LIB_SCRIPT = "<!-- LIB:STYLE -->", "<!-- LIB:SCRIPT -->"
+SHEET_STYLE, SHEET_SCRIPT = "<!-- SHEET:STYLE -->", "<!-- SHEET:SCRIPT -->"
 
 sys.path.insert(0, str(LIB_DIR))
 import pagelib  # noqa: E402  (needs sys.path set up above)
+import sheet  # noqa: E402
+import voice  # noqa: E402
 
 fail = pagelib.fail
 esc = pagelib.esc
@@ -1074,6 +1077,71 @@ def render_pr_lens_view(view: PrLensView, index: int) -> str:
     )
 
 
+# Runs after the tour's export wiring and before sheet.js. sheet.js binds the first
+# [data-export] it finds, which is the tour's Copy feedback button, so the tour drops that hook
+# first. One button then copies the tour notes plus the sheet notes and fix/skip choices.
+SHEET_GLUE = """
+  if (ex) ex.removeAttribute("data-export");
+  var tourFeedback = feedbackMarkdown;
+  feedbackMarkdown = function () {
+    var md = tourFeedback(), extra = [];
+    $$(".sheet textarea[data-note]").forEach(function (ta) {
+      var text = ta.value.trim();
+      if (!text) return;
+      var sec = ta.closest("section");
+      extra.push("### Panel " + ta.getAttribute("data-note") + ": " + (sec ? sec.getAttribute("data-role") : ""), "", text, "");
+    });
+    var togs = $$(".sheet .tog");
+    if (togs.length) {
+      var fix = [], skip = [];
+      togs.forEach(function (t) {
+        var p = $('[aria-pressed="true"]', t);
+        (p && p.getAttribute("data-v") === "fix" ? fix : skip).push(t.getAttribute("data-id"));
+      });
+      extra.push("Fix: " + (fix.join(", ") || "none"), "Skip: " + (skip.join(", ") || "none"), "");
+    }
+    if (!extra.length) return md;
+    return md.replace("(no notes written)\\n\\n", "") + "\\n\\n## Report sheet\\n\\n" + extra.join("\\n");
+  };
+"""
+
+
+def result_label(summary: object) -> str | None:
+    """A short check result for the sheet, or None when the summary would fail the voice lint."""
+    if not isinstance(summary, str) or "<" in summary:
+        return None
+    first = re.split(r"(?<=[.!?])\s", summary.strip(), maxsplit=1)[0].rstrip(".")
+    if not first or len(first.split()) > 12 or voice.issues(first, "label"):
+        return None
+    return first
+
+
+def build_sheet(spec: dict, root: Path, files: dict[str, FileDiff]) -> str:
+    """Validate the optional `sheet` block and render it. The builder owns the checks and files
+    panels, so the agent supplying either one is an error."""
+    block = spec["sheet"]
+    if not isinstance(block, dict):
+        fail("sheet: must be an object")
+    for key in ("title", "kind", "tree"):
+        if key in block:
+            fail(f"sheet: {key} comes from the tour; remove it")
+    for p in block.get("panels") or []:
+        if isinstance(p, dict) and p.get("type") in ("checks", "files"):
+            fail("sheet: walkthrough builds checks and files itself; remove the " + str(p.get("role")) + " panel")
+    rows = []
+    for r in (spec.get("verify") or {}).get("ran", []):
+        row = {"cmd": str(r.get("cmd", "")), "cwd": str(r["cwd"]),
+               "exit": None if r.get("exit") is None else int(r["exit"])}
+        label = result_label(r.get("summary"))
+        if label:
+            row["result"] = label
+        rows.append(row)
+    auto = [{"role": "checks", "type": "checks", "rows": rows}, {"role": "files", "type": "files"}]
+    tree = {"repo": str(root), "base": spec["base"], "head": spec["head"]}
+    norm = sheet.check_sheet(block | {"tree": tree}, kind="execute", title=spec["title"], auto_panels=auto)
+    return sheet.render_sheet(norm)
+
+
 def build_body(spec: dict, root: Path, pr_lens_views: list[PrLensView]) -> tuple[str, dict]:
     base, head = spec["base"], spec["head"]
     check_spec(spec)
@@ -1131,6 +1199,9 @@ def build_body(spec: dict, root: Path, pr_lens_views: list[PrLensView]) -> tuple
         f'<div class="wrap" data-storage-key="walkthrough:{esc(storage_id)}" '
         f'data-head-label="{esc(head_label)}" data-doc-title="{esc(spec["title"])}">'
     )
+    has_sheet = "sheet" in spec
+    if has_sheet:
+        o.append(build_sheet(spec, root, files))
 
     # ---- header
     built = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M %Z")
@@ -1175,31 +1246,32 @@ def build_body(spec: dict, root: Path, pr_lens_views: list[PrLensView]) -> tuple
     # ---- overview
     o.append('<section id="overview"><h2>Overview</h2>')
     o.append(sanitize_prose(spec["overview"]))
-    o.append('<div class="strip">')
-    o.append(
-        f'<div class="stat"><div class="k">Revision</div><div class="v mono">{esc(head_label)}</div>'
-        f'<div class="s">base {esc(base[:8])}</div></div>'
-    )
-    o.append(
-        f'<div class="stat"><div class="k">Files changed</div><div class="v">{stats["filesChanged"]}</div>'
-        f'<div class="s">{stats["linesAdded"]} added, {stats["linesRemoved"]} removed</div></div>'
-    )
-    o.append(
-        f'<div class="stat"><div class="k">Chapters</div><div class="v">{stats["chapters"]}</div>'
-        f'<div class="s">{stats["attentionChapters"]} to read closely</div></div>'
-    )
-    o.append(
-        f'<div class="stat"><div class="k">Hunks shown</div><div class="v">{stats["hunksShown"]}</div>'
-        f'<div class="s">{stats["everythingElse"]} files in everything else</div></div>'
-    )
-    coverage_line = (
-        f'lines shown {stats["linesShown"]} / changed {stats["linesChanged"]} ({stats["coveragePercent"]}%)'
-    )
-    o.append(
-        f'<div class="stat"><div class="k">Coverage</div><div class="v">{stats["coveragePercent"]}%</div>'
-        f'<div class="s">{coverage_line}</div></div>'
-    )
-    o.append("</div>")
+    if not has_sheet:
+        o.append('<div class="strip">')
+        o.append(
+            f'<div class="stat"><div class="k">Revision</div><div class="v mono">{esc(head_label)}</div>'
+            f'<div class="s">base {esc(base[:8])}</div></div>'
+        )
+        o.append(
+            f'<div class="stat"><div class="k">Files changed</div><div class="v">{stats["filesChanged"]}</div>'
+            f'<div class="s">{stats["linesAdded"]} added, {stats["linesRemoved"]} removed</div></div>'
+        )
+        o.append(
+            f'<div class="stat"><div class="k">Chapters</div><div class="v">{stats["chapters"]}</div>'
+            f'<div class="s">{stats["attentionChapters"]} to read closely</div></div>'
+        )
+        o.append(
+            f'<div class="stat"><div class="k">Hunks shown</div><div class="v">{stats["hunksShown"]}</div>'
+            f'<div class="s">{stats["everythingElse"]} files in everything else</div></div>'
+        )
+        coverage_line = (
+            f'lines shown {stats["linesShown"]} / changed {stats["linesChanged"]} ({stats["coveragePercent"]}%)'
+        )
+        o.append(
+            f'<div class="stat"><div class="k">Coverage</div><div class="v">{stats["coveragePercent"]}%</div>'
+            f'<div class="s">{coverage_line}</div></div>'
+        )
+        o.append("</div>")
     if stats["coveragePercent"] < 30:
         o.append(
             f'<p class="lede">This tour shows {stats["coveragePercent"]}% of changed lines: '
@@ -1340,6 +1412,18 @@ def build_body(spec: dict, root: Path, pr_lens_views: list[PrLensView]) -> tuple
 # ---------------------------------------------------------------- assembly
 
 
+def splice_sheet_assets(shell: str, template: Path, with_sheet: bool) -> str:
+    """Fill the sheet markers. Without a sheet each marker line is removed, so the page is
+    byte for byte what it was before sheets existed."""
+    if SHEET_STYLE not in shell or SHEET_SCRIPT not in shell:
+        fail(f"{template}: missing {SHEET_STYLE} or {SHEET_SCRIPT} marker")
+    if not with_sheet:
+        return shell.replace(SHEET_STYLE + "\n", "").replace(SHEET_SCRIPT + "\n", "")
+    css, js = sheet.assets()
+    shell = shell.replace(SHEET_STYLE, css.rstrip("\n"))
+    return shell.replace(SHEET_SCRIPT, SHEET_GLUE.strip("\n") + "\n\n" + js.rstrip("\n"))
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Render a walkthrough page from review-tour.json.")
     ap.add_argument("--spec")
@@ -1374,10 +1458,22 @@ def main() -> None:
     shell = shell.replace(LIB_STYLE, (LIB_DIR / "page.css").read_text(encoding="utf-8").rstrip("\n"))
     shell = shell.replace(LIB_SCRIPT, (LIB_DIR / "notes.js").read_text(encoding="utf-8").rstrip("\n"))
 
-    pr_lens_views = load_pr_lens(spec, spec_path.parent, root)
-    body, stats = build_body(spec, root, pr_lens_views)
-    title = esc(spec["title"])
-    document, fragment = pagelib.assemble(shell, title, body)
+    has_sheet = isinstance(spec, dict) and "sheet" in spec
+    try:
+        page_shell = splice_sheet_assets(shell, template, has_sheet)
+        pr_lens_views = load_pr_lens(spec, spec_path.parent, root)
+        body, stats = build_body(spec, root, pr_lens_views)
+        title = esc(spec["title"])
+        document, fragment = pagelib.assemble(page_shell, title, body)
+    except pagelib.BuildFailed as e:
+        # Only a sheet build gets a failure page: a sheet-less build keeps its old output untouched.
+        if has_sheet:
+            failed = splice_sheet_assets(shell, template, True)
+            document, fragment = pagelib.assemble(failed, "Build failed", sheet.render_failure(e.msg, args.spec))
+            Path(args.out).write_text(document, encoding="utf-8")
+            if args.fragment:
+                Path(args.fragment).write_text(fragment, encoding="utf-8")
+        raise
 
     # everything validated: write the outputs last, so a failed build leaves them untouched
     Path(args.out).write_text(document, encoding="utf-8")

@@ -85,6 +85,8 @@ Set `prLens.graph` to `pr-lens/.pr-lens/drawn.graph.json` and `prLens.manifest` 
   command you did not run is written out as not run, with `exit: null`.
 - `verify.manual` gives steps the reader can run, each with its expected result.
 
+`execute` fills the optional `sheet` block for interactive runs, so one page carries the run facts and the tour. See `references/spec.md`.
+
 Done when: the spec is valid JSON and every changed file from step 1 appears in it.
 
 ### 4. Build

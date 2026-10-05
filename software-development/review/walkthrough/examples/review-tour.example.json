@@ -15,6 +15,57 @@
   ],
   "intuition": "<p>Acknowledge what you have stored, not what you have processed. The handler's only job is to make the event durable; everything that can fail twice happens in the worker, where failing twice is free.</p>",
   "background": "<p>Webhooks arrive on one Fastify route and are verified by a shared signature middleware. The provider retries a non-<code>2xx</code> up to eight times over six hours, then gives up and raises an alert on its side, which is why an early acknowledgement used to look healthy.</p>",
+  "sheet": {
+    "state": "The webhook retry is built and tested. One choice needs you.",
+    "facts": [
+      { "k": "branch", "v": "feat/webhook-outbox" },
+      { "k": "worker", "v": "drain-outbox" }
+    ],
+    "panels": [
+      {
+        "role": "needs you",
+        "type": "asks",
+        "rows": [
+          { "ask": "Park a row after five tries or after ten?", "why": "Five fits the provider's retry window. Ten is safer for long outages." }
+        ]
+      },
+      {
+        "role": "tasks",
+        "type": "tasks",
+        "rows": [
+          { "id": "T1", "name": "Add the outbox table", "status": "done" },
+          { "id": "T2", "name": "Store the event before the reply", "status": "done", "after": ["T1"] },
+          { "id": "T3", "name": "Drain with backoff", "status": "done", "after": ["T1"] },
+          { "id": "T4", "name": "Test the transient failure", "status": "done", "after": ["T2", "T3"] }
+        ]
+      },
+      {
+        "role": "review",
+        "type": "findings",
+        "rows": [
+          {
+            "id": "F1",
+            "sev": "P2",
+            "claim": "A busy queue can delay an old row for a long time.",
+            "foundBy": ["scrutinize"],
+            "default": "fix"
+          }
+        ]
+      },
+      {
+        "role": "decisions",
+        "type": "decisions",
+        "rows": [
+          {
+            "decision": "Where the event is stored",
+            "chosen": "A table in the main database",
+            "rejected": "A message queue",
+            "why": "The insert can share the request's transaction."
+          }
+        ]
+      }
+    ]
+  },
   "chapters": [
     {
       "id": "outbox",
