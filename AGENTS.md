@@ -14,7 +14,8 @@ needs that the README doesn't make obvious.
 
 Run `./scripts/validate-skills.sh` before you call work done — it checks both. This is the gate;
 don't declare "done" until it passes. It also warns (without failing) when a skill isn't listed in
-its area README — treat that as required anyway.
+its area README, and for voice issues in `workflows/` docs (rules in [`_lib/voice.md`](_lib/voice.md)).
+Treat both as required.
 
 Other tests: `./scripts/test-install.sh`, `./scripts/test-validate-skills.sh`, and
 `python3 -m pytest _lib meta/brief/scripts software-development/review/walkthrough/scripts`.

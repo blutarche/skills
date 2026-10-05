@@ -63,6 +63,33 @@ assert_readme_warning() {
   fi
 }
 
+# Run validate; check that stderr has voice warnings, and that the count line matches.
+# expect_voice: 1 = at least 2 voice warnings, 0 = none.
+assert_voice_warning() {
+  local name="$1" expect_voice="$2" root="$3" out err voices ok=0
+
+  total=$((total + 1))
+  set +e
+  out="$(bash "$root/scripts/validate-skills.sh" 2>"$WORK/voice.err")"
+  local code=$?
+  set -e
+  err="$(cat "$WORK/voice.err")"
+  voices="$(printf '%s\n' "$err" | grep -c 'warn  voice' || true)"
+
+  if [ "$code" -eq 0 ]; then
+    if [ "$expect_voice" -eq 1 ] && [ "$voices" -ge 1 ] \
+       && [ "$(printf '%s' "$out" | sed -n 's/.* \([0-9][0-9]*\) warning(s)/\1/p')" -ge 2 ]; then ok=1; fi
+    if [ "$expect_voice" -eq 0 ] && [ "$voices" -eq 0 ]; then ok=1; fi
+  fi
+
+  if [ "$ok" -eq 1 ]; then
+    echo "PASS  $name"
+    passed=$((passed + 1))
+  else
+    echo "FAIL  $name (exit $code, voice lines=$voices, out: $out)"
+  fi
+}
+
 write_skill() {
   local path="$1"
   local body="$2"
@@ -138,6 +165,31 @@ description: longer sibling
 printf '%s\n' '# testdomain' '' '| [research-council](research-council/SKILL.md) | x |' > "$root/testdomain/README.md"
 assert_readme_warning "README entry for research-council does not cover council" 1 "$root" "council"
 assert_readme_warning "README entry for research-council still covers itself" 0 "$root" "research-council"
+
+# 6. Voice lint: warns on workflow docs, never fails.
+voice_fixture() {
+  local root="$1" body="$2"
+  setup_fixture "$root"
+  printf '%s\n' 'workflows' > "$root/install.conf"
+  mkdir -p "$root/_lib"
+  cp "$SCRIPT_DIR/lint-voice.py" "$root/scripts/lint-voice.py"
+  cp "$SCRIPT_DIR/../_lib/voice.py" "$SCRIPT_DIR/../_lib/voice-words.json" \
+     "$SCRIPT_DIR/../_lib/pagelib.py" "$root/_lib/"
+  write_skill "$root/workflows/demo/SKILL.md" "---
+name: demo
+description: test skill
+---
+# demo
+
+$body
+"
+  printf '%s\n' '# workflows' '' '| [demo](demo/SKILL.md) | x |' > "$root/workflows/README.md"
+}
+
+voice_fixture "$WORK/voice-bad" 'This step is simple — do it now. We want the reader to understand every one of the many parts of this long sentence before they begin to work on the next part of the job.'
+assert_voice_warning "voice lint warns without failing" 1 "$WORK/voice-bad"
+voice_fixture "$WORK/voice-clean" 'Run the tests. Fix any failure.'
+assert_voice_warning "clean workflow doc has no voice warnings" 0 "$WORK/voice-clean"
 
 echo "$passed/$total assertions passed"
 [ "$passed" -eq "$total" ]

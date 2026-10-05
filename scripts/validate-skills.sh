@@ -6,6 +6,7 @@ set -euo pipefail
 #   1. every SKILL.md has a `name:` that equals its leaf folder name and is kebab-case
 #   2. leaf folder names are unique repo-wide (install.sh maps them into one flat dir)
 #   3. (warning only) each skill's leaf name appears in its area README.md
+#   4. (warning only) simple-English voice lint of workflow docs (scripts/lint-voice.py)
 # Exit non-zero if any hard check (1 or 2) fails.
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -66,6 +67,15 @@ for f in "${SKILL_MDS[@]:-}"; do
     echo "warn  ${rel%%/*}/README.md: no entry for '$folder'" >&2; warnings=$((warnings+1))
   fi
 done
+
+# Warning: voice lint. Skipped silently when the linter or its library is absent.
+LINT="$REPO/scripts/lint-voice.py"
+if command -v python3 >/dev/null 2>&1 && [ -f "$LINT" ] && [ -f "$REPO/_lib/voice.py" ]; then
+  while IFS= read -r issue; do
+    [ -n "$issue" ] || continue
+    echo "warn  voice $issue" >&2; warnings=$((warnings+1))
+  done < <(python3 "$LINT" 2>/dev/null || true)
+fi
 
 count="${#SKILL_MDS[@]}"
 echo "checked $count skill(s): $errors error(s), $warnings warning(s)"
