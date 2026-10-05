@@ -1,0 +1,85 @@
+"""Git facts for sheets: diff rows, `path:line` existence, commit existence. Read-only git
+calls; the builder shows these instead of trusting an agent's own counts.
+
+Stdlib only, Python 3.10 or newer.
+"""
+
+from __future__ import annotations
+
+import re
+import subprocess
+from dataclasses import dataclass
+from pathlib import Path
+
+import pagelib
+
+REF_RE = re.compile(r"^(.+?):(\d+)(?:-(\d+))?$")
+
+
+@dataclass
+class FileRow:
+    status: str
+    path: str
+    added: int | None
+    removed: int | None
+
+
+def _git(root: Path, *args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(["git", "-C", str(root), *args], capture_output=True)
+
+
+def _must(root: Path, *args: str) -> bytes:
+    proc = _git(root, *args)
+    if proc.returncode != 0:
+        pagelib.fail(f"git {args[0]} failed: {proc.stderr.decode('utf-8', 'replace').strip()}")
+    return proc.stdout
+
+
+def _split(raw: bytes) -> list[str]:
+    return [p.decode("utf-8", "replace") for p in raw.split(b"\0") if p]
+
+
+def diff_rows(root: Path, base: str, head: str) -> list[FileRow]:
+    rev = [base] if head == "worktree" else [f"{base}..{head}"]
+    parts = _split(_must(root, "diff", "--name-status", "-z", "--no-renames", *rev))
+    status = {parts[i + 1]: parts[i] for i in range(0, len(parts) - 1, 2)}
+
+    counts: dict[str, tuple[int | None, int | None]] = {}
+    for rec in _must(root, "diff", "--numstat", "-z", "--no-renames", *rev).split(b"\0"):
+        if not rec:
+            continue
+        added, removed, path = rec.decode("utf-8", "replace").split("\t", 2)
+        counts[path] = (None, None) if added == "-" else (int(added), int(removed))
+
+    rows = []
+    for path, st in status.items():
+        added, removed = counts.get(path, (None, None))
+        rows.append(FileRow(st if st in ("A", "M", "D") else "M", path, added, removed))
+
+    if head == "worktree":
+        for path in sorted(_split(_must(root, "ls-files", "--others", "--exclude-standard", "-z"))):
+            data = (root / path).read_bytes()
+            added = None if b"\0" in data else len(data.splitlines())
+            rows.append(FileRow("A", path, added, 0 if added is not None else None))
+    return rows
+
+
+def line_exists(root: Path, head: str, ref: str) -> bool:
+    m = REF_RE.match(ref)
+    if not m:
+        return False
+    path, first, last = m.group(1), int(m.group(2)), m.group(3)
+    wanted = int(last) if last else first
+    disk = root / path
+    if head == "worktree" and disk.is_file():
+        data = disk.read_bytes()
+    else:
+        proc = _git(root, "show", f"{'HEAD' if head == 'worktree' else head}:{path}")
+        if proc.returncode != 0:
+            return False
+        data = proc.stdout
+    return 1 <= first <= wanted <= len(data.splitlines())
+
+
+def commit_exists(root: Path, sha: str) -> bool:
+    return _git(root, "cat-file", "-e", f"{sha}^{{commit}}").returncode == 0
