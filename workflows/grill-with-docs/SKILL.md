@@ -17,3 +17,7 @@ Run a `grill-me` session, but carry the `domain-modeling` discipline alongside i
 - **Throughout, apply `domain-modeling`** — read it for the term-challenging discipline, when to offer an ADR, lazy file creation, and the `CONTEXT.md` / ADR formats. Update `CONTEXT.md` the moment a term resolves; the point of this workflow over a plain `grill-me` is that the glossary and decisions get captured as you go.
 
 If `domain-modeling` isn't installed, apply its discipline inline instead of skipping the doc-keeping: challenge terms that conflict with `CONTEXT.md`, sharpen fuzzy language to a canonical term, stress-test relationships with concrete edge-case scenarios, cross-reference claims against the code, and update `CONTEXT.md` the moment a term resolves. Offer an ADR only when the decision is hard to reverse, surprising without context, and a real trade-off.
+
+## At the end
+
+Deliver a `brief` sheet of kind `grill`. Show each resolved decision with its `parent` (the build draws the tree). Show open branches as asks, and the docs you changed (`CONTEXT.md`, ADRs) as the files panel. Reply in 3 lines at most: state, what needs you, path. Without `brief`, list the decisions and changed docs in chat, in short sentences. Use short sentences and common words; see `brief`'s `lib/voice.md` when installed.

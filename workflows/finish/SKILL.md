@@ -119,7 +119,7 @@ Adjudicate disbelieve-it-back: every finding is a claim to verify against the co
 
 ### 6. Hand over, then stop
 
-One short report:
+Deliver the hand-over as a `brief` sheet of kind `finish` that carries these items, then reply in 3 lines at most (state, what needs you, path). Without `brief`, report them in prose:
 
 - branch (or "detached HEAD") and base
 - `git diff <base>...<branch>` for the user to run, plus `--shortstat` output
@@ -127,7 +127,7 @@ One short report:
 - review outcome: what was fixed, what was rejected and why (or "already reviewed in this session")
 - deliberate behavior changes, if any
 
-Offer **`walkthrough`** if the diff is large; don't run it unasked. Offer `/post-mortem` if the branch fixes a bug that reached users or took a `diagnose` session. End by naming the next moves: `/finish land`, `/finish pr`, `/finish discard`. **Do not merge, push, or ask a menu.**
+Offer **`walkthrough`** if the diff is large; don't run it unasked. Offer `/post-mortem` if the branch fixes a bug that reached users or took a `diagnose` session. The sheet's next-move panel lists `/finish land`, `/finish pr`, and `/finish discard` as plain commands. Use short sentences and common words; see `brief`'s `lib/voice.md` when installed. **Do not merge, push, or ask a menu.**
 
 ## Precondition for `land` and `pr`
 
