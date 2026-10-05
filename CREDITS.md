@@ -11,4 +11,4 @@ Skills here draw on prior art from the agent-skills community. Thanks to:
 - [coldteadotai/pr-lens](https://github.com/coldteadotai/pr-lens)
 - [emilkowalski/skills](https://github.com/emilkowalski/skills)
 - [cursor/plugins pstack](https://github.com/cursor/plugins/tree/main/pstack)
-
+- [backnotprop/plannotator](https://github.com/backnotprop/plannotator)
