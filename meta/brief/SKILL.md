@@ -63,7 +63,7 @@ mermaid script from a CDN; offline, a mermaid figure shows "Diagram loads when o
 Read `references/authoring.md` before drawing: what earns a diagram, the mermaid type picker,
 inline SVG mechanics, dataviz condensation, and figure layout (`figureLayout`).
 
-Done when: every required panel for the kind has rows, and each drawer title states a claim.
+Done when: every required panel for the kind is present (an empty `asks` panel is fine), and each drawer title states a claim.
 
 ### 2. Write the spec
 
