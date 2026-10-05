@@ -2,21 +2,24 @@
 """Render a brief page from a brief.json spec.
 
 Reads the spec, checks every field against the rules in references/spec.md, and renders the
-whole page from the spec's prose plus the shell in templates/brief-shell.html. The agent never
-edits the HTML; a rejected spec is fixed and rebuilt.
+whole page from the spec's fields plus the shell in templates/brief-shell.html. The sheet (stamp,
+panels, figures) comes from _lib/sheet.py; chapters follow it as drawers. The agent never edits
+the HTML; a rejected spec is fixed and rebuilt.
 
 Usage:
     build_brief.py --spec brief.json --out brief.html
                    [--fragment brief.fragment.html] [--data-out stats.json]
                    [--template path/to/brief-shell.html] [--no-mmdc]
 
-Exit status 1 with a message naming the defect on any validation failure; no output file is
-touched when a build fails. Stdlib only, Python 3.10 or newer.
+Exit status 1 with a message naming the defect on any validation failure. A failed build writes
+a BUILD FAILED page (the error, never the spec text) to --out and --fragment. Stdlib only,
+Python 3.10 or newer.
 """
 
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import html
 import json
@@ -32,22 +35,19 @@ SKILL_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_TEMPLATE = SKILL_DIR / "templates" / "brief-shell.html"
 LIB_DIR = SKILL_DIR / "lib"
 LIB_STYLE, LIB_SCRIPT = "<!-- LIB:STYLE -->", "<!-- LIB:SCRIPT -->"
+SHEET_STYLE, SHEET_SCRIPT = "<!-- SHEET:STYLE -->", "<!-- SHEET:SCRIPT -->"
 
 sys.path.insert(0, str(LIB_DIR))
 import pagelib  # noqa: E402  (needs sys.path set up above)
+import sheet  # noqa: E402
 import svg  # noqa: E402
+import voice  # noqa: E402
 
 fail = pagelib.fail
 esc = pagelib.esc
 sanitize_prose = pagelib.sanitize_prose
 
-KINDS = {"plan", "execution", "investigation", "mixed"}
-KIND_LABEL = {
-    "plan": "Plan",
-    "execution": "Execution result",
-    "investigation": "Investigation",
-    "mixed": "Mixed",
-}
+KINDS = sheet.KINDS
 MERMAID_TYPES = {
     "flowchart", "graph", "sequenceDiagram", "stateDiagram", "stateDiagram-v2",
     "classDiagram", "erDiagram", "journey", "gantt", "pie", "quadrantChart",
@@ -55,40 +55,14 @@ MERMAID_TYPES = {
     "gitGraph", "C4Context",
 }
 KEBAB_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
-SENTENCE_RE = re.compile(r"(?<=[.!?])(?:\s+|$)")
+CODE_RE = re.compile(r"`([^`]*)`")
+PRE_MERMAID = '<pre class="mermaid">{}</pre>'
+MERMAID_VERSION = "11.4.1"
 _MISSING = object()
 
-# ---------------------------------------------------------------- prose measurement
 
-
-def plain_text(value: str) -> str:
-    """Sanitized text with every surviving tag stripped and entities resolved, for word and
-    sentence counting. Never fails: an odd or empty field just counts as empty."""
-    sanitized = sanitize_prose(value)
-    stripped = re.sub(r"<[^>]+>", " ", sanitized)
-    return html.unescape(stripped)
-
-
-def word_count(text: str) -> int:
-    return len(text.split())
-
-
-def sentences_of(text: str) -> list[str]:
-    return [s.strip() for s in SENTENCE_RE.split(text.strip()) if s.strip()]
-
-
-def check_word_cap(where: str, text: str, cap: int) -> None:
-    n = word_count(text)
-    if n > cap:
-        fail(f"{where} is {n} words; keep to {cap}")
-
-
-def check_sentence_cap(where: str, text: str) -> None:
-    for sentence in sentences_of(text):
-        n = word_count(sentence)
-        if n > 25:
-            first_five = " ".join(sentence.split()[:5])
-            fail(f"{where}: a sentence is {n} words, over 25: \"{first_five} ...\"")
+def label_html(text: str) -> str:
+    return CODE_RE.sub(lambda m: f"<code>{m.group(1)}</code>", esc(text))
 
 
 # ---------------------------------------------------------------- svg figures
@@ -128,25 +102,56 @@ def first_diagram_line(mermaid: str) -> str:
         return line
 
 
-def check_mermaid_with_mmdc(spec: dict, tmpdir: Path) -> None:
-    mmdc_path = shutil.which("mmdc")
-    if not mmdc_path:
-        print("build_brief: mmdc not found, mermaid syntax unchecked", file=sys.stderr)
-        return
-    for ch in spec["chapters"]:
+def mermaid_picture(mmdc: str, source: str, caption: str, tmpdir: Path, key: str, where: str) -> str:
+    """Pre-render one diagram with mmdc in the light and dark themes and return a <picture>
+    holding both as data URIs. A non-zero mmdc exit fails the build with its stderr."""
+    mmd = tmpdir / f"{key}.mmd"
+    mmd.write_text(source, encoding="utf-8")
+    uris = {}
+    for theme in ("default", "dark"):
+        out = tmpdir / f"{key}-{theme}.svg"
+        proc = subprocess.run(
+            [mmdc, "-i", str(mmd), "-o", str(out), "-t", theme, "-b", "transparent", "-q"],
+            capture_output=True, text=True,
+        )
+        if proc.returncode != 0:
+            fail(f"{where}: mmdc rejected the diagram: {proc.stderr.strip()}")
+        if not out.is_file():
+            fail(f"{where}: mmdc wrote no output")
+        uris[theme] = "data:image/svg+xml;base64," + base64.b64encode(out.read_bytes()).decode("ascii")
+    return (
+        f'<picture><source media="(prefers-color-scheme: dark)" srcset="{uris["dark"]}">'
+        f'<img src="{uris["default"]}" alt="{esc(caption)}"></picture>'
+    )
+
+
+def render_mermaid(sheet_html: str, norm: dict, chapters: list, tmpdir: Path, use_mmdc: bool) -> tuple[str, bool]:
+    """Replace each mermaid <pre> (sheet figure panels, then chapter figures) with a
+    pre-rendered <picture> when mmdc is available. Chapter figures get `_html` set. Returns the
+    sheet html and whether any <pre class="mermaid"> is left for the online script."""
+    jobs = []  # (source, caption, where, setter)
+    for p in norm["panels"]:
+        if p["type"] == "figure" and "mermaid" in p:
+            jobs.append((p["mermaid"], p["caption"], f"panel {p['letter']} {p['role']}", None))
+    for ch in chapters:
         for i, fig in enumerate(ch.get("_figures", [])):
-            mermaid = fig.get("mermaid")
-            if not mermaid:
-                continue
-            mmd_path = tmpdir / f"{ch['id']}-{i}.mmd"
-            svg_path = tmpdir / f"{ch['id']}-{i}.svg"
-            mmd_path.write_text(mermaid, encoding="utf-8")
-            proc = subprocess.run(
-                [mmdc_path, "-i", str(mmd_path), "-o", str(svg_path), "-q"],
-                capture_output=True, text=True,
-            )
-            if proc.returncode != 0:
-                fail(f"chapter {ch['id']} visual[{i}]: mmdc rejected the diagram: {proc.stderr.strip()}")
+            if fig.get("mermaid"):
+                jobs.append((fig["mermaid"], fig["caption"], f"chapter {ch['id']} visual[{i}]", fig))
+    if not jobs:
+        return sheet_html, False
+    mmdc = shutil.which("mmdc") if use_mmdc else None
+    if not mmdc:
+        print("build_brief: mmdc not found; mermaid figures render only online", file=sys.stderr)
+    left = False
+    for n, (source, caption, where, fig) in enumerate(jobs):
+        pre = PRE_MERMAID.format(esc(source))
+        html_out = mermaid_picture(mmdc, source, caption, tmpdir, f"m{n}", where) if mmdc else pre
+        if fig is not None:
+            fig["_html"] = html_out
+        else:
+            sheet_html = sheet_html.replace(pre, html_out, 1)
+        left = left or not mmdc
+    return sheet_html, left
 
 
 # ---------------------------------------------------------------- validation
@@ -154,7 +159,7 @@ def check_mermaid_with_mmdc(spec: dict, tmpdir: Path) -> None:
 
 def normalize_figures(ch: dict, cid: str) -> list:
     """`visual` is either one figure object or an array of 1 to 4 of them; return it as a
-    list either way. Called only once `has_visual` (truthy `visual`) is already known."""
+    list either way. Called only once `visual` is known to be truthy."""
     visual = ch["visual"]
     if isinstance(visual, dict):
         return [visual]
@@ -166,7 +171,7 @@ def normalize_figures(ch: dict, cid: str) -> list:
 
 
 def check_figure(fig, cid: str, idx: int) -> dict:
-    """Validate one figure (exactly one of `mermaid`/`svg`, a capped `caption`) and return it
+    """Validate one figure (exactly one of `mermaid`/`svg`, a label `caption`) and return it
     with `_svg` filled in when it is an svg figure, ready for rendering."""
     where = f"chapter {cid} visual[{idx}]"
     if not isinstance(fig, dict):
@@ -182,7 +187,7 @@ def check_figure(fig, cid: str, idx: int) -> dict:
     caption = fig.get("caption")
     if not isinstance(caption, str) or not caption.strip():
         fail(f"{where}: caption must be a non-empty string")
-    check_word_cap(f"{where} caption", plain_text(caption), 25)
+    voice.check_field(f"{where} caption", caption, "label")
 
     if has_mermaid:
         mermaid = fig["mermaid"]
@@ -205,92 +210,101 @@ def check_figure(fig, cid: str, idx: int) -> dict:
     return fig
 
 
-def check_spec(spec: dict) -> None:
-    for key in ("title", "kind", "state", "chapters"):
+def check_text(where: str, value, cls: str, max_sentences: int | None = None) -> None:
+    if not isinstance(value, str) or not value.strip():
+        fail(f"{where}: must be non-empty text")
+    voice.check_field(where, value, cls, max_sentences)
+
+
+def check_chapter(ch, chapter_idx: int, seen_ids: set) -> None:
+    if not isinstance(ch, dict):
+        fail(f"chapters[{chapter_idx}] must be an object, got {type(ch).__name__}")
+    for key in ("id", "title", "prose"):
+        if not ch.get(key):
+            fail(f"chapter {ch.get('id', '?')} is missing a required field: {key}")
+    cid = ch["id"]
+    if not isinstance(cid, str) or not KEBAB_RE.match(cid):
+        fail(f"chapter id {cid!r} is not kebab-case")
+    if cid in seen_ids:
+        fail(f"duplicate chapter id: {cid}")
+    seen_ids.add(cid)
+
+    check_text(f"chapter {cid} title", ch["title"], "label")
+    if not isinstance(ch["prose"], str):
+        fail(f"chapter {cid} prose: must be text")
+    # a chapter earns more than 2 sentences only by saying why in `proseWhy`, which is never shown
+    if "proseWhy" in ch:
+        check_text(f"chapter {cid} proseWhy", ch["proseWhy"], "instruction")
+        voice.check_field(f"chapter {cid} prose", ch["prose"], "prose")
+    else:
+        voice.check_field(f"chapter {cid} prose", ch["prose"], "prose", 2)
+    n = len(voice.plain(ch["prose"], "prose").split())
+    if n > 120:
+        fail(f"chapter {cid} prose is {n} words; keep to 120")
+
+    if "visual" in ch:
+        ch["_figures"] = [
+            check_figure(fig, cid, i) for i, fig in enumerate(normalize_figures(ch, cid))
+        ]
+
+    figure_layout = ch.get("figureLayout")
+    if figure_layout is not None and figure_layout != "row":
+        fail(f"chapter {cid}: figureLayout must be \"row\" or absent, got {figure_layout!r}")
+
+    decisions_val = ch.get("decisions", [])
+    if not isinstance(decisions_val, list):
+        fail(f"chapter {cid}: decisions must be an array")
+    for i, d in enumerate(decisions_val):
+        if not isinstance(d, dict):
+            fail(f"chapter {cid} decisions[{i}]: must be an object")
+        for key in ("decision", "chosen", "rejected", "why"):
+            if not d.get(key):
+                fail(f"chapter {cid} decisions[{i}]: missing {key}")
+        for key in ("decision", "chosen", "rejected"):
+            check_text(f"chapter {cid} decisions[{i}] {key}", d[key], "label")
+        check_text(f"chapter {cid} decisions[{i}] why", d["why"], "instruction")
+
+    evidence_val = ch.get("evidence", [])
+    if not isinstance(evidence_val, list):
+        fail(f"chapter {cid}: evidence must be an array")
+    for i, e in enumerate(evidence_val):
+        if not isinstance(e, dict):
+            fail(f"chapter {cid} evidence[{i}]: must be an object")
+        if not e.get("cmd"):
+            fail(f"chapter {cid} evidence[{i}]: missing cmd")
+        if not e.get("cwd"):
+            fail(f"chapter {cid} evidence[{i}]: missing cwd")
+        exit_val = e.get("exit", _MISSING)
+        valid_exit = exit_val is None or (isinstance(exit_val, int) and not isinstance(exit_val, bool))
+        if exit_val is _MISSING or not valid_exit:
+            fail(f"chapter {cid} evidence[{i}]: exit must be an integer or null")
+        if "ok" in e and not isinstance(e["ok"], bool):
+            fail(f"chapter {cid} evidence[{i}]: ok must be true or false")
+        if "summary" in e:
+            check_text(f"chapter {cid} evidence[{i}] summary", e["summary"], "instruction")
+
+
+def check_spec(spec, spec_dir: Path | None = None) -> dict:
+    """Validate the whole spec; return the normalized sheet. Chapters are checked in place."""
+    if not isinstance(spec, dict):
+        fail("the spec must be a JSON object")
+    for key in ("title", "kind", "state", "panels"):
         if not spec.get(key):
             fail(f"spec is missing a required field: {key}")
     if spec["kind"] not in KINDS:
         fail(f"kind {spec['kind']!r} is not one of {sorted(KINDS)}")
 
-    chapters = spec["chapters"]
+    norm = sheet.check_sheet(spec, kind=spec["kind"], title=spec["title"], spec_dir=spec_dir)
+
+    chapters = spec.get("chapters", [])
     if not isinstance(chapters, list):
         fail(f"chapters must be an array of chapter objects, got {type(chapters).__name__}")
-    if not 1 <= len(chapters) <= 8:
-        fail(f"{len(chapters)} chapters; keep between 1 and 8")
-
+    if len(chapters) > 8:
+        fail(f"{len(chapters)} chapters; keep between 0 and 8")
     seen_ids: set[str] = set()
     for chapter_idx, ch in enumerate(chapters):
-        if not isinstance(ch, dict):
-            fail(f"chapters[{chapter_idx}] must be an object, got {type(ch).__name__}")
-        for key in ("id", "title", "prose"):
-            if not ch.get(key):
-                fail(f"chapter {ch.get('id', '?')} is missing a required field: {key}")
-        cid = ch["id"]
-        if not KEBAB_RE.match(cid):
-            fail(f"chapter id {cid!r} is not kebab-case")
-        if cid in seen_ids:
-            fail(f"duplicate chapter id: {cid}")
-        seen_ids.add(cid)
-
-        has_visual = bool(ch.get("visual"))
-        has_no_visual = bool(ch.get("noVisual"))
-        if has_visual and has_no_visual:
-            fail(f"chapter {cid}: has both visual and noVisual; use exactly one")
-        if not has_visual and not has_no_visual:
-            fail(f"chapter {cid}: needs exactly one of visual or noVisual")
-        if has_no_visual and not isinstance(ch["noVisual"], str):
-            fail(f"chapter {cid}: noVisual must be a non-empty string")
-        if has_visual:
-            ch["_figures"] = [
-                check_figure(fig, cid, i) for i, fig in enumerate(normalize_figures(ch, cid))
-            ]
-
-        figure_layout = ch.get("figureLayout")
-        if figure_layout is not None and figure_layout != "row":
-            fail(f"chapter {cid}: figureLayout must be \"row\" or absent, got {figure_layout!r}")
-
-        check_word_cap(f"chapter {cid} prose", plain_text(ch["prose"]), 120)
-        check_sentence_cap(f"chapter {cid} prose", plain_text(ch["prose"]))
-
-        decisions_val = ch.get("decisions", [])
-        if not isinstance(decisions_val, list):
-            fail(f"chapter {cid}: decisions must be an array")
-        for i, d in enumerate(decisions_val):
-            if not isinstance(d, dict):
-                fail(f"chapter {cid} decisions[{i}]: must be an object")
-            for key in ("decision", "chosen", "rejected", "why"):
-                if not d.get(key):
-                    fail(f"chapter {cid} decisions[{i}]: missing {key}")
-
-        evidence_val = ch.get("evidence", [])
-        if not isinstance(evidence_val, list):
-            fail(f"chapter {cid}: evidence must be an array")
-        for i, e in enumerate(evidence_val):
-            if not isinstance(e, dict):
-                fail(f"chapter {cid} evidence[{i}]: must be an object")
-            if not e.get("cmd"):
-                fail(f"chapter {cid} evidence[{i}]: missing cmd")
-            if not e.get("cwd"):
-                fail(f"chapter {cid} evidence[{i}]: missing cwd")
-            exit_val = e.get("exit", _MISSING)
-            valid_exit = exit_val is None or (isinstance(exit_val, int) and not isinstance(exit_val, bool))
-            if exit_val is _MISSING or not valid_exit:
-                fail(f"chapter {cid} evidence[{i}]: exit must be an integer or null")
-            if "ok" in e and not isinstance(e["ok"], bool):
-                fail(f"chapter {cid} evidence[{i}]: ok must be true or false")
-
-    if spec.get("context"):
-        check_word_cap("context", plain_text(spec["context"]), 120)
-        check_sentence_cap("context", plain_text(spec["context"]))
-    check_word_cap("state", plain_text(spec["state"]), 60)
-    check_sentence_cap("state", plain_text(spec["state"]))
-
-    open_val = spec.get("open", [])
-    if not isinstance(open_val, list):
-        fail(f"open must be an array of strings, got {type(open_val).__name__}")
-    for i, item in enumerate(open_val):
-        if not isinstance(item, str):
-            fail(f"open[{i}]: must be a string")
+        check_chapter(ch, chapter_idx, seen_ids)
+    return norm
 
 
 # ---------------------------------------------------------------- page
@@ -306,168 +320,115 @@ def render_evidence_chip(exit_val, ok) -> str:
     return f'<span class="chip">{int(exit_val)}</span>'
 
 
-def build_body(spec: dict, page_key: str) -> tuple[str, dict]:
-    chapters = spec["chapters"]
-    context = spec.get("context")
-    state = spec["state"]
-    open_items = spec.get("open", [])
-
-    figures_all = [fig for ch in chapters for fig in ch.get("_figures", [])]
-    visuals = len(figures_all)
-    mermaid_figures = sum(1 for fig in figures_all if fig.get("mermaid"))
-    svg_figures = sum(1 for fig in figures_all if fig.get("svg"))
-    no_visuals = sum(1 for ch in chapters if ch.get("noVisual"))
-    decisions_count = sum(len(ch.get("decisions", [])) for ch in chapters)
-    evidence_all = [e for ch in chapters for e in ch.get("evidence", [])]
-    evidence_ran = sum(1 for e in evidence_all if e.get("exit") is not None)
-    evidence_not_run = len(evidence_all) - evidence_ran
-
-    words = word_count(plain_text(context)) if context else 0
-    words += word_count(plain_text(state))
-    for ch in chapters:
-        words += word_count(plain_text(ch["prose"]))
-
-    stats = {
-        "chapters": len(chapters),
-        "visuals": visuals,
-        "mermaidFigures": mermaid_figures,
-        "svgFigures": svg_figures,
-        "noVisuals": no_visuals,
-        "decisions": decisions_count,
-        "evidenceRan": evidence_ran,
-        "evidenceNotRun": evidence_not_run,
-        "evidenceTotal": len(evidence_all),
-        "words": words,
-    }
-
-    built = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M %Z")
-    kind_label = KIND_LABEL.get(spec["kind"], spec["kind"])
-
-    o: list[str] = []
-    o.append(
-        f'<div class="wrap" data-storage-key="brief:{esc(page_key)}" '
-        f'data-doc-title="{esc(spec["title"])}">'
-    )
-
-    o.append('<header class="top">')
-    o.append('<p class="eyebrow">Brief</p>')
-    o.append(f'<h1>{esc(spec["title"])}</h1>')
-    o.append(
-        f'<div class="banner"><b>{esc(kind_label)}</b><span>Built on {esc(built)}. Rendered '
-        "from brief.json; the agent never edits this page directly.</span></div>"
-    )
-    o.append("</header>")
-
-    o.append('<div class="strip">')
-    o.append(f'<div class="stat"><div class="k">Chapters</div><div class="v">{stats["chapters"]}</div></div>')
-    o.append(
-        f'<div class="stat"><div class="k">Visuals</div><div class="v">{stats["visuals"]}</div>'
-        f'<div class="s">{stats["noVisuals"]} reasoned skip</div></div>'
-    )
-    o.append(f'<div class="stat"><div class="k">Decisions</div><div class="v">{stats["decisions"]}</div></div>')
-    o.append(
-        f'<div class="stat"><div class="k">Evidence</div><div class="v">{stats["evidenceRan"]}/{stats["evidenceTotal"]}</div>'
-        f'<div class="s">{stats["evidenceNotRun"]} not run</div></div>'
-    )
-    o.append(f'<div class="stat"><div class="k">Words</div><div class="v">{stats["words"]}</div></div>')
-    o.append("</div>")
-
-    if context:
-        o.append('<section id="context"><h2>Context</h2>')
-        o.append(sanitize_prose(context))
-        o.append("</section>")
-
-    o.append('<section id="state" class="state-box"><h2>State</h2>')
-    o.append(sanitize_prose(state))
-    o.append("</section>")
-
-    o.append('<section id="chapters">')
-    for idx, ch in enumerate(chapters, start=1):
-        cid = ch["id"]
-        o.append(f'<article class="chapter" id="ch-{esc(cid)}" data-chapter="{esc(cid)}">')
-        o.append(
-            f'<header class="chapter-head"><span class="num">{idx}</span><h3>{esc(ch["title"])}</h3></header>'
-        )
-        figures = ch.get("_figures", [])
-        if figures:
-            figs_class = "figs row" if ch.get("figureLayout") == "row" else "figs"
-            o.append(f'<div class="{figs_class}">')
-            for fig in figures:
-                o.append('<figure class="fig">')
-                if fig.get("mermaid"):
-                    o.append(f'<pre class="mermaid">{esc(fig["mermaid"])}</pre>')
-                else:
-                    o.append(f'<div class="svg">{fig["_svg"]}</div>')
-                o.append(f'<figcaption>{sanitize_prose(fig["caption"])}</figcaption>')
-                o.append("</figure>")
-            o.append("</div>")
-        o.append(f'<div class="prose">{sanitize_prose(ch["prose"])}</div>')
-
-        decisions = ch.get("decisions", [])
-        if decisions:
-            o.append(
-                '<div class="scroll"><table class="decisions"><thead><tr>'
-                "<th>Decision</th><th>Chosen</th><th>Rejected</th><th>Why</th>"
-                "</tr></thead><tbody>"
-            )
-            for d in decisions:
-                o.append(
-                    f'<tr><td>{esc(d["decision"])}</td><td>{esc(d["chosen"])}</td>'
-                    f'<td>{esc(d["rejected"])}</td><td>{sanitize_prose(d["why"])}</td></tr>'
-                )
-            o.append("</tbody></table></div>")
-
-        evidence = ch.get("evidence", [])
-        if evidence:
-            o.append(
-                '<div class="scroll"><table class="evidence"><thead><tr>'
-                '<th class="col-cwd">CWD</th><th>Command</th><th class="col-exit">Exit</th>'
-                "<th>Summary</th></tr></thead><tbody>"
-            )
-            for e in evidence:
-                chip = render_evidence_chip(e.get("exit"), e.get("ok"))
-                o.append(
-                    f'<tr><td class="col-cwd"><code>{esc(str(e["cwd"]))}</code></td>'
-                    f'<td><code>{esc(str(e["cmd"]))}</code></td><td class="col-exit">{chip}</td>'
-                    f'<td>{sanitize_prose(str(e.get("summary", "")))}</td></tr>'
-                )
-            o.append("</tbody></table></div>")
-
-        o.append("</article>")
-    o.append("</section>")
-
-    if open_items:
-        o.append('<section id="open"><h2>Open</h2><ul class="plain">')
-        o.extend(f"<li>{sanitize_prose(item)}</li>" for item in open_items)
-        o.append("</ul></section>")
-
-    o.append('<section id="notes" class="notes"><h2>Notes</h2>')
-    o.append(
-        '<p class="lede">Kept in this browser only. "Copy feedback" turns your notes into '
-        "Markdown you can paste back into the chat.</p>"
-    )
-    for ch in chapters:
-        o.append('<div class="note">')
-        o.append(f'<label for="note-{esc(ch["id"])}">{esc(ch["title"])}</label>')
-        o.append(
-            f'<textarea id="note-{esc(ch["id"])}" data-note="{esc(ch["id"])}" '
-            'placeholder="What to change, what to check, what you approve."></textarea>'
-        )
+def render_drawer(idx: int, ch: dict) -> str:
+    cid = ch["id"]
+    o = [
+        f'<details class="drawer" id="ch-{esc(cid)}" data-chapter="{esc(cid)}">',
+        f'<summary><span class="num">{idx}</span><span class="ttl">{label_html(ch["title"])}</span></summary>',
+        '<div class="dbody">',
+    ]
+    figures = ch.get("_figures", [])
+    if figures:
+        o.append(f'<div class="figs{" row" if ch.get("figureLayout") == "row" else ""}">')
+        for fig in figures:
+            if fig.get("mermaid"):
+                inner = fig.get("_html") or PRE_MERMAID.format(esc(fig["mermaid"]))
+            else:
+                inner = f'<div class="fig cfig-svg">{fig["_svg"]}</div>'
+            o.append(f'<figure class="cfig">{inner}<figcaption>{label_html(fig["caption"])}</figcaption></figure>')
         o.append("</div>")
-    o.append('<p><button type="button" class="btn primary" data-export>Copy feedback</button> ')
-    o.append('<span class="count" data-export-status></span></p>')
-    o.append("<pre data-export-preview hidden></pre>")
-    o.append("</section>")
+    o.append(f'<div class="prose">{sanitize_prose(ch["prose"])}</div>')
 
-    o.append(f"<footer>Built from brief.json on {esc(built)}.</footer>")
+    decisions = ch.get("decisions", [])
+    if decisions:
+        o.append(
+            '<div class="scroll"><table class="decisions"><thead><tr>'
+            "<th>Decision</th><th>Chosen</th><th>Rejected</th><th>Why</th>"
+            "</tr></thead><tbody>"
+        )
+        for d in decisions:
+            o.append(
+                f'<tr><td>{label_html(d["decision"])}</td><td>{label_html(d["chosen"])}</td>'
+                f'<td>{label_html(d["rejected"])}</td><td>{label_html(d["why"])}</td></tr>'
+            )
+        o.append("</tbody></table></div>")
+
+    evidence = ch.get("evidence", [])
+    if evidence:
+        o.append(
+            '<div class="scroll"><table class="evidence"><thead><tr>'
+            '<th class="col-cwd">CWD</th><th>Command</th><th class="col-exit">Exit</th>'
+            "<th>Summary</th></tr></thead><tbody>"
+        )
+        for e in evidence:
+            chip = render_evidence_chip(e.get("exit"), e.get("ok"))
+            o.append(
+                f'<tr><td class="col-cwd"><code>{esc(str(e["cwd"]))}</code></td>'
+                f'<td><code>{esc(str(e["cmd"]))}</code></td><td class="col-exit">{chip}</td>'
+                f'<td>{label_html(str(e.get("summary", "")))}</td></tr>'
+            )
+        o.append("</tbody></table></div>")
+
+    o.append(
+        f'<section class="dnote" data-role="{esc(ch["title"])}">'
+        f'<textarea data-note="ch-{esc(cid)}" placeholder="Note on this chapter"></textarea></section>'
+    )
+    o.append("</div></details>")
+    return "\n".join(o)
+
+
+def build_body(spec: dict, norm: dict, page_key: str, tmpdir: Path, use_mmdc: bool) -> tuple[str, dict, bool]:
+    chapters = spec.get("chapters", [])
+    sheet_html, mermaid_left = render_mermaid(sheet.render_sheet(norm), norm, chapters, tmpdir, use_mmdc)
+    built = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M %Z")
+
+    o = [
+        f'<div class="wrap" data-storage-key="brief:{esc(page_key)}" data-doc-title="{esc(spec["title"])}">',
+        sheet_html,
+    ]
+    if chapters:
+        o.append('<section class="drawers">')
+        o.extend(render_drawer(i, ch) for i, ch in enumerate(chapters, start=1))
+        o.append("</section>")
+    o.append(
+        '<section class="fb"><p class="lede">Notes stay in this browser. "Copy feedback" turns them '
+        "into Markdown you can paste into the chat.</p>"
+        '<button type="button" class="btn" data-export>Copy feedback</button> '
+        '<span class="count" data-export-status></span>'
+        "<pre data-export-preview hidden></pre></section>"
+    )
+    o.append(f'<footer class="pgfoot">Words on sheet: {norm["words"]} · built {esc(built)} from brief.json</footer>')
     o.append("</div>")
 
-    return "\n".join(o), stats
+    figures = sum(1 for p in norm["panels"] if p["type"] == "figure")
+    figures += sum(len(ch.get("_figures", [])) for ch in chapters)
+    stats = {
+        "kind": norm["kind"],
+        "stamp": norm["stamp"],
+        "panels": len(norm["panels"]),
+        "asks": len(norm["panels"][0]["rows"]),
+        "words": norm["words"],
+        "figures": figures,
+        "chapters": len(chapters),
+    }
+    return "\n".join(o), stats, mermaid_left
 
 
 # ---------------------------------------------------------------- assembly
 
-MERMAID_VERSION = "11.4.1"
+
+def load_shell(template: Path) -> str:
+    if not template.is_file():
+        fail(f"template not found: {template}")
+    shell = template.read_text(encoding="utf-8")
+    for marker in (LIB_STYLE, LIB_SCRIPT, SHEET_STYLE, SHEET_SCRIPT):
+        if marker not in shell:
+            fail(f"{template}: missing {marker} marker")
+    sheet_css, sheet_js = sheet.assets()
+    for marker, path in ((LIB_STYLE, LIB_DIR / "page.css"), (LIB_SCRIPT, LIB_DIR / "notes.js")):
+        shell = shell.replace(marker, path.read_text(encoding="utf-8").rstrip("\n"))
+    shell = shell.replace(SHEET_STYLE, sheet_css.rstrip("\n"))
+    return shell.replace(SHEET_SCRIPT, sheet_js.rstrip("\n"))
 
 
 def main() -> None:
@@ -477,57 +438,49 @@ def main() -> None:
     ap.add_argument("--fragment", default=None, help="same content without the document wrappers")
     ap.add_argument("--data-out", default=None, help="write the derived stats as JSON here")
     ap.add_argument("--template", default=str(DEFAULT_TEMPLATE))
-    ap.add_argument("--no-mmdc", action="store_true", help="skip the mmdc mermaid syntax check")
+    ap.add_argument("--no-mmdc", action="store_true", help="skip mmdc; mermaid renders in the browser")
     args = ap.parse_args()
 
+    shell = load_shell(Path(args.template))
     try:
-        spec_bytes = Path(args.spec).read_bytes()
-    except OSError as e:
-        fail(f"cannot read the spec {args.spec}: {e}")
-    try:
-        spec = json.loads(spec_bytes.decode("utf-8"))
-    except json.JSONDecodeError as e:
-        fail(f"cannot parse the spec {args.spec}: {e}")
+        try:
+            spec_bytes = Path(args.spec).read_bytes()
+        except OSError as e:
+            fail(f"cannot read the spec {args.spec}: {e}")
+        try:
+            spec = json.loads(spec_bytes.decode("utf-8"))
+        except (json.JSONDecodeError, UnicodeDecodeError) as e:
+            fail(f"cannot parse the spec {args.spec}: {e}")
 
-    template = Path(args.template)
-    if not template.is_file():
-        fail(f"template not found: {template}")
-    shell = template.read_text(encoding="utf-8")
-    if LIB_STYLE not in shell or LIB_SCRIPT not in shell:
-        fail(f"{template}: missing {LIB_STYLE} or {LIB_SCRIPT} marker")
-    shell = shell.replace(LIB_STYLE, (LIB_DIR / "page.css").read_text(encoding="utf-8").rstrip("\n"))
-    shell = shell.replace(LIB_SCRIPT, (LIB_DIR / "notes.js").read_text(encoding="utf-8").rstrip("\n"))
-
-    check_spec(spec)
-    if not args.no_mmdc:
+        norm = check_spec(spec, Path(args.spec).resolve().parent)
+        page_key = hashlib.sha256(spec_bytes).hexdigest()[:12]
         with tempfile.TemporaryDirectory() as tmp:
-            check_mermaid_with_mmdc(spec, Path(tmp))
+            body, stats, mermaid_left = build_body(spec, norm, page_key, Path(tmp), not args.no_mmdc)
+        document, fragment = pagelib.assemble(shell, esc(spec["title"]), body)
+    except pagelib.BuildFailed as e:
+        document, fragment = pagelib.assemble(shell, "Build failed", sheet.render_failure(e.msg, args.spec))
+        Path(args.out).write_text(document, encoding="utf-8")
+        if args.fragment:
+            Path(args.fragment).write_text(fragment, encoding="utf-8")
+        raise
 
-    page_key = hashlib.sha256(spec_bytes).hexdigest()[:12]
-    body, stats = build_body(spec, page_key)
-    title = esc(spec["title"])
-    document, fragment = pagelib.assemble(shell, title, body)
+    if mermaid_left:
+        mermaid_script = (
+            f'<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/{MERMAID_VERSION}/'
+            'mermaid.min.js"></script>\n'
+            "<script>mermaid.initialize({startOnLoad:true, securityLevel: 'strict', theme: "
+            'window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "default"});</script>'
+        )
+        document = document.replace("<!-- SCRIPT:END -->", "<!-- SCRIPT:END -->\n" + mermaid_script, 1)
 
-    mermaid_script = (
-        f'<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/{MERMAID_VERSION}/'
-        'mermaid.min.js"></script>\n'
-        "<script>mermaid.initialize({startOnLoad:true, securityLevel: 'strict', theme: "
-        'window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "default"});</script>'
-    )
-    document = document.replace(
-        "<!-- SCRIPT:END -->", "<!-- SCRIPT:END -->\n" + mermaid_script, 1
-    )
-
-    # everything validated: write the outputs last, so a failed build leaves them untouched
     Path(args.out).write_text(document, encoding="utf-8")
     if args.fragment:
         Path(args.fragment).write_text(fragment, encoding="utf-8")
     if args.data_out:
         Path(args.data_out).write_text(json.dumps(stats, indent=2) + "\n", encoding="utf-8")
     print(
-        f"build_brief: ok chapters={stats['chapters']} visuals={stats['visuals']} "
-        f"noVisuals={stats['noVisuals']} svg={stats['svgFigures']} decisions={stats['decisions']} "
-        f"evidence={stats['evidenceRan']}/{stats['evidenceTotal']} words={stats['words']}"
+        f"build_brief: ok kind={stats['kind']} stamp={stats['stamp']} panels={stats['panels']} "
+        f"asks={stats['asks']} words={stats['words']} chapters={stats['chapters']}"
     )
 
 

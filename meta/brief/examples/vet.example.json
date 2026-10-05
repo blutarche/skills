@@ -1,0 +1,51 @@
+{
+  "title": "Outbox retries: review of feat/outbox",
+  "kind": "vet",
+  "state": "7 findings. 5 are fixed by default and 2 need you.",
+  "facts": [
+    {"k": "branch", "v": "feat/outbox"},
+    {"k": "reviewers", "v": "scrutinize, council"}
+  ],
+  "panels": [
+    {
+      "role": "needs you",
+      "type": "asks",
+      "rows": [
+        {"ask": "Fix F2 now or after merge?", "why": "It changes the retry API."},
+        {"ask": "Is F6 a real risk for you?", "why": "The two reviewers disagree on it."}
+      ]
+    },
+    {
+      "role": "findings",
+      "type": "findings",
+      "rows": [
+        {"id": "F1", "sev": "P0", "claim": "A crash between insert and commit drops the event.", "foundBy": ["scrutinize", "council"], "default": "fix"},
+        {"id": "F2", "sev": "P1", "claim": "The retry call has no limit on attempts.", "foundBy": ["scrutinize", "council"], "default": "fix"},
+        {"id": "F3", "sev": "P1", "claim": "Two workers can claim the same row.", "foundBy": ["scrutinize"], "default": "fix"},
+        {"id": "F4", "sev": "P2", "claim": "The delay between retries has no cap.", "foundBy": ["council"], "default": "fix"},
+        {"id": "F5", "sev": "P2", "claim": "A parked row loses its last error text.", "foundBy": ["scrutinize"], "default": "fix"},
+        {"id": "F6", "sev": "P2", "claim": "The worker may starve slow rows.", "foundBy": ["council"], "dispute": "Scrutinize says the queue order stops this.", "default": "skip"},
+        {"id": "F7", "sev": "P3", "claim": "One log line is too noisy.", "foundBy": ["scrutinize"], "default": "skip"}
+      ]
+    }
+  ],
+  "chapters": [
+    {
+      "id": "starved-rows",
+      "title": "F6: slow rows may wait too long",
+      "prose": "<p>Council says a slow row can wait forever. Scrutinize says the queue order stops this.</p>",
+      "visual": {
+        "mermaid": "flowchart LR\n  a[Slow row] --> b[Queue]\n  b --> c[Worker]",
+        "caption": "A slow row still leaves the queue in order."
+      },
+      "decisions": [
+        {
+          "decision": "How to treat F6",
+          "chosen": "Skip it",
+          "rejected": "Fix it now",
+          "why": "The queue order already bounds the wait."
+        }
+      ]
+    }
+  ]
+}

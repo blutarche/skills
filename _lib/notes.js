@@ -5,7 +5,7 @@
     try {
       var raw = localStorage.getItem(KEY);
       var s = raw ? JSON.parse(raw) : {};
-      return { read: s.read || {}, notes: s.notes || {}, changedOnly: !!s.changedOnly };
+      return Object.assign({ read: {}, notes: {}, changedOnly: false }, s);
     } catch (e) { return { read: {}, notes: {}, changedOnly: false }; }
   }
   function save() {

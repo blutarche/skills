@@ -47,10 +47,21 @@ def make_prose(n_words: str | int, tag: str = "p") -> str:
 
 def valid_spec() -> dict:
     return {
-        "title": "Outbox retries land without touching the request path",
-        "kind": "execution",
-        "context": "<p>A webhook used to acknowledge before it was durable. Now it is durable first.</p>",
-        "state": "<p>The outbox and the worker are merged and tested.</p>",
+        "title": "Outbox retries: review of feat/outbox",
+        "kind": "vet",
+        "state": "3 findings. 2 are fixed by default.",
+        "facts": [{"k": "branch", "v": "feat/outbox"}],
+        "panels": [
+            {"role": "needs you", "type": "asks", "rows": []},
+            {"role": "findings", "type": "findings", "rows": [
+                {"id": "F1", "sev": "P1", "claim": "A crash drops the event.",
+                 "foundBy": ["scrutinize", "council"], "default": "fix"},
+                {"id": "F2", "sev": "P2", "claim": "The retry delay has no cap.",
+                 "foundBy": ["council"], "default": "fix"},
+                {"id": "F3", "sev": "P3", "claim": "One log line is noisy.",
+                 "foundBy": ["scrutinize"], "default": "skip"},
+            ]},
+        ],
         "chapters": [
             {
                 "id": "before-the-reply",
@@ -58,14 +69,14 @@ def valid_spec() -> dict:
                 "prose": "<p>The route inserts a row before it replies. The insert is idempotent on the event id.</p>",
                 "visual": {
                     "mermaid": "flowchart LR\n  a[Handler] -->|insert| b[(Outbox)]",
-                    "caption": "The insert commits before the reply leaves the handler.",
+                    "caption": "The insert commits before the reply.",
                 },
                 "decisions": [
                     {
                         "decision": "Where the write happens",
                         "chosen": "Inside the request",
                         "rejected": "After replying",
-                        "why": "Acknowledging before the write is durable is the bug being fixed.",
+                        "why": "Acknowledging before the write is durable is the bug.",
                     }
                 ],
             },
@@ -73,17 +84,13 @@ def valid_spec() -> dict:
                 "id": "the-drain-loop",
                 "title": "A worker drains the outbox with backoff",
                 "prose": "<p>A worker claims rows and retries with backoff. A parked row keeps its last error.</p>",
-                "visual": {
-                    "mermaid": "sequenceDiagram\n  participant W as Worker\n  W->>W: claim and retry",
-                    "caption": "One claim, one attempt, one backoff update per tick.",
-                },
+                "visual": {"svg": VALID_SVG, "caption": "One claim per tick."},
                 "evidence": [
                     {"cmd": "npm test", "cwd": ".", "exit": 0, "ok": True, "summary": "31 passed"},
-                    {"cmd": "npm run e2e", "cwd": ".", "exit": None, "summary": "not run"},
+                    {"cmd": "npm run e2e", "cwd": ".", "exit": None, "summary": "Not run."},
                 ],
             },
         ],
-        "open": ["<b>Assign an owner</b> for the parked-row alert."],
     }
 
 
@@ -133,45 +140,224 @@ class BuildBriefTest(unittest.TestCase, Harness):
         self.dir = Path(self.tmp.name)
         self.addCleanup(self.tmp.cleanup)
 
-    # ---------------------------------------------------------------- 1: valid spec
+    # ---------------------------------------------------------------- valid sheet, outputs
     def test_valid_spec_builds(self) -> None:
         spec = valid_spec()
         r = self.build(spec, self.dir)
         self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertTrue(r.stdout.startswith("build_brief: ok"), r.stdout)
         page = r.out.read_text(encoding="utf-8")
-        titles = [ch["title"] for ch in spec["chapters"]]
-        # each title also labels its Notes textarea, so it appears twice; check reading order
-        # by the first (heading) occurrence of each
-        positions = [page.index(f"<h3>{t}</h3>") for t in titles]
+        positions = [page.index(f'id="ch-{ch["id"]}"') for ch in spec["chapters"]]
         self.assertEqual(positions, sorted(positions))
-        for t in titles:
-            self.assertIn(t, page)
-        stats = json.loads(r.data_out.read_text(encoding="utf-8"))
-        self.assertEqual(stats["chapters"], 2)
-        self.assertEqual(stats["visuals"], 2)
-        self.assertEqual(stats["noVisuals"], 0)
-        self.assertEqual(stats["decisions"], 1)
-        self.assertEqual(stats["evidenceRan"], 1)
-        self.assertEqual(stats["evidenceNotRun"], 1)
-        self.assertGreater(stats["words"], 0)
+        self.assertLess(page.index('class="sheet"'), positions[0])
+        self.assertLess(page.index('class="grid"'), positions[0])
 
-    # ---------------------------------------------------------------- 2: fragment vs document
+    def test_stdout_summary_line(self) -> None:
+        r = self.build(valid_spec(), self.dir)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertRegex(
+            r.stdout.strip(),
+            r"^build_brief: ok kind=vet stamp=DONE panels=2 asks=0 words=\d+ chapters=2$",
+        )
+
+    def test_data_out_shape(self) -> None:
+        r = self.build(valid_spec(), self.dir)
+        data = json.loads(r.data_out.read_text(encoding="utf-8"))
+        self.assertEqual(
+            set(data), {"kind", "stamp", "panels", "asks", "words", "figures", "chapters"}
+        )
+        self.assertEqual((data["kind"], data["stamp"], data["chapters"]), ("vet", "DONE", 2))
+        self.assertEqual(data["figures"], 2)
+
     def test_fragment_has_no_html_wrapper_or_cdn_document_has_both(self) -> None:
-        spec = valid_spec()
-        r = self.build(spec, self.dir)
+        r = self.build(valid_spec(), self.dir)
         self.assertEqual(r.returncode, 0, r.stderr)
         frag = r.fragment.read_text(encoding="utf-8")
         for wrapper in ("<!doctype", "<html", "<body"):
             self.assertNotIn(wrapper, frag.lower())
         self.assertNotIn("cdnjs", frag.lower())
         self.assertIn('<pre class="mermaid">', frag)
-
         page = r.out.read_text(encoding="utf-8")
         self.assertIn("<html", page.lower())
         self.assertEqual(
             page.count("cdnjs.cloudflare.com/ajax/libs/mermaid/11.4.1/mermaid.min.js"), 1
         )
+
+    def test_chapters_render_as_drawers_after_the_sheet(self) -> None:
+        spec = valid_spec()
+        r = self.build(spec, self.dir)
+        page = r.out.read_text(encoding="utf-8")
+        for ch in spec["chapters"]:
+            self.assertIn(f'<details class="drawer" id="ch-{ch["id"]}"', page)
+            self.assertIn(f'data-note="ch-{ch["id"]}"', page)
+        self.assertLess(page.index("</footer>"), page.index('<details class="drawer"'))
+
+    def test_visual_is_optional_and_novisual_is_ignored(self) -> None:
+        spec = valid_spec()
+        del spec["chapters"][0]["visual"]
+        spec["chapters"][0]["noVisual"] = "A table already carries this."
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertNotIn("A table already carries this.", r.out.read_text(encoding="utf-8"))
+
+    def test_chapters_are_optional(self) -> None:
+        spec = valid_spec()
+        del spec["chapters"]
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertNotIn('<details class="drawer"', r.out.read_text(encoding="utf-8"))
+
+    def test_too_many_chapters(self) -> None:
+        spec = valid_spec()
+        base = spec["chapters"][0]
+        spec["chapters"] = [{**base, "id": f"ch-{i}"} for i in range(9)]
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("keep between 0 and 8", r.stderr)
+
+    def test_no_google_fonts_and_no_stats_strip(self) -> None:
+        r = self.build(valid_spec(), self.dir)
+        page = r.out.read_text(encoding="utf-8")
+        self.assertNotIn("fonts.googleapis.com", page)
+        self.assertNotIn('class="strip"', page)
+
+    def test_sheet_js_owns_export_hooks(self) -> None:
+        r = self.build(valid_spec(), self.dir)
+        page = r.out.read_text(encoding="utf-8")
+        for hook in ("data-export>", "data-export-status", "data-export-preview"):
+            self.assertIn(hook, page)
+        self.assertEqual(page.count("function sheetCopy"), 1)
+        self.assertNotIn("function copyText", page)
+
+    # ---------------------------------------------------------------- prose rules
+    def test_three_sentence_prose_needs_prose_why(self) -> None:
+        spec = valid_spec()
+        spec["chapters"][0]["prose"] = "<p>One fact is here. A second fact is here. A third fact is here.</p>"
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("chapter before-the-reply prose: 3 sentences; keep to 2", r.stderr)
+
+        spec["chapters"][0]["proseWhy"] = "The race needs the full order of events."
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_prose_why_word_cap_is_120(self) -> None:
+        spec = valid_spec()
+        spec["chapters"][0]["proseWhy"] = "The race needs the full order of events."
+        spec["chapters"][0]["prose"] = make_prose(120)
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        spec["chapters"][0]["prose"] = make_prose(121)
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("121 words", r.stderr)
+
+    def test_prose_why_never_appears_in_the_page(self) -> None:
+        spec = valid_spec()
+        spec["chapters"][0]["proseWhy"] = "The race needs the full order of events."
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertNotIn("full order of events", r.out.read_text(encoding="utf-8"))
+        self.assertNotIn("full order of events", r.fragment.read_text(encoding="utf-8"))
+
+    def test_voice_lint_runs_on_chapter_title(self) -> None:
+        spec = valid_spec()
+        spec["chapters"][0]["title"] = "We utilize a very long title that goes on past twelve words in total"
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("chapter before-the-reply title", r.stderr)
+
+    # ---------------------------------------------------------------- failure page
+    def test_failed_build_writes_failure_page_without_spec_text(self) -> None:
+        spec = valid_spec()
+        spec["title"] = "Zebrafish marker title"
+        del spec["panels"][1]  # the vet sheet then lacks its findings panel
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 1)
+        for path in (r.out, r.fragment):
+            text = path.read_text(encoding="utf-8")
+            self.assertIn("BUILD FAILED", text)
+            self.assertIn("findings", text)
+            self.assertNotIn("Zebrafish", text)
+        self.assertFalse(r.data_out.exists())
+
+    def test_unreadable_spec_still_writes_failure_page(self) -> None:
+        out = self.dir / "o.html"
+        old = sys.argv
+        sys.argv = [str(BUILD), "--spec", str(self.dir / "missing.json"), "--out", str(out), "--no-mmdc"]
+        try:
+            with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as cm:
+                build_brief.main()
+        finally:
+            sys.argv = old
+        self.assertEqual(cm.exception.code, 1)
+        self.assertIn("BUILD FAILED", out.read_text(encoding="utf-8"))
+
+    # ---------------------------------------------------------------- mermaid pre-render
+    def fake_mmdc(self, body: str) -> Path:
+        script = self.dir / "mmdc"
+        script.write_text("#!/bin/sh\n" + body, encoding="utf-8")
+        script.chmod(script.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+        return script
+
+    def build_with_which(self, spec: dict, fake: Path | None) -> SimpleNamespace:
+        old_which = build_brief.shutil.which
+        build_brief.shutil.which = lambda name: (str(fake) if fake else None) if name == "mmdc" else old_which(name)
+        try:
+            return self.build(spec, self.dir, mmdc_check=True)
+        finally:
+            build_brief.shutil.which = old_which
+
+    WRITER = (
+        'while [ $# -gt 0 ]; do case "$1" in -o) out="$2"; shift;; esac; shift; done\n'
+        'printf \'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"/>\' > "$out"\n'
+    )
+
+    def test_mermaid_without_mmdc_keeps_pre_and_cdn(self) -> None:
+        r = self.build_with_which(valid_spec(), None)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        page = r.out.read_text(encoding="utf-8")
+        self.assertIn('<pre class="mermaid">', page)
+        self.assertIn("cdnjs.cloudflare.com/ajax/libs/mermaid", page)
+        self.assertIn("build_brief: mmdc not found; mermaid figures render only online", r.stderr)
+
+    def test_mermaid_with_mmdc_becomes_picture_and_drops_cdn(self) -> None:
+        r = self.build_with_which(valid_spec(), self.fake_mmdc(self.WRITER))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        page = r.out.read_text(encoding="utf-8")
+        self.assertIn("<picture>", page)
+        self.assertEqual(page.count("data:image/svg+xml;base64,"), 2)
+        self.assertNotIn('<pre class="mermaid">', page)
+        self.assertNotIn("cdnjs", page)
+
+    def test_mermaid_figure_panel_goes_through_mmdc_too(self) -> None:
+        spec = valid_spec()
+        spec["panels"].append({
+            "role": "flow", "type": "figure", "mermaid": "flowchart LR\n  a --> b",
+            "caption": "The flow of one event.",
+        })
+        r = self.build_with_which(spec, self.fake_mmdc(self.WRITER))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        page = r.out.read_text(encoding="utf-8")
+        self.assertEqual(page.count("<picture>"), 2)
+        self.assertNotIn('<pre class="mermaid">', page)
+        r = self.build_with_which(spec, None)
+        self.assertEqual(r.out.read_text(encoding="utf-8").count('<pre class="mermaid">'), 2)
+
+    def test_mmdc_failure_fails_with_its_stderr(self) -> None:
+        r = self.build_with_which(valid_spec(), self.fake_mmdc("echo fake-mmdc-stderr 1>&2\nexit 1\n"))
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("before-the-reply", r.stderr)
+        self.assertIn("fake-mmdc-stderr", r.stderr)
+        self.assertIn("fake-mmdc-stderr", r.out.read_text(encoding="utf-8"))
+
+    def test_no_mmdc_flag_skips_mmdc_even_when_present(self) -> None:
+        old_which = build_brief.shutil.which
+        build_brief.shutil.which = lambda name: str(self.fake_mmdc("exit 1\n")) if name == "mmdc" else old_which(name)
+        try:
+            r = self.build(valid_spec(), self.dir)  # the harness passes --no-mmdc by default
+        finally:
+            build_brief.shutil.which = old_which
+        self.assertEqual(r.returncode, 0, r.stderr)
 
     # ---------------------------------------------------------------- 3: required fields
     def test_missing_required_field(self) -> None:
@@ -189,15 +375,6 @@ class BuildBriefTest(unittest.TestCase, Harness):
         r = self.build(spec, self.dir)
         self.assertEqual(r.returncode, 1)
         self.assertIn("vibes", r.stderr)
-
-    # ---------------------------------------------------------------- 5: chapter count
-    def test_too_many_chapters(self) -> None:
-        spec = valid_spec()
-        base = spec["chapters"][0]
-        spec["chapters"] = [{**base, "id": f"ch-{i}"} for i in range(9)]
-        r = self.build(spec, self.dir)
-        self.assertEqual(r.returncode, 1)
-        self.assertIn("keep between 1 and 8", r.stderr)
 
     # ---------------------------------------------------------------- 6: kebab-case id
     def test_non_kebab_chapter_id(self) -> None:
@@ -217,32 +394,6 @@ class BuildBriefTest(unittest.TestCase, Harness):
         self.assertIn("duplicate chapter id", r.stderr)
         self.assertIn(spec["chapters"][0]["id"], r.stderr)
 
-    # ---------------------------------------------------------------- 8: visual xor noVisual
-    def test_visual_and_novisual_both_present_fails(self) -> None:
-        spec = valid_spec()
-        spec["chapters"][0]["noVisual"] = "not needed"
-        r = self.build(spec, self.dir)
-        self.assertEqual(r.returncode, 1)
-        self.assertIn(spec["chapters"][0]["id"], r.stderr)
-        self.assertIn("both visual and noVisual", r.stderr)
-
-    def test_neither_visual_nor_novisual_fails(self) -> None:
-        spec = valid_spec()
-        del spec["chapters"][0]["visual"]
-        r = self.build(spec, self.dir)
-        self.assertEqual(r.returncode, 1)
-        self.assertIn(spec["chapters"][0]["id"], r.stderr)
-        self.assertIn("needs exactly one of visual or noVisual", r.stderr)
-
-    def test_novisual_valid_string_builds(self) -> None:
-        spec = valid_spec()
-        del spec["chapters"][0]["visual"]
-        spec["chapters"][0]["noVisual"] = "A table already carries this better than a picture."
-        r = self.build(spec, self.dir)
-        self.assertEqual(r.returncode, 0, r.stderr)
-        page = r.out.read_text(encoding="utf-8")
-        self.assertNotIn("A table already carries this better than a picture.", page)
-
     # ---------------------------------------------------------------- 9: mermaid diagram type
     def test_mermaid_bad_diagram_type(self) -> None:
         spec = valid_spec()
@@ -259,88 +410,6 @@ class BuildBriefTest(unittest.TestCase, Harness):
         )
         r = self.build(spec, self.dir)
         self.assertEqual(r.returncode, 0, r.stderr)
-
-    # ---------------------------------------------------------------- 10/11/12: mmdc
-    def make_fake_mmdc(self, exit_code: int) -> Path:
-        script = self.dir / "mmdc"
-        script.write_text(f"#!/bin/sh\necho fake-mmdc-stderr 1>&2\nexit {exit_code}\n", encoding="utf-8")
-        script.chmod(script.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
-        return script
-
-    def test_mmdc_present_and_succeeds(self) -> None:
-        fake = self.make_fake_mmdc(0)
-        old_which = build_brief.shutil.which
-        build_brief.shutil.which = lambda name: str(fake) if name == "mmdc" else old_which(name)
-        try:
-            spec = valid_spec()
-            r = self.build(spec, self.dir, mmdc_check=True)
-        finally:
-            build_brief.shutil.which = old_which
-        self.assertEqual(r.returncode, 0, r.stderr)
-
-    def test_mmdc_present_and_fails(self) -> None:
-        fake = self.make_fake_mmdc(1)
-        old_which = build_brief.shutil.which
-        build_brief.shutil.which = lambda name: str(fake) if name == "mmdc" else old_which(name)
-        try:
-            spec = valid_spec()
-            r = self.build(spec, self.dir, mmdc_check=True)
-        finally:
-            build_brief.shutil.which = old_which
-        self.assertEqual(r.returncode, 1)
-        self.assertIn(spec["chapters"][0]["id"], r.stderr)
-        self.assertIn("fake-mmdc-stderr", r.stderr)
-
-    def test_mmdc_absent_prints_notice_and_continues(self) -> None:
-        old_which = build_brief.shutil.which
-        build_brief.shutil.which = lambda name: None
-        try:
-            spec = valid_spec()
-            r = self.build(spec, self.dir, mmdc_check=True)
-        finally:
-            build_brief.shutil.which = old_which
-        self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertIn("build_brief: mmdc not found, mermaid syntax unchecked", r.stderr)
-
-    def test_no_mmdc_flag_skips_check_even_when_mmdc_present(self) -> None:
-        fake = self.make_fake_mmdc(1)
-        old_which = build_brief.shutil.which
-        build_brief.shutil.which = lambda name: str(fake) if name == "mmdc" else old_which(name)
-        try:
-            spec = valid_spec()
-            r = self.build(spec, self.dir)  # default args already include --no-mmdc
-        finally:
-            build_brief.shutil.which = old_which
-        self.assertEqual(r.returncode, 0, r.stderr)
-
-    # ---------------------------------------------------------------- 13: prose word cap
-    def test_prose_word_cap_boundary(self) -> None:
-        spec = valid_spec()
-        spec["chapters"][0]["prose"] = make_prose(120)
-        r = self.build(spec, self.dir)
-        self.assertEqual(r.returncode, 0, r.stderr)
-
-        spec["chapters"][0]["prose"] = make_prose(121)
-        r = self.build(spec, self.dir)
-        self.assertEqual(r.returncode, 1)
-        self.assertIn(spec["chapters"][0]["id"], r.stderr)
-        self.assertIn("121 words", r.stderr)
-
-    def test_context_word_cap(self) -> None:
-        spec = valid_spec()
-        spec["context"] = make_prose(121)
-        r = self.build(spec, self.dir)
-        self.assertEqual(r.returncode, 1)
-        self.assertIn("context", r.stderr)
-        self.assertIn("121 words", r.stderr)
-
-    def test_state_word_cap(self) -> None:
-        spec = valid_spec()
-        spec["state"] = make_prose(61)
-        r = self.build(spec, self.dir)
-        self.assertEqual(r.returncode, 1)
-        self.assertIn("state", r.stderr)
-        self.assertIn("61 words", r.stderr)
 
     # ---------------------------------------------------------------- 14: sentence cap
     def test_sentence_cap(self) -> None:
@@ -387,14 +456,6 @@ class BuildBriefTest(unittest.TestCase, Harness):
         self.assertEqual(r.returncode, 1)
         self.assertIn("ok must be true or false", r.stderr)
 
-    # ---------------------------------------------------------------- 17: open items
-    def test_open_item_must_be_string(self) -> None:
-        spec = valid_spec()
-        spec["open"] = [{"not": "a string"}]
-        r = self.build(spec, self.dir)
-        self.assertEqual(r.returncode, 1)
-        self.assertIn("open[0]", r.stderr)
-
     # ---------------------------------------------------------------- 18: page key
     def test_page_key_derived_from_spec_bytes(self) -> None:
         spec = valid_spec()
@@ -430,8 +491,8 @@ class BuildBriefTest(unittest.TestCase, Harness):
         r = self.build(spec, self.dir)
         self.assertEqual(r.returncode, 0, r.stderr)
         page = r.out.read_text(encoding="utf-8")
-        self.assertIn('<figure class="fig">', page)
-        self.assertIn('<div class="svg">', page)
+        self.assertIn('<figure class="cfig">', page)
+        self.assertIn('<div class="fig cfig-svg">', page)
         self.assertIn('<svg xmlns="http://www.w3.org/2000/svg"', page)
 
     def test_array_of_figures_builds_and_renders_in_order(self) -> None:
@@ -445,9 +506,7 @@ class BuildBriefTest(unittest.TestCase, Harness):
         page = r.out.read_text(encoding="utf-8")
         self.assertLess(page.index("First figure."), page.index("Second figure."))
         stats = json.loads(r.data_out.read_text(encoding="utf-8"))
-        self.assertEqual(stats["visuals"], 3)  # 2 here + 1 in the other chapter
-        self.assertEqual(stats["mermaidFigures"], 2)
-        self.assertEqual(stats["svgFigures"], 1)
+        self.assertEqual(stats["figures"], 3)  # 2 here + 1 in the other chapter
 
     def test_svg_missing_viewbox_fails(self) -> None:
         spec = valid_spec()
@@ -541,22 +600,7 @@ class BuildBriefTest(unittest.TestCase, Harness):
         self.assertEqual(r.returncode, 0, r.stderr)
         page = r.out.read_text(encoding="utf-8")
         self.assertIn('<pre class="mermaid">', page)
-        self.assertIn('<div class="svg">', page)
-
-    def test_stats_counts_split_between_mermaid_and_svg(self) -> None:
-        spec = valid_spec()
-        spec["chapters"][0]["visual"] = [
-            {"mermaid": "flowchart LR\n  a --> b", "caption": "The flow."},
-            {"svg": VALID_SVG, "caption": "The shape."},
-        ]
-        r = self.build(spec, self.dir)
-        self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertIn("svg=1", r.stdout)
-        stats = json.loads(r.data_out.read_text(encoding="utf-8"))
-        # chapter 0 now has 2 figures (1 mermaid + 1 svg), chapter 1 has its original mermaid one
-        self.assertEqual(stats["visuals"], 3)
-        self.assertEqual(stats["mermaidFigures"], 2)
-        self.assertEqual(stats["svgFigures"], 1)
+        self.assertIn('<div class="fig cfig-svg">', page)
 
     # ---------------------------------------------------------------- 21: type guards, no traceback
     def test_chapters_wrong_type_int_fails_cleanly(self) -> None:
@@ -603,14 +647,6 @@ class BuildBriefTest(unittest.TestCase, Harness):
         self.assertIn("visual", r.stderr)
         self.assertNotIn("Traceback", r.stderr)
 
-    def test_open_as_string_fails_cleanly(self) -> None:
-        spec = valid_spec()
-        spec["open"] = "not a list"
-        r = self.build(spec, self.dir)
-        self.assertEqual(r.returncode, 1)
-        self.assertIn("open", r.stderr)
-        self.assertNotIn("Traceback", r.stderr)
-
     # ---------------------------------------------------------------- 22: svg allowlist PoCs
     def test_poc_a_smil_set_event_handler_fails(self) -> None:
         spec = valid_spec()
@@ -624,7 +660,7 @@ class BuildBriefTest(unittest.TestCase, Harness):
         r = self.build(spec, self.dir)
         self.assertEqual(r.returncode, 1)
         self.assertIn("set", r.stderr)
-        self.assertFalse(r.out.exists())  # a failed build writes nothing
+        self.assertIn("BUILD FAILED", r.out.read_text(encoding="utf-8"))
 
     def test_poc_b_use_animate_href_rebind_fails(self) -> None:
         spec = valid_spec()
@@ -734,8 +770,8 @@ class BuildBriefTest(unittest.TestCase, Harness):
         id0, id1 = f"f{cid0}-0-ar", f"f{cid1}-0-ar"
         self.assertNotEqual(id0, id1)
 
-        blocks = page.split('<div class="svg">')
-        self.assertEqual(len(blocks), 3)  # preamble + one block per figure
+        blocks = page.split('<div class="fig cfig-svg">')
+        self.assertEqual(len(blocks), 3)  # preamble + one block per chapter figure
         block0, block1 = blocks[1], blocks[2]
 
         # each figure carries only its own scoped id, and its marker-end points at it
@@ -811,7 +847,7 @@ class BuildBriefTest(unittest.TestCase, Harness):
         self.assertEqual(r.returncode, 1)
         self.assertIn("filter", r.stderr)
         self.assertIn("url(", r.stderr)
-        self.assertFalse(r.out.exists())
+        self.assertIn("BUILD FAILED", r.out.read_text(encoding="utf-8"))
 
     def test_svg_mixed_case_url_local_ref_passes(self) -> None:
         spec = valid_spec()
@@ -840,7 +876,7 @@ class BuildBriefTest(unittest.TestCase, Harness):
         elapsed = time.monotonic() - start
         self.assertEqual(r.returncode, 1)
         self.assertIn("must not declare a DTD or entities", r.stderr)
-        self.assertFalse(r.out.exists())
+        self.assertIn("BUILD FAILED", r.out.read_text(encoding="utf-8"))
         self.assertLess(elapsed, 1.0, "DTD/entity check must reject before any parsing occurs")
 
     def test_svg_doctype_without_entities_also_rejected(self) -> None:
