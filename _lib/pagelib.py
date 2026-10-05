@@ -19,12 +19,20 @@ BODY_START, BODY_END = "<!-- BODY:START -->", "<!-- BODY:END -->"
 SCRIPT_START, SCRIPT_END = "<!-- SCRIPT:START -->", "<!-- SCRIPT:END -->"
 
 
+class BuildFailed(SystemExit):
+    """Exit status 1 plus the message, so a builder can still write a failure sheet."""
+
+    def __init__(self, msg: str) -> None:
+        super().__init__(1)
+        self.msg = msg
+
+
 def fail(msg: str) -> None:
     """Prefix taken from the calling script's own filename, so each skill's build reports its
     own name (`build_tour: ...`, `build_brief: ...`) without hardcoding one skill's here."""
     prog = Path(sys.argv[0]).stem if sys.argv and sys.argv[0] else "build"
     print(f"{prog}: {msg}", file=sys.stderr)
-    sys.exit(1)
+    raise BuildFailed(msg)
 
 
 def esc(s: str) -> str:

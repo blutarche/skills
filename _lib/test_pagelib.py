@@ -85,5 +85,14 @@ class SanitizeProseTest(unittest.TestCase):
         self.assertEqual(pagelib.sanitize_prose(42), "")
 
 
+class FailTest(unittest.TestCase):
+    def test_fail_raises_build_failed_with_message(self):
+        with self.assertRaises(pagelib.BuildFailed) as cm:
+            pagelib.fail("chapter x: too long")
+        self.assertEqual(cm.exception.msg, "chapter x: too long")
+        self.assertEqual(cm.exception.code, 1)
+        self.assertIsInstance(cm.exception, SystemExit)
+
+
 if __name__ == "__main__":
     unittest.main()
