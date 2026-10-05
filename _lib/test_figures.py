@@ -101,6 +101,13 @@ class ClaimStackTest(unittest.TestCase):
         rows = [{"result": "verified"}, {"result": "verified"}, {"result": "corrected"}]
         self.assertIn("2 verified", figures.claim_stack(rows))
 
+    def test_bars_carry_result_word(self):
+        rows = [{"result": "verified"}, {"result": "verified"}, {"result": "corrected"}]
+        out = figures.claim_stack(rows)
+        self.assertIn(">verified 2</span>", out)
+        self.assertIn(">corrected 1</span>", out)
+        self.assertIn('title="verified 2"', out)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -375,8 +375,8 @@ def _checks(p: dict) -> tuple[str, str]:
     for r in rows:
         mark, cls = {None: ("○", "nr")}.get(r["exit"], ("✓", "ok") if r["exit"] == 0 else ("✕", "bad"))
         exit_txt = "not run" if r["exit"] is None else f'exit {r["exit"]}'
-        res = f'<span class="res">{_label(r["result"])}</span>' if r.get("result") else ""
-        cwd = f'<code class="cwd">{pagelib.esc(r["cwd"])}</code>' if r["cwd"] != "." else ""
+        res = f'<span class="res">{_label(r["result"])}</span>' if r.get("result") else "<span></span>"
+        cwd = f'<code class="cwd">{pagelib.esc(r["cwd"])}</code>' if r["cwd"] != "." else "<span></span>"
         out.append(
             f'<div class="crow {cls}"><span class="ico">{mark}</span>'
             f'<code title="{pagelib.esc(r["cwd"])}">{pagelib.esc(r["cmd"])}</code>{cwd}'

@@ -298,6 +298,16 @@ class SheetTest(unittest.TestCase):
         self.assertIn('title="web"', html)
         self.assertIn('title="."', html)
 
+    def test_18b_checks_rows_have_five_cells(self):
+        spec = vet_spec()
+        spec["panels"].append({"role": "checks", "type": "checks", "rows": [
+            {"cmd": "a", "cwd": ".", "exit": 0}, {"cmd": "b", "cwd": "web", "exit": 0, "result": "ok"}]})
+        html = sheet.render_sheet(check(spec))
+        rows = re.findall(r'<div class="crow [^"]*">(.*?)</div>', html)
+        self.assertEqual(len(rows), 2)
+        for r in rows:
+            self.assertEqual(len(re.findall(r"<(?:span|code)\b", r)), 5)
+
     def test_19_findings_layout_and_header(self):
         html = sheet.render_sheet(check(vet_spec()))
         self.assertIn('class="fwrap has-venn"', html)

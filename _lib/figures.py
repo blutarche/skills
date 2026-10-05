@@ -196,7 +196,7 @@ def claim_stack(rows: list[dict]) -> str:
     for res, cls in RESULTS:
         n = sum(1 for r in rows if r.get("result") == res)
         if n:
-            bars.append(f'<span class="{cls}" style="flex:{n}">{n}</span>')
+            bars.append(f'<span class="{cls}" style="flex:{n}" title="{res} {n}">{res} {n}</span>')
             words.append(f"{n} {res}")
     label = " · ".join(words)
     return f'<div class="claim-stack" aria-label="{pagelib.esc(label)}">{"".join(bars)}<span class="lbl">{pagelib.esc(label)}</span></div>'
