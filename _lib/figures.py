@@ -182,7 +182,13 @@ def heat_matrix(rows: list[dict]) -> str:
             out.append(
                 f'<div class="h{score}" data-cell="{lk}-{im}">{" ".join(cells.get((lk, im), []))}</div>'
             )
-    return f'<div class="heat">{"".join(out)}</div>'
+    rows_ax = "".join(f'<span class="ax-y">{w}</span>' for w in reversed(LEVELS))
+    cols_ax = "".join(f'<span class="ax-x">{w}</span>' for w in LEVELS)
+    return (
+        '<div class="heatbox"><span class="ax-cap-y">likelihood</span>'
+        f'<div class="ax-rows">{rows_ax}</div><div class="heat">{"".join(out)}</div>'
+        f'<span></span><span></span><div class="ax-cols">{cols_ax}</div>'
+        f'<span></span><span></span><span class="ax-cap-x">impact</span></div>')
 
 
 def claim_stack(rows: list[dict]) -> str:

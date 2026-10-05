@@ -3,21 +3,21 @@
    amber = needs you, corrected, P2   orange = P1   blue = changed   grey = not run, skipped, P3
    teal and purple = reviewer identity */
 :root{
-  --add:#1a7f37;--add-bg:#dafbe1;--del:#cf222e;--del-bg:#ffebe9;
+  --add:#1a7f37;--del:#cf222e;
   --amb:#9a6700;--amb-bg:#fff8c5;--org:#bc4c00;--org-bg:#fff1e5;
   --blu:#0969da;--blu-bg:#ddf4ff;--gry:#6e7781;--gry-bg:#f6f8fa;
   --pur:#8250df;--pur-bg:#fbefff;--tea:#0a7e8c;--tea-bg:#d8f3f6;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --add:#3fb950;--add-bg:#12261e;--del:#f85149;--del-bg:#2d1214;
+    --add:#3fb950;--del:#f85149;
     --amb:#d29922;--amb-bg:#272115;--org:#f0883e;--org-bg:#2b1a0e;
     --blu:#4493f8;--blu-bg:#121d2f;--gry:#9198a1;--gry-bg:#161b22;
     --pur:#ab7df8;--pur-bg:#1f1630;--tea:#39c5cf;--tea-bg:#0c2427;
   }
 }
 :root[data-theme="dark"]{
-  --add:#3fb950;--add-bg:#12261e;--del:#f85149;--del-bg:#2d1214;
+  --add:#3fb950;--del:#f85149;
   --amb:#d29922;--amb-bg:#272115;--org:#f0883e;--org-bg:#2b1a0e;
   --blu:#4493f8;--blu-bg:#121d2f;--gry:#9198a1;--gry-bg:#161b22;
   --pur:#ab7df8;--pur-bg:#1f1630;--tea:#39c5cf;--tea-bg:#0c2427;
@@ -39,7 +39,7 @@
 .grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr))}
 .panel{border-right:1px solid var(--ink);border-bottom:1px solid var(--ink);min-width:0;display:flex;flex-direction:column}
 .c3{grid-column:span 3}.c4{grid-column:span 4}.c6{grid-column:span 6}.c8{grid-column:span 8}.c12{grid-column:span 12}
-.panel h2{display:flex;align-items:stretch;gap:0;margin:0;min-height:34px;font-size:14px;font-weight:600;border-bottom:1px solid var(--ink)}
+.panel h2{display:flex;flex-wrap:wrap;white-space:nowrap;align-items:stretch;gap:0;margin:0;min-height:34px;font-size:14px;font-weight:600;border-bottom:1px solid var(--ink)}
 .panel h2 .ltr{background:var(--ink);color:var(--surface);font:600 14px var(--mono);width:34px;display:grid;place-items:center;flex:none;margin-right:10px}
 .panel h2 .sub{font:11px var(--mono);font-weight:400;color:var(--ink-2);margin:auto 10px auto auto;white-space:nowrap}
 .panel h2 .sub:first-of-type{margin-left:auto}
@@ -142,12 +142,16 @@ pre.mermaid:not([data-processed="true"])::after{content:"Diagram loads when onli
 .sev-strip .sev-p1{color:var(--org);background:var(--org-bg);border-color:var(--org)}
 .sev-strip .sev-p2{color:var(--amb);background:var(--amb-bg);border-color:var(--amb)}
 .sev-strip .sev-p3{color:var(--gry);background:var(--gry-bg);border-color:var(--gry)}
-.venn{float:right;margin:0 0 8px 12px;width:240px}
+.fwrap{display:grid}
+.fwrap.has-venn{grid-template-columns:minmax(0,1fr) 200px;gap:0 12px}
+.fwrap .findings{grid-column:1;grid-row:1;min-width:0}
+.fwrap .fside{grid-column:2;grid-row:1}
+.venn{position:sticky;top:8px}
 .finding{display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;gap:8px;align-items:start;padding:8px 0 8px 8px;border-bottom:1px solid var(--line);border-left:3px solid var(--gry)}
 .finding.sev-p0{border-left-color:var(--del)}.finding.sev-p1{border-left-color:var(--org)}.finding.sev-p2{border-left-color:var(--amb)}
 .finding .claim{font-weight:500}
 .finding .where{margin-right:6px}
-.tog{display:inline-flex;border:1px solid var(--ink-2)}
+.tog{display:inline-flex;justify-self:end;border:1px solid var(--ink-2)}
 .tog button{border:0;background:var(--surface);color:var(--ink-2);font:11px var(--mono);padding:3px 9px;cursor:pointer}
 .tog button+button{border-left:1px solid var(--ink-2)}
 .tog button[aria-pressed="true"].fix{background:var(--add);color:#fff}
@@ -168,6 +172,12 @@ pre.mermaid:not([data-processed="true"])::after{content:"Diagram loads when onli
 .cmd span{font-size:12px;color:var(--ink-2)}
 .cmd.danger{border-color:var(--del);border-width:2px}.cmd.danger code{color:var(--del)}
 
+.heatbox{display:grid;grid-template-columns:auto auto minmax(0,1fr);column-gap:6px;font:11px var(--mono);color:var(--ink-2)}
+.ax-cap-y{writing-mode:vertical-rl;transform:rotate(180deg);text-align:center;align-self:center}
+.ax-rows{display:grid;grid-template-rows:repeat(3,1fr);gap:3px}
+.ax-rows .ax-y{display:flex;align-items:center}
+.ax-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;margin-top:3px;text-align:center}
+.ax-cap-x{text-align:center}
 .heat{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;font:11px var(--mono)}
 .heat>div{min-height:44px;display:flex;flex-wrap:wrap;gap:4px;align-content:center;justify-content:center;padding:4px;font-weight:600}
 .h0{background:var(--gry-bg)}.h1{background:var(--add-bg)}.h2{background:var(--amb-bg)}.h3{background:var(--org-bg)}.h4{background:var(--del-bg)}
@@ -196,5 +206,17 @@ pre.mermaid:not([data-processed="true"])::after{content:"Diagram loads when onli
   .band{grid-template-columns:1fr}
   .stamp{border-left:0;border-top:1px solid var(--ink);min-width:0;padding:10px}
   .tb>div{border-bottom:1px solid var(--line)}
-  .venn{float:none;margin:0 0 8px}
+  .fwrap.has-venn{grid-template-columns:minmax(0,1fr)}
+  .fwrap .fside{grid-column:1;grid-row:1;margin-bottom:8px}
+  .fwrap.has-venn .findings{grid-row:2}
+  .venn{position:static}
+  .venn svg{margin:0 auto}
+  .panel h2 .note-btn{margin-left:auto}
+  .panel h2 .sub{order:3;flex-basis:100%;margin:0 10px 6px 44px}
+  .crow{grid-template-columns:18px auto minmax(0,1fr)}
+  .crow .ico{grid-row:1;grid-column:1}
+  .crow>code:first-of-type{grid-row:1;grid-column:2/-1}
+  .crow .cwd{display:none}
+  .crow .exit{grid-row:2;grid-column:2}
+  .crow .res{grid-row:2;grid-column:3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 }

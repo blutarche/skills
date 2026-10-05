@@ -26,6 +26,8 @@ KINDS = ("plan", "execute", "vet", "finish", "research", "grill", "session")
 SPANS = (3, 4, 6, 8, 12)
 DEFAULT_SPAN = {"asks": 4, "checks": 8, "files": 8, "figure": 12, "decisions": 12, "tasks": 12,
                 "findings": 12, "claims": 8, "commands": 4, "matrix": 6, "table": 8}
+MIN_SPAN = {"asks": 4, "commands": 4, "matrix": 4, "checks": 6, "files": 6, "claims": 6, "table": 6,
+            "findings": 8, "decisions": 8, "tasks": 8, "figure": 8}
 ENUMS = {
     "status": ("done", "failed", "blocked", "skipped", "todo"),
     "sev": ("P0", "P1", "P2", "P3"),
@@ -217,7 +219,7 @@ def _normalize_panel(ctx: _Ctx, p, letter: str, tree) -> dict:
     span = p.get("span", DEFAULT_SPAN[typ])
     if span not in SPANS or isinstance(span, bool):
         pagelib.fail(f"{where} span: must be one of {', '.join(map(str, SPANS))}")
-    out = {"letter": letter, "role": role, "type": typ, "span": span}
+    out = {"letter": letter, "role": role, "type": typ, "span": span, "fixed": "span" in p}
     where = f"{where} {typ}"
 
     if typ == "figure":
@@ -267,6 +269,27 @@ def _check_rows_extra(where: str, typ: str, rows: list[dict], tree) -> None:
         figures.heat_matrix(rows)
 
 
+def pack_rows(panels: list[dict]) -> None:
+    """Resize spans in place so every 12-column row is full, keeping panel order. A span the agent
+    set is fixed; otherwise a panel may shrink to its type minimum or the row's last panel widen."""
+    left, row = 12, []
+    for p in panels:
+        lo = p["span"] if p.get("fixed") else min(p["span"], MIN_SPAN[p["type"]])
+        if left == 0:
+            left, row = 12, []
+        if p["span"] <= left:
+            pass
+        elif lo <= left:
+            p["span"] = left
+        else:
+            row[-1]["span"] += left
+            left, row = 12, []
+        left -= p["span"]
+        row.append(p)
+    if row and left:
+        row[-1]["span"] += left
+
+
 def check_sheet(spec: dict, *, kind: str, title: str, spec_dir: Path | None = None,
                 auto_panels: list[dict] | None = None) -> dict:
     """Validate the sheet fields of `spec`, run the voice lint on every label, instruction, and
@@ -308,6 +331,7 @@ def check_sheet(spec: dict, *, kind: str, title: str, spec_dir: Path | None = No
         pagelib.fail("panels: at most 8 including builder-made panels")
 
     normalized = [_normalize_panel(ctx, p, chr(ord("A") + i), tree) for i, p in enumerate(merged)]
+    pack_rows(normalized)
     roles = [p["role"] for p in normalized]
     for r in roles:
         if roles.count(r) > 1:
@@ -352,9 +376,10 @@ def _checks(p: dict) -> tuple[str, str]:
         mark, cls = {None: ("○", "nr")}.get(r["exit"], ("✓", "ok") if r["exit"] == 0 else ("✕", "bad"))
         exit_txt = "not run" if r["exit"] is None else f'exit {r["exit"]}'
         res = f'<span class="res">{_label(r["result"])}</span>' if r.get("result") else ""
+        cwd = f'<code class="cwd">{pagelib.esc(r["cwd"])}</code>' if r["cwd"] != "." else ""
         out.append(
             f'<div class="crow {cls}"><span class="ico">{mark}</span>'
-            f'<code>{pagelib.esc(r["cmd"])}</code><code class="cwd">{pagelib.esc(r["cwd"])}</code>'
+            f'<code title="{pagelib.esc(r["cwd"])}">{pagelib.esc(r["cmd"])}</code>{cwd}'
             f'<span class="exit">{exit_txt}</span>{res}</div>')
     ok = sum(1 for r in rows if r["exit"] == 0)
     nr = sum(1 for r in rows if r["exit"] is None)
@@ -450,8 +475,10 @@ def _findings(p: dict) -> tuple[str, str]:
             f'<code class="fid">{pagelib.esc(r["id"])}</code>{_tag("sev-" + r["sev"].lower(), r["sev"])}'
             f'<div class="fmain"><div class="claim">{_label(r["claim"])}</div>{where}{chips}{dispute}</div>{tail}</div>')
     venn = figures.venn_svg(rows)
-    top = figures.severity_strip(rows) + (f'<div class="venn">{venn}</div>' if venn else "")
-    return top + f'<div class="findings">{"".join(out)}</div>', str(len(rows))
+    board = f'<div class="findings">{"".join(out)}</div>'
+    side = f'<div class="fside"><div class="venn">{venn}</div></div>' if venn else ""
+    wrap = f'<div class="fwrap{" has-venn" if venn else ""}">{side}{board}</div>'
+    return figures.severity_strip(rows) + wrap, str(len(rows))
 
 
 def _claims(p: dict) -> tuple[str, str]:

@@ -89,6 +89,12 @@ class MatrixTest(unittest.TestCase):
         self.assertIn('data-cell="high-low"', out)
         self.assertIn("R1", out)
 
+    def test_axis_labels(self):
+        out = figures.heat_matrix([{"id": "R1", "label": "x", "likelihood": "high", "impact": "low"}])
+        for word in ("likelihood", "impact", "low", "med", "high"):
+            self.assertIn(word, out)
+        self.assertEqual(out.count('class="ax-x"'), 3)
+
 
 class ClaimStackTest(unittest.TestCase):
     def test_counts_in_label(self):

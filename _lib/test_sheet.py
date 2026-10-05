@@ -266,6 +266,50 @@ class SheetTest(unittest.TestCase):
         self.assertEqual([p["role"] for p in s["panels"]], ["needs you", "checks", "findings"])
         self.assertEqual([p["letter"] for p in s["panels"]], ["A", "B", "C"])
 
+    def spans(self, *panels, kind="session"):
+        ask = {"role": "needs you", "type": "asks", "rows": []}
+        spec = {"state": "All done.", "tree": self.tree, "panels": [ask, *panels]}
+        return [p["span"] for p in check(spec, kind)["panels"]]
+
+    def mk(self, typ, **kw):
+        base = {
+            "findings": {"rows": []}, "checks": {"rows": []}, "matrix": {"rows": []}, "tasks": {"rows": []},
+            "decisions": {"rows": []}, "figure": {"mermaid": "graph TD; A-->B", "caption": "Flow"},
+            "table": {"columns": ["Risk"], "rows": [["Low"]]},
+        }[typ]
+        return {"role": typ if typ != "findings" else "findings", "type": typ, **base, **kw}
+
+    def test_17_row_packing(self):
+        mk = self.mk
+        self.assertEqual(self.spans(mk("findings"), mk("checks"), mk("matrix")), [4, 8, 8, 4])
+        self.assertEqual(self.spans(mk("figure")), [4, 8])
+        self.assertEqual(self.spans(mk("tasks"), mk("decisions")), [4, 8, 12])
+        self.assertEqual(self.spans(mk("table", span=6)), [4, 8])
+        s = check({"state": "Done.", "panels": [{"role": "needs you", "type": "asks", "rows": [], "span": 12},
+                                                mk("checks")]}, "session")
+        self.assertEqual([p["span"] for p in s["panels"]], [12, 12])
+
+    def test_18_checks_cwd_cell(self):
+        spec = vet_spec()
+        spec["panels"].append({"role": "checks", "type": "checks", "rows": [
+            {"cmd": "a", "cwd": ".", "exit": 0}, {"cmd": "b", "cwd": "web", "exit": 0}]})
+        html = sheet.render_sheet(check(spec))
+        self.assertEqual(html.count('class="cwd"'), 1)
+        self.assertIn('title="web"', html)
+        self.assertIn('title="."', html)
+
+    def test_19_findings_layout_and_header(self):
+        html = sheet.render_sheet(check(vet_spec()))
+        self.assertIn('class="fwrap has-venn"', html)
+        self.assertIn('class="fside"', html)
+        spec = vet_spec()
+        for r in spec["panels"][1]["rows"]:
+            r["foundBy"] = ["scrutinize"]
+        self.assertNotIn("has-venn", sheet.render_sheet(check(spec)))
+        css, _ = sheet.assets()
+        self.assertNotIn("--add-bg:", css)
+        self.assertNotIn("--del-bg:", css)
+
 
 if __name__ == "__main__":
     unittest.main()
