@@ -1,0 +1,33 @@
+{
+  "title": "Queue choice: research on outbox delivery",
+  "kind": "research",
+  "state": "6 claims checked. 4 hold, 1 was corrected, and 1 has no source.",
+  "facts": [
+    {"k": "question", "v": "Does the queue keep order?"},
+    {"k": "sources", "v": "5"}
+  ],
+  "panels": [
+    {"role": "needs you", "type": "asks", "rows": []},
+    {
+      "role": "claims",
+      "type": "claims",
+      "rows": [
+        {"id": "C1", "claim": "The queue keeps order inside one partition.", "source": "docs/queue.md:12", "result": "verified"},
+        {"id": "C2", "claim": "A consumer can read the same message twice.", "source": "docs/queue.md:40", "result": "verified"},
+        {"id": "C3", "claim": "The queue keeps order across all partitions.", "source": "docs/queue.md:15", "result": "corrected", "note": "Order holds only inside one partition."},
+        {"id": "C4", "claim": "A message stays for 7 days by default.", "source": "docs/limits.md:8", "result": "verified"},
+        {"id": "C5", "claim": "A batch can hold 500 messages.", "source": "docs/limits.md:21", "result": "verified"},
+        {"id": "C6", "claim": "Exactly-once delivery is on by default.", "source": "blog post", "result": "unverified", "note": "No doc says this."}
+      ]
+    },
+    {
+      "role": "council changes",
+      "type": "table",
+      "columns": ["Claim", "Change", "Why"],
+      "rows": [
+        ["C3", "Corrected", "The doc limits order to one partition"],
+        ["C6", "Left unverified", "Only a blog post says it"]
+      ]
+    }
+  ]
+}

@@ -917,5 +917,36 @@ class BuildBriefTest(unittest.TestCase, Harness):
         self.assertIn("figureLayout", r.stderr)
 
 
+class ExamplesTest(unittest.TestCase):
+    KINDS = ("plan", "execute", "vet", "finish", "research", "grill", "session")
+
+    def build_file(self, spec_path: Path, tmp: Path) -> SimpleNamespace:
+        """Builds the example in place so a relative `tree.repo` resolves from its own folder."""
+        argv = [str(BUILD), "--spec", str(spec_path), "--out", str(tmp / "o.html"), "--no-mmdc"]
+        old_argv, code = sys.argv, 0
+        out_buf, err_buf = io.StringIO(), io.StringIO()
+        sys.argv = argv
+        try:
+            with contextlib.redirect_stdout(out_buf), contextlib.redirect_stderr(err_buf):
+                build_brief.main()
+        except SystemExit as e:
+            code = e.code or 0
+        finally:
+            sys.argv = old_argv
+        return SimpleNamespace(code=code, stdout=out_buf.getvalue(), stderr=err_buf.getvalue())
+
+    def test_one_example_per_kind_and_no_old_example(self) -> None:
+        names = sorted(p.name for p in (HERE.parent / "examples").glob("*.example.json"))
+        self.assertEqual(names, sorted(f"{k}.example.json" for k in self.KINDS))
+
+    def test_every_example_builds(self) -> None:
+        for path in sorted((HERE.parent / "examples").glob("*.example.json")):
+            with self.subTest(example=path.name), tempfile.TemporaryDirectory() as tmp:
+                r = self.build_file(path, Path(tmp))
+                self.assertEqual(r.code, 0, r.stderr)
+                kind = json.loads(path.read_text(encoding="utf-8"))["kind"]
+                self.assertEqual(path.name, f"{kind}.example.json")
+
+
 if __name__ == "__main__":
     unittest.main()

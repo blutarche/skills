@@ -1,0 +1,45 @@
+{
+  "title": "Outbox retries: finish of feat/outbox",
+  "kind": "finish",
+  "state": "The branch is synced and all checks pass. Pick one next move.",
+  "facts": [
+    {"k": "branch", "v": "feat/outbox"},
+    {"k": "base", "v": "main"}
+  ],
+  "tree": {"repo": "../../..", "base": "HEAD~1", "head": "HEAD"},
+  "panels": [
+    {"role": "needs you", "type": "asks", "rows": [
+      {"ask": "Land, open a PR, or discard?", "why": "Each move is a command in the next move panel."}
+    ]},
+    {
+      "role": "next move",
+      "type": "commands",
+      "rows": [
+        {"cmd": "/finish land", "does": "Merge into main and push"},
+        {"cmd": "/finish pr", "does": "Push the branch and open a PR"},
+        {"cmd": "/finish discard", "does": "Delete the branch and its work", "danger": true}
+      ]
+    },
+    {
+      "role": "checks",
+      "type": "checks",
+      "rows": [
+        {"cmd": "git fetch origin", "cwd": ".", "exit": 0, "result": "Up to date"},
+        {"cmd": "git merge origin/main", "cwd": ".", "exit": 0, "result": "No conflicts"},
+        {"cmd": "npm test", "cwd": ".", "exit": 0, "result": "42 tests pass"},
+        {"cmd": "npm run lint", "cwd": ".", "exit": 0}
+      ]
+    },
+    {"role": "diff", "type": "files"},
+    {
+      "role": "review",
+      "type": "findings",
+      "rows": [
+        {"id": "F1", "sev": "P1", "claim": "Two workers can claim the same row.", "foundBy": ["scrutinize", "council"], "default": "fix", "outcome": "fixed"},
+        {"id": "F2", "sev": "P2", "claim": "The delay between retries has no cap.", "foundBy": ["council"], "default": "fix", "outcome": "fixed"},
+        {"id": "F3", "sev": "P2", "claim": "A parked row loses its last error text.", "foundBy": ["scrutinize"], "default": "fix", "outcome": "open"},
+        {"id": "F4", "sev": "P3", "claim": "One log line is too noisy.", "foundBy": ["scrutinize"], "default": "skip", "outcome": "skipped"}
+      ]
+    }
+  ]
+}

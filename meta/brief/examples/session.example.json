@@ -1,0 +1,35 @@
+{
+  "title": "Outbox retries: session summary",
+  "kind": "session",
+  "state": "The retry work is half done. 2 risks need a call from you.",
+  "facts": [
+    {"k": "branch", "v": "feat/outbox"}
+  ],
+  "panels": [
+    {"role": "needs you", "type": "asks", "rows": [
+      {"ask": "Accept risk R2 for the first release?", "why": "A fix needs a schema change."},
+      {"ask": "Who owns the parked row alert?", "why": "No team is named yet."}
+    ]},
+    {
+      "role": "risks",
+      "type": "matrix",
+      "rows": [
+        {"id": "R1", "label": "Duplicate sends after a crash", "likelihood": "med", "impact": "high"},
+        {"id": "R2", "label": "Parked rows grow without bound", "likelihood": "high", "impact": "med"},
+        {"id": "R3", "label": "Retry delay hides an outage", "likelihood": "low", "impact": "high"},
+        {"id": "R4", "label": "Noisy logs hide real errors", "likelihood": "med", "impact": "low"}
+      ]
+    },
+    {
+      "role": "what happened",
+      "type": "table",
+      "columns": ["Area", "State", "Next"],
+      "rows": [
+        ["Outbox table", "Done", "None"],
+        ["Sender loop", "Done", "Add a metric"],
+        ["Retry delay", "In progress", "Add the cap"],
+        ["Parked rows", "Not started", "Pick an owner"]
+      ]
+    }
+  ]
+}

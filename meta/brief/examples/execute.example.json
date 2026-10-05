@@ -1,0 +1,62 @@
+{
+  "title": "Outbox retries: run of feat/outbox",
+  "kind": "execute",
+  "state": "5 of 5 tasks are done. One task failed once and passed on retry.",
+  "facts": [
+    {"k": "branch", "v": "feat/outbox"},
+    {"k": "waves", "v": "3"}
+  ],
+  "tree": {"repo": "../../..", "base": "HEAD~1", "head": "HEAD"},
+  "panels": [
+    {"role": "needs you", "type": "asks", "rows": []},
+    {
+      "role": "checks",
+      "type": "checks",
+      "rows": [
+        {"cmd": "npm test", "cwd": ".", "exit": 0, "result": "42 tests pass"},
+        {"cmd": "npm run lint", "cwd": ".", "exit": 0, "result": "No warnings"},
+        {"cmd": "npm run typecheck", "cwd": ".", "exit": 0},
+        {"cmd": "npm run e2e", "cwd": ".", "exit": null, "result": "Needs a live queue"}
+      ]
+    },
+    {"role": "files", "type": "files"},
+    {
+      "role": "how it works",
+      "type": "figure",
+      "caption": "The sender claims, posts, and parks a row.",
+      "svg": "<svg viewBox=\"0 0 620 110\" role=\"img\" aria-label=\"Claim, post, park\"><g data-s=\"1\"><rect x=\"10\" y=\"30\" width=\"160\" height=\"50\" rx=\"4\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"/><text x=\"90\" y=\"60\" text-anchor=\"middle\" font-size=\"14\" fill=\"currentColor\">Claim a row</text></g><g data-s=\"2\"><line x1=\"170\" y1=\"55\" x2=\"230\" y2=\"55\" stroke=\"currentColor\" stroke-width=\"2\"/><rect x=\"230\" y=\"30\" width=\"160\" height=\"50\" rx=\"4\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"/><text x=\"310\" y=\"60\" text-anchor=\"middle\" font-size=\"14\" fill=\"currentColor\">Post it</text></g><g data-s=\"3\"><line x1=\"390\" y1=\"55\" x2=\"450\" y2=\"55\" stroke=\"currentColor\" stroke-width=\"2\"/><rect x=\"450\" y=\"30\" width=\"160\" height=\"50\" rx=\"4\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-dasharray=\"6 4\"/><text x=\"530\" y=\"60\" text-anchor=\"middle\" font-size=\"14\" fill=\"currentColor\">Park it</text></g></svg>",
+      "steps": [
+        {"n": 1, "say": "One worker claims a row so no other worker takes it."},
+        {"n": 2, "say": "The worker posts the event to the target service."},
+        {"n": 3, "say": "After 5 failed tries, the row is parked."}
+      ]
+    },
+    {
+      "role": "tasks",
+      "type": "tasks",
+      "rows": [
+        {"id": "T1", "name": "Add the outbox table", "status": "done", "exit": 0},
+        {"id": "T2", "name": "Write the sender loop", "status": "failed", "after": ["T1"], "exit": 1},
+        {"id": "T2r", "name": "Retry the sender loop", "status": "done", "after": ["T1"], "exit": 0},
+        {"id": "T3", "name": "Add the retry delay", "status": "done", "after": ["T2r"], "exit": 0},
+        {"id": "T4", "name": "Write the tests", "status": "done", "after": ["T3"], "exit": 0}
+      ]
+    },
+    {
+      "role": "review",
+      "type": "findings",
+      "rows": [
+        {"id": "F1", "sev": "P1", "claim": "Two workers can claim the same row.", "foundBy": ["scrutinize"], "default": "fix", "outcome": "fixed"},
+        {"id": "F2", "sev": "P3", "claim": "One log line is too noisy.", "foundBy": ["scrutinize"], "default": "skip", "outcome": "skipped"}
+      ]
+    },
+    {
+      "role": "decisions",
+      "type": "decisions",
+      "rows": [
+        {"decision": "How a worker claims a row", "chosen": "Row lock with skip", "rejected": "Claim flag", "why": "The lock cannot go stale after a crash."},
+        {"decision": "Where the retry count lives", "chosen": "In the outbox row", "why": "It survives a restart."}
+      ]
+    }
+  ]
+}

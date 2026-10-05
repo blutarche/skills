@@ -1,0 +1,52 @@
+{
+  "title": "Outbox retries: plan for feat/outbox",
+  "kind": "plan",
+  "state": "5 tasks in 3 waves. The plan is hardened and ready to run.",
+  "facts": [
+    {"k": "branch", "v": "feat/outbox"},
+    {"k": "waves", "v": "3"}
+  ],
+  "panels": [
+    {"role": "needs you", "type": "asks", "rows": []},
+    {
+      "role": "hardening",
+      "type": "table",
+      "columns": ["Step", "Found", "Result"],
+      "rows": [
+        ["grill", "6 decisions", "0 open"],
+        ["council", "4 findings", "3 folded in, 1 rejected"]
+      ]
+    },
+    {
+      "role": "how it works",
+      "type": "figure",
+      "caption": "A row goes to the sender, and back on failure.",
+      "svg": "<svg viewBox=\"0 0 620 110\" role=\"img\" aria-label=\"Outbox, sender, and retry\"><g data-s=\"1\"><rect x=\"10\" y=\"30\" width=\"160\" height=\"50\" rx=\"4\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"/><text x=\"90\" y=\"60\" text-anchor=\"middle\" font-size=\"14\" fill=\"currentColor\">Outbox row</text></g><g data-s=\"2\"><line x1=\"170\" y1=\"55\" x2=\"230\" y2=\"55\" stroke=\"currentColor\" stroke-width=\"2\"/><rect x=\"230\" y=\"30\" width=\"160\" height=\"50\" rx=\"4\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"/><text x=\"310\" y=\"60\" text-anchor=\"middle\" font-size=\"14\" fill=\"currentColor\">Sender</text></g><g data-s=\"3\"><line x1=\"390\" y1=\"55\" x2=\"450\" y2=\"55\" stroke=\"currentColor\" stroke-width=\"2\"/><rect x=\"450\" y=\"30\" width=\"160\" height=\"50\" rx=\"4\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-dasharray=\"6 4\"/><text x=\"530\" y=\"60\" text-anchor=\"middle\" font-size=\"14\" fill=\"currentColor\">Retry later</text></g></svg>",
+      "steps": [
+        {"n": 1, "say": "The app writes each event to an outbox row."},
+        {"n": 2, "say": "The sender reads a row and posts it."},
+        {"n": 3, "say": "If the post fails, the row waits and tries again."}
+      ]
+    },
+    {
+      "role": "tasks",
+      "type": "tasks",
+      "rows": [
+        {"id": "T1", "name": "Add the outbox table", "status": "todo"},
+        {"id": "T2", "name": "Write the sender loop", "status": "todo", "after": ["T1"]},
+        {"id": "T3", "name": "Add the retry delay", "status": "todo", "after": ["T1"]},
+        {"id": "T4", "name": "Park rows after 5 tries", "status": "todo", "after": ["T2", "T3"]},
+        {"id": "T5", "name": "Write the tests", "status": "todo", "after": ["T2", "T3"]}
+      ]
+    },
+    {
+      "role": "decisions",
+      "type": "decisions",
+      "rows": [
+        {"decision": "Where to keep retry state", "chosen": "In the outbox row", "rejected": "In a new table", "why": "One row holds all state for one event."},
+        {"decision": "How to space retries", "chosen": "Double the delay each time", "rejected": "Fixed delay", "why": "It spares a service that is down."},
+        {"decision": "What to do after 5 tries", "chosen": "Park the row", "rejected": "Drop the row", "why": "A person can inspect parked rows later."}
+      ]
+    }
+  ]
+}

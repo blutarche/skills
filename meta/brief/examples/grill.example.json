@@ -1,0 +1,27 @@
+{
+  "title": "Outbox retries: grill of the retry design",
+  "kind": "grill",
+  "state": "7 decisions are settled and 2 docs changed. Nothing is open.",
+  "facts": [
+    {"k": "topic", "v": "outbox retries"},
+    {"k": "decisions", "v": "7"}
+  ],
+  "tree": {"repo": "../../..", "base": "HEAD~1", "head": "HEAD"},
+  "panels": [
+    {"role": "needs you", "type": "asks", "rows": []},
+    {
+      "role": "decisions",
+      "type": "decisions",
+      "rows": [
+        {"id": "D1", "decision": "Where retry state lives", "chosen": "In the outbox row", "rejected": "A new table", "why": "One row holds all state for one event."},
+        {"id": "D2", "decision": "How to space retries", "chosen": "Double the delay", "rejected": "Fixed delay", "why": "It spares a service that is down.", "parent": "D1"},
+        {"id": "D3", "decision": "How to cap the delay", "chosen": "Cap at 10 minutes", "why": "A person can still see progress.", "parent": "D2"},
+        {"id": "D4", "decision": "When to give up", "chosen": "After 5 tries", "rejected": "Never", "why": "A stuck row must not hide a bug.", "parent": "D1"},
+        {"id": "D5", "decision": "What to do with a parked row", "chosen": "Keep it and flag it", "rejected": "Delete it", "why": "A person can inspect it later.", "parent": "D4"},
+        {"id": "D6", "decision": "Who can replay parked rows", "chosen": "Any on-call engineer", "why": "Replay is safe and easy to undo.", "parent": "D5"},
+        {"id": "D7", "decision": "How to claim a row", "chosen": "Row lock with skip", "rejected": "Claim flag", "why": "The lock cannot go stale after a crash."}
+      ]
+    },
+    {"role": "docs changed", "type": "files"}
+  ]
+}
