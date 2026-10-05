@@ -1,0 +1,12 @@
+{
+  "replace": {
+    "utiliz": "use", "leverag": "use", "facilitat": "help", "ensur": "make sure",
+    "prior to": "before", "in order to": "to", "commenc": "start", "approximately": "about",
+    "subsequently": "then", "additionally": "also", "terminat": "stop"
+  },
+  "ban": [
+    "robust", "seamless", "comprehensive", "holistic", "delv", "crucial", "pivotal",
+    "streamlin", "synerg", "cutting-edge", "state-of-the-art", "empower", "unlock",
+    "elevat", "landscape", "realm", "it is important to note", "worth noting", "successfully"
+  ]
+}
