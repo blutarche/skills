@@ -1,18 +1,19 @@
 # Authoring rules
 
 A brief replaces the long markdown an agent would otherwise dump after a planning, execution,
-research, or debugging stretch. It is chapters by concept, each with a diagram or a stated
-reason it has none, decisions and evidence in tables, and prose capped so it stays a page a
-reader opens rather than scrolls past.
+research, or debugging stretch. It is one sheet of typed panels, with detail in drawers, in
+simple English. The sheet stays a page a reader glances at rather than scrolls past.
 
-## Chapters
+## Drawers
 
-- Cut by concept, not by file or commit. 1 to 8 chapters: the goal or contract first, then the
-  mechanism, then what changed or was decided, then what is open.
-- A chapter title states its claim: "The handler stores the event before it returns", not
+- Drawers hold detail only. The panels carry the state, the asks, and the facts. A drawer is
+  optional, and a sheet may have none.
+- Cut by concept, not by file or commit. 0 to 8 drawers.
+- A drawer title states its claim: "The handler stores the event before it returns", not
   "Webhook changes".
-- `prose` is at most 120 words, sentences of at most 25 words. Say what you would say out loud
-  before the reader looks at anything else.
+- `prose` is 2 sentences at most. Add `proseWhy` (never shown) only when a drawer truly needs
+  more, and then keep `prose` to 120 words.
+- A drawer's `visual` is optional. A figure caption is a label of 12 words at most.
 
 ## What to draw
 
@@ -33,7 +34,7 @@ reader opens rather than scrolls past.
 The source table and its gates (`diagram-design`, mermaid, `dataviz`, hand-authored SVG) are in
 SKILL.md step 1.
 
-A chapter can carry 1 to 4 figures, mixing mermaid and svg, when more than one picture earns its
+A drawer can carry 1 to 4 figures, mixing mermaid and svg, when more than one picture earns its
 place; each one still needs its own caption and still has to clear the bar below. More often one
 is enough. Figures stack full width by default; set `"figureLayout": "row"` on the chapter to lay
 them side by side instead, and only when every figure in the chapter is narrow, roughly `viewBox`
@@ -90,15 +91,14 @@ wants:
 
 ## Voice
 
-Sentences of at most 25 words. Plain words. No verdicts, no emoji, no em dashes, plain hyphens
-only. No "successfully", no "comprehensive". Counts belong in the stats strip the build renders,
-never in prose: don't write "all 12 tests" in a sentence when the evidence table already says so.
+The rules are in `lib/voice.md`. The build checks word caps, the replace and ban lists, and em
+dashes. You check the rest: one meaning per word, active voice, short common words.
 
 ## Anti-patterns
 
-- A chapter per file or per commit.
+- A drawer per file or per commit.
 - Hand-drawn boxes-and-lines for a `diagram-design` figure with no type reference behind it.
 - A box-per-noun diagram with no arrows between the boxes.
 - A diagram that restates a table already on the page.
-- `noVisual` used because drawing would take effort, not because prose already carries it better.
+- A `figure` panel for something the build already draws from rows, such as task waves.
 - An evidence row for a command that was not run, marked as if it had been.
