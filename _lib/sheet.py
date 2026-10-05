@@ -517,7 +517,7 @@ RENDER = {"asks": _asks, "checks": _checks, "files": _files, "figure": _figure, 
 def _render_panel(p: dict) -> str:
     body, sub = RENDER[p["type"]](p)
     letter = p["letter"]
-    cls = f'panel c{p["span"]} {p["type"]}'
+    cls = f'panel c{p["span"]} p-{p["type"]}'
     if p["type"] == "asks":
         cls += " needs" + (" has" if p["rows"] else "")
     sub_html = f'<span class="sub">{pagelib.esc(sub)}</span>' if sub else ""

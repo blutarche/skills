@@ -43,10 +43,10 @@
 .panel h2 .ltr{background:var(--ink);color:var(--surface);font:600 14px var(--mono);width:34px;display:grid;place-items:center;flex:none;margin-right:10px}
 .panel h2 .sub{font:11px var(--mono);font-weight:400;color:var(--ink-2);margin:auto 10px auto auto;white-space:nowrap}
 .panel h2 .sub:first-of-type{margin-left:auto}
-.panel h2{align-items:center}
+.panel h2{align-items:center;flex:none;align-content:flex-start}
 .note-btn{border:0;border-left:1px solid var(--line);align-self:stretch;background:none;color:var(--ink-2);font:11px var(--mono);padding:0 10px;cursor:pointer}
 .note-btn:hover{color:var(--ink);background:var(--paper)}
-.pbody{padding:10px 12px;flex:1;overflow-x:auto}
+.pbody{padding:10px 12px;flex:1 1 auto;overflow-x:auto}
 textarea.note{display:block;width:calc(100% - 24px);min-height:52px;margin:0 12px 10px;font:13px var(--sans);background:var(--paper);color:var(--ink);border:1px solid var(--line);padding:6px}
 textarea.note[hidden]{display:none}
 .needs h2 .ltr{background:var(--amb)}
