@@ -57,7 +57,7 @@ MERMAID_TYPES = {
 KEBAB_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 CODE_RE = re.compile(r"`([^`]*)`")
 PRE_MERMAID = '<pre class="mermaid">{}</pre>'
-MERMAID_VERSION = "11.4.1"
+MERMAID_VERSION = "11.15.0"
 _MISSING = object()
 
 
@@ -468,8 +468,14 @@ def main() -> None:
         mermaid_script = (
             f'<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/{MERMAID_VERSION}/'
             'mermaid.min.js"></script>\n'
-            "<script>mermaid.initialize({startOnLoad:true, securityLevel: 'strict', theme: "
-            'window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "default"});</script>'
+            # A diagram inside a closed <details> lays out at zero size, so each drawer's
+            # diagrams render when it first opens, not on page load.
+            "<script>if(window.mermaid){mermaid.initialize({startOnLoad:false, securityLevel: 'strict', theme: "
+            'window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "default"});'
+            "var mmRun=function(root){var n=[].slice.call(root.querySelectorAll('pre.mermaid:not([data-processed])'))"
+            ".filter(function(e){return !e.closest('details:not([open])')});if(n.length)mermaid.run({nodes:n})};"
+            "mmRun(document);document.querySelectorAll('details').forEach(function(d){"
+            "d.addEventListener('toggle',function(){if(d.open)mmRun(d)})})}</script>"
         )
         document = document.replace("<!-- SCRIPT:END -->", "<!-- SCRIPT:END -->\n" + mermaid_script, 1)
 

@@ -179,7 +179,7 @@ class BuildBriefTest(unittest.TestCase, Harness):
         page = r.out.read_text(encoding="utf-8")
         self.assertIn("<html", page.lower())
         self.assertEqual(
-            page.count("cdnjs.cloudflare.com/ajax/libs/mermaid/11.4.1/mermaid.min.js"), 1
+            page.count("cdnjs.cloudflare.com/ajax/libs/mermaid/11.15.0/mermaid.min.js"), 1
         )
 
     def test_chapters_render_as_drawers_after_the_sheet(self) -> None:
