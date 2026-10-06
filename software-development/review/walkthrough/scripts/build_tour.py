@@ -1138,7 +1138,9 @@ def build_sheet(spec: dict, root: Path, files: dict[str, FileDiff]) -> str:
         rows.append(row)
     auto = [{"role": "checks", "type": "checks", "rows": rows}, {"role": "files", "type": "files"}]
     tree = {"repo": str(root), "base": spec["base"], "head": spec["head"]}
-    norm = sheet.check_sheet(block | {"tree": tree}, kind="execute", title=spec["title"], auto_panels=auto)
+    targets = {ch["id"]: (n, ch["title"]) for n, ch in enumerate(spec["chapters"], start=1)}
+    norm = sheet.check_sheet(block | {"tree": tree}, kind="execute", title=spec["title"], auto_panels=auto,
+                             targets=targets)
     return sheet.render_sheet(norm)
 
 

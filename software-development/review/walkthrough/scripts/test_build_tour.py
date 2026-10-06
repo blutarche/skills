@@ -773,14 +773,30 @@ class SheetTest(unittest.TestCase):
         self.assertIn('data-kind="execute"', page)
         self.assertNotIn('<div class="strip">', page)
         self.assertNotIn("SHEET:", page)
-        m = re.search(r'<section class="[^"]*" data-letter="B" data-role="checks">(.*?)</section>', page, re.S)
+        m = re.search(r'<section class="[^"]*" id="panel-[A-Z]" data-letter="B" data-role="checks">(.*?)</section>', page, re.S)
         self.assertIsNotNone(m)
         self.assertIn("python3 -m unittest", m.group(1))
         self.assertIn("exit 0", m.group(1))
-        m = re.search(r'<section class="[^"]*" data-letter="C" data-role="files">(.*?)</section>', page, re.S)
+        m = re.search(r'<section class="[^"]*" id="panel-[A-Z]" data-letter="C" data-role="files">(.*?)</section>', page, re.S)
         self.assertIsNotNone(m)
         changed = json.loads(self.stats.read_text(encoding="utf-8"))["filesChanged"]
         self.assertEqual(len(re.findall(r'class="frow', m.group(1))), changed)
+
+    def test_sheet_more_links_to_a_tour_chapter(self) -> None:
+        spec = self.sheet_spec()
+        spec["sheet"]["panels"][1]["more"] = "core"
+        spec["sheet"]["panels"][2]["rows"][0]["more"] = "core"
+        page = self.page(spec)
+        self.assertIn('<a class="more" href="#ch-core" title="Alpha returns 42 and delta arrives">more', page)
+        self.assertIn('<a class="more-row" href="#ch-core" title="Alpha returns 42 and delta arrives">↓1</a>', page)
+        self.assertIn('id="ch-core"', page)
+
+    def test_sheet_more_to_an_unknown_chapter_fails(self) -> None:
+        spec = self.sheet_spec()
+        spec["sheet"]["panels"][1]["more"] = "nope"
+        r = self.build(spec)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("more 'nope' is not a chapter", r.stderr)
 
     def test_agent_may_not_supply_checks_or_files(self) -> None:
         for role, typ in (("checks", "checks"), ("files", "files")):
