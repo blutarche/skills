@@ -135,7 +135,7 @@ so the voice lint skips it. A `more` that names no chapter fails the build:
   A task node in the task-wave figure opens its section too.
 - Both go to `#ch-<id>`, so the browser Back button returns you. The link label names the section
   number and title. A click on a button or link inside a row does its own job and does not navigate.
-- The section you land on flashes once. Its `↑ sheet` link scrolls back to the row you clicked.
+- The section you land on opens and flashes once. The floating "Back to sheet" button scrolls back to the row you clicked.
 - Each panel has the anchor `panel-<letter>`, and the sheet has `sheet`.
 
 Required panels per kind (role: type). A missing role or a wrong type fails the build.
@@ -162,9 +162,9 @@ The sheet is the summary, and the report holds the long answer. The report start
 card with a numbered title. A click on the card opens it. The closed cards are the contents list.
 A link to `#ch-<id>` opens that card.
 
-Each chapter shows a small back link, "↑ sheet". It goes to the first panel that links to the
-chapter with `more`, from the panel itself or from any row in it. A chapter that no panel links to
-goes back to the top of the sheet.
+The page has one floating "Back to sheet" button, at the bottom right. It shows only while the
+report is on screen and the sheet is not. It scrolls back to the row the user clicked last. If no row
+was clicked, it goes to the top of the sheet. The page has it only when the spec has chapters.
 
 ```json
 {

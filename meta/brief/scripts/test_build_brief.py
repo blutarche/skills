@@ -207,16 +207,18 @@ class BuildBriefTest(unittest.TestCase, Harness):
         self.assertNotIn("data-toggle-all>", page)
         self.assertNotIn("<details", page)
 
-    def test_back_link_targets_the_referring_panel_or_the_sheet(self) -> None:
+    def test_one_floating_back_button_replaces_section_links(self) -> None:
         spec = valid_spec()
         spec["panels"][1]["rows"][0]["more"] = "the-drain-loop"
         page = self.build(spec, self.dir).out.read_text(encoding="utf-8")
         self.assertIn('<a class="go-a" href="#ch-the-drain-loop"', page)
-        self.assertIn('data-go="ch-the-drain-loop"', page)
-        drain = page[page.index('id="ch-the-drain-loop"'):]
-        self.assertIn('<a class="back" href="#panel-B">↑ sheet</a>', drain)
-        first = page[page.index('id="ch-before-the-reply"'):page.index('id="ch-the-drain-loop"')]
-        self.assertIn('<a class="back" href="#sheet">↑ sheet</a>', first)
+        self.assertNotIn('class="back"', page)
+        self.assertEqual(page.count('class="tosheet"'), 1)
+        self.assertIn('<button type="button" class="tosheet" hidden>\u2191 Back to sheet</button>', page)
+        spec["chapters"] = []
+        spec["panels"][1]["rows"][0].pop("more")
+        page = self.build(spec, self.dir).out.read_text(encoding="utf-8")
+        self.assertNotIn('class="tosheet"', page)
 
     def test_more_must_name_a_chapter(self) -> None:
         spec = valid_spec()

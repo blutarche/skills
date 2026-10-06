@@ -314,13 +314,13 @@ def render_evidence_chip(exit_val, ok) -> str:
     return f'<span class="chip">{int(exit_val)}</span>'
 
 
-def render_chapter(idx: int, ch: dict, back: str) -> str:
-    """One closed card of the full report. `back` is the sheet anchor the back link targets."""
+def render_chapter(idx: int, ch: dict) -> str:
+    """One closed card of the full report."""
     cid = ch["id"]
     o = [
         f'<details class="chapter" id="ch-{esc(cid)}" data-chapter="{esc(cid)}">',
         f'<summary class="chead"><span class="num">{idx}</span><h3 class="ttl">{label_html(ch["title"])}</h3>'
-        f'<a class="back" href="{back}">↑ sheet</a><span class="chev" aria-hidden="true">▸</span></summary>',
+        f'<span class="chev" aria-hidden="true">▸</span></summary>',
         '<div class="dbody">',
     ]
     figures = ch.get("_figures", [])
@@ -391,14 +391,13 @@ def build_body(spec: dict, norm: dict, page_key: str, tmpdir: Path, use_mmdc: bo
         sheet_html,
     ]
     if chapters:
-        refs = norm["refs"]
         o.append('<section class="report" id="report"><div class="rhead"><h2>Full report</h2>'
                  '<button type="button" class="btn" data-toggle-all>Open all</button></div>')
         o.extend(
-            render_chapter(i, ch, f'#panel-{refs[ch["id"]][0]}' if refs.get(ch["id"]) else "#sheet")
-            for i, ch in enumerate(chapters, start=1)
+            render_chapter(i, ch) for i, ch in enumerate(chapters, start=1)
         )
         o.append("</section>")
+        o.append('<button type="button" class="tosheet" hidden>\u2191 Back to sheet</button>')
     o.append(f'<footer class="pgfoot">Words on sheet: {norm["words"]} · built {esc(built)} from brief.json</footer>')
     o.append("</div>")
 

@@ -92,18 +92,13 @@ class _Ctx:
     def __init__(self, targets: dict[str, tuple[int, str]] | None = None) -> None:
         self.words = 0
         self.targets = targets or {}
-        self.refs: dict[str, list[str]] = {}
-        self.letter = ""
 
     def link(self, where: str, target: dict) -> None:
-        """Resolve `more` on a panel or row to its chapter; record the panel letter for back links."""
+        """Resolve `more` on a panel or row to its chapter number and title."""
         cid = target["more"]
         if cid not in self.targets:
             pagelib.fail(f"{where}: more {cid!r} is not a chapter")
         target["moreN"], target["moreTitle"] = self.targets[cid]
-        letters = self.refs.setdefault(cid, [])
-        if self.letter not in letters:
-            letters.append(self.letter)
 
     def text(self, where: str, value, cls: str, max_sentences: int | None = None) -> str:
         if not isinstance(value, str) or not value.strip():
@@ -267,7 +262,6 @@ def _normalize_panel(ctx: _Ctx, p, letter: str, tree) -> dict:
         pagelib.fail(f"{where} span: must be one of {', '.join(map(str, SPANS))}")
     out = {"letter": letter, "role": role, "type": typ, "span": span, "fixed": "span" in p}
     where = f"{where} {typ}"
-    ctx.letter = letter
     if "more" in p:
         _check_value(ctx, where, "more", p["more"], "literal")
         out["more"] = p["more"]
@@ -355,8 +349,7 @@ def check_sheet(spec: dict, *, kind: str, title: str, spec_dir: Path | None = No
     """Validate the sheet fields of `spec`, run the voice lint on every label, instruction, and
     prose field, check git facts, and return a normalized sheet. `auto_panels` are builder-made
     panels inserted after panel A. A relative `tree.repo` resolves against `spec_dir`. `targets` maps
-    each chapter id a `more` may name to (number, title); `refs` in the result maps each linked
-    chapter id to the panel letters that link to it."""
+    each chapter id a `more` may name to (number, title)."""
     if kind not in KINDS:
         pagelib.fail(f"kind: {kind!r} is not one of {', '.join(KINDS)}")
     ctx = _Ctx(targets)
@@ -413,8 +406,7 @@ def check_sheet(spec: dict, *, kind: str, title: str, spec_dir: Path | None = No
     else:
         stamp, tone = READY_STAMP.get(kind, "DONE"), "ok"
     return {"title": title, "kind": kind, "state": state, "blocked": blocked, "stamp": stamp,
-            "stampTone": tone, "facts": norm_facts, "panels": normalized, "words": ctx.words,
-            "refs": ctx.refs}
+            "stampTone": tone, "facts": norm_facts, "panels": normalized, "words": ctx.words}
 
 
 # ---------------------------------------------------------------- rendering

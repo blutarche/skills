@@ -18,8 +18,8 @@
 .chead:hover{background:var(--paper)}
 .chead .ttl{flex:1;margin:0;font-size:16px;font-weight:600}
 .chapter .num{font:600 14px var(--mono);background:var(--ink);color:var(--surface);width:34px;height:28px;flex:none;display:grid;place-items:center}
-.chead .back{font:11px var(--mono);color:var(--blu);text-decoration:none;white-space:nowrap}
-.chead .back:hover{text-decoration:underline}
+.tosheet{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:10;min-height:44px;padding:0 20px;border:0;border-radius:22px;background:var(--blu);color:var(--surface);font:600 14px var(--sans);box-shadow:0 2px 8px rgba(0,0,0,.3);cursor:pointer}
+.tosheet[hidden]{display:none}
 .chev{flex:none;color:var(--ink-2);transition:transform .15s}
 .chapter[open]>.chead .chev{transform:rotate(90deg)}
 .chapter[open]>.chead{border-bottom:1px solid var(--line)}

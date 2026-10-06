@@ -332,13 +332,26 @@
       else if (!t.closest("a, button, input, textarea, select, label, .tog")) open(go.getAttribute("data-go"));
       return;
     }
-    var back = t.closest(".chead .back");
-    if (back && lastGo && document.body.contains(lastGo)) {
-      e.preventDefault();
-      lastGo.scrollIntoView({ block: "center" });
-      flash(lastGo);
-    }
   });
+  // One floating button: visible only while the report is on screen and the sheet is not.
+  var toSheet = $(".tosheet"), reportEl = $("#report"), sheetEl = $("#sheet");
+  if (toSheet && reportEl && sheetEl) {
+    var seen = { report: false, sheet: false };
+    var toSheetShow = function () { toSheet.hidden = !(seen.report && !seen.sheet); };
+    if (window.IntersectionObserver) {
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (en) { seen[en.target === reportEl ? "report" : "sheet"] = en.isIntersecting; });
+        toSheetShow();
+      });
+      io.observe(reportEl); io.observe(sheetEl);
+    } else toSheet.hidden = false;
+    toSheet.addEventListener("click", function () {
+      if (lastGo && document.body.contains(lastGo)) {
+        lastGo.scrollIntoView({ block: "center" });
+        flash(lastGo);
+      } else sheetEl.scrollIntoView({ block: "start" });
+    });
+  }
   document.addEventListener("animationend", function (e) {
     var f = e.target.closest ? e.target.closest(".flash") : null;
     if (f) f.classList.remove("flash");

@@ -332,7 +332,6 @@ class SheetTest(unittest.TestCase):
         self.assertIn('<a class="go-a" href="#ch-retry" aria-label="Section 2: Retry delay">›</a>', html)
         self.assertNotIn("more-row", html)
         self.assertNotIn('class="more"', html)
-        self.assertEqual(norm["refs"], {"retry": ["A", "B"], "outbox": ["B"]})
         self.assertIn('id="panel-A"', html)
         self.assertIn('id="panel-B"', html)
         self.assertIn('id="sheet"', html)
