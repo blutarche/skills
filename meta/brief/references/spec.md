@@ -113,7 +113,8 @@ Picks in a `multi` ask join with `; `. `(recommended)` marks only the recommende
 Answers stay in the page's local storage.
 
 "Send feedback" is the one send button. It is a floating button at the bottom right, so it stays
-on screen from the sheet and from the report. When the clipboard is blocked, a box above the button
+on screen from the sheet and from the report. A press shows a toast for 4 seconds, green for success
+and amber for a problem, and the button reads "✓ Sent" for 2.5 seconds. When the clipboard is blocked, a box above the button
 shows the text, selected, with a Close button.
 
 An ask card with `options` and a `more` opens its section only from the question text and the `›`

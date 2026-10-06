@@ -230,11 +230,32 @@
   }
 
   var sheetPop = $(".dock-pop"), popClose = $("[data-pop-close]");
-  if (popClose) popClose.addEventListener("click", function () { sheetPop.hidden = true; });
+  var toastTimer = null, flipTimer = null;
+  if (popClose) popClose.addEventListener("click", function () {
+    sheetPop.hidden = true;
+    if (sheetStatus) sheetStatus.hidden = true;
+  });
+  // Green for the two success-only messages, amber for any message that names a problem.
+  // A blocked-clipboard toast stays while the popover is open; the rest hide after 4 seconds.
   function sheetSay(msg) {
     if (!sheetStatus) return;
+    var good = msg === "Copied." || msg === "Copied. Saved for the agent.";
     sheetStatus.textContent = msg;
+    sheetStatus.className = "dock-toast " + (good ? "ok" : "warn");
     sheetStatus.hidden = false;
+    clearTimeout(toastTimer);
+    if (!(sheetPop && !sheetPop.hidden)) toastTimer = setTimeout(function () { sheetStatus.hidden = true; }, 4000);
+  }
+  // The button confirms for 2.5 seconds; a click during the flip sends again and restarts it.
+  function sheetFlip() {
+    if (!sheetExport) return;
+    sheetExport.textContent = "✓ Sent";
+    sheetExport.classList.add("sent");
+    clearTimeout(flipTimer);
+    flipTimer = setTimeout(function () {
+      sheetExport.textContent = "Send feedback";
+      sheetExport.classList.remove("sent");
+    }, 2500);
   }
   if (sheetExport) sheetExport.addEventListener("click", function () {
     var md = sheetFeedback(), ans = sheetAnswers();
@@ -245,9 +266,10 @@
       var msg;
       if (copied) msg = saved === false ? "Copied. Could not save on the page." : saved ? "Copied. Saved for the agent." : "Copied.";
       else msg = saved ? "Saved for the agent. Clipboard blocked; copy from the box below." : "Clipboard blocked. Copy from the box below.";
+      if (copied || saved) sheetFlip();
+      if (sheetPreview && !copied && sheetPop) sheetPop.hidden = false;
       sheetSay(msg);
       if (sheetPreview && !copied) {
-        if (sheetPop) sheetPop.hidden = false;
         sheetPreview.hidden = false;
         var r = document.createRange(); r.selectNodeContents(sheetPreview);
         var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);

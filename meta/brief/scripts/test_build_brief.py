@@ -288,6 +288,12 @@ class BuildBriefTest(unittest.TestCase, Harness):
             self.assertNotIn('class="fb"', page)
             self.assertNotIn("data-" + "send>", page)
 
+    def test_send_confirmation_hooks(self) -> None:
+        page = self.build(valid_spec(), self.dir).out.read_text(encoding="utf-8")
+        for needle in ('"\u2713 Sent"', ".dock-toast.ok", ".dock-toast.warn", ".dock .send.sent",
+                       "prefers-reduced-motion"):
+            self.assertIn(needle, page)
+
     # ---------------------------------------------------------------- prose rules
     def test_long_chapter_prose_builds(self) -> None:
         spec = valid_spec()
