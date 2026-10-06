@@ -140,26 +140,36 @@
   });
 
   // Whole-row navigation. A click on a [data-go] row or panel header opens its section, unless it hit
-  // a control. The go-a anchor navigates natively; this only covers the rest of the row.
+  // a control. The go-a anchor stays a real link for keyboard and no-script use.
   var lastGo = null;
   var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function flash(el) {
+    if (reduceMotion) return;
+    el.classList.remove("flash");
+    void el.offsetWidth;
+    el.classList.add("flash");
+  }
+  // Setting location.hash to its current value does not scroll, so a second visit scrolls by hand.
+  function open(id) {
+    var target = document.getElementById(id);
+    if (location.hash !== "#" + id) location.hash = "#" + id;
+    else if (target) { target.scrollIntoView({ block: "start" }); flash(target); }
+  }
   document.addEventListener("click", function (e) {
     var t = e.target;
     if (!t || !t.closest) return;
     var go = t.closest("[data-go]");
     if (go) {
       lastGo = go;
-      if (!t.closest("a, button, input, textarea, select, label, .tog")) location.hash = "#" + go.getAttribute("data-go");
+      if (t.closest(".go-a")) { e.preventDefault(); open(go.getAttribute("data-go")); }
+      else if (!t.closest("a, button, input, textarea, select, label, .tog")) open(go.getAttribute("data-go"));
       return;
     }
     var back = t.closest(".chead .back");
     if (back && lastGo && document.body.contains(lastGo)) {
       e.preventDefault();
       lastGo.scrollIntoView({ block: "center" });
-      if (reduceMotion) return;
-      lastGo.classList.remove("flash");
-      void lastGo.offsetWidth;
-      lastGo.classList.add("flash");
+      flash(lastGo);
     }
   });
   document.addEventListener("animationend", function (e) {

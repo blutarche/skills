@@ -209,8 +209,9 @@ pre.mermaid:not([data-processed="true"])::after{content:"Diagram loads when onli
 /* Whole-row targets: a row or panel header with `more` opens its section; the chevron is the one real link. */
 .go{cursor:pointer}
 .crow.go,.finding.go,.cmd.go,.crow2.go,.trow.go,.legend>.go,.asks li.go{position:relative}
-.finding.go,.cmd.go,.crow2.go,.trow.go,.legend>.go,.asks li.go{padding-right:30px}
-tr.go td:last-child{position:relative;padding-right:30px}
+/* every row in a list with a target keeps the chevron gutter, so columns stay aligned */
+.findings:has(.go) .finding,.cmds:has(.go) .cmd,.claims:has(.go) .crow2,.tasks:has(.go) .trow,.legend:has(.go)>div,.asks:has(.go) li,table:has(tr.go) td:last-child{padding-right:30px}
+tr.go td:last-child{position:relative}
 .go-a{position:absolute;right:4px;top:50%;transform:translateY(-50%);font:18px/1 var(--sans);color:var(--ink-3);text-decoration:none;border:0;padding:2px 6px}
 .go:hover,.go:focus-within{background:var(--blu-bg)}
 tr.go:hover,tr.go:focus-within{background:none}
@@ -227,8 +228,10 @@ tr.go.flash td{animation:go-wash 1.2s ease-out}
 .task.go.flash{animation:none}
 .task.go.flash rect{animation:go-wash-svg 1.2s ease-out}
 .chapter:target{box-shadow:inset 3px 0 0 var(--blu);padding-left:10px;margin-left:-10px;animation:go-wash 1.2s ease-out}
+@keyframes go-wash-again{from{background-color:var(--blu-bg)}}
+.chapter.flash{animation:go-wash-again 1.2s ease-out}
 @media (prefers-reduced-motion:reduce){
-  .go.flash,tr.go.flash td,.task.go.flash rect,.chapter:target{animation:none}
+  .go.flash,tr.go.flash td,.task.go.flash rect,.chapter:target,.chapter.flash{animation:none}
 }
 
 @media (max-width:760px){
