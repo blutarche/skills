@@ -128,19 +128,6 @@
   }
 
   var sheetExport = $("[data-export]"), sheetStatus = $("[data-export-status]"), sheetPreview = $("[data-export-preview]");
-  if (sheetExport) sheetExport.addEventListener("click", function () {
-    var md = sheetFeedback();
-    if (sheetPreview) sheetPreview.textContent = md;
-    sheetCopy(md, function (ok) {
-      if (sheetStatus) sheetStatus.textContent = ok ? "Copied." : "Clipboard blocked. Copy from the box below.";
-      if (sheetPreview && !ok) {
-        sheetPreview.hidden = false;
-        var r = document.createRange(); r.selectNodeContents(sheetPreview);
-        var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
-      }
-    });
-  });
-
   // Asks: option buttons and an Other field per card. state.answers[n] = { picks: [option numbers], other: text }.
   var askCards = $$(".asks > li[data-ask]");
   function askState(li) {
@@ -242,14 +229,12 @@
     } catch (e) { claudeDb = Promise.resolve(null); }
   }
 
-  var sendBtn = $("[data-send]"), askStatus = $("[data-answers-status]");
   function sheetSay(msg) {
-    if (askStatus) askStatus.textContent = msg;
     if (sheetStatus) sheetStatus.textContent = msg;
   }
-  if (sendBtn) sendBtn.addEventListener("click", function () {
-    var ans = sheetAnswers();
-    if (sheetPreview) sheetPreview.textContent = ans.text;
+  if (sheetExport) sheetExport.addEventListener("click", function () {
+    var md = sheetFeedback(), ans = sheetAnswers();
+    if (sheetPreview) sheetPreview.textContent = md;
     var copied = null, saved = null, db;
     function done() {
       if (copied === null || db === undefined || (db && saved === null)) return;
@@ -264,11 +249,20 @@
         sheetPreview.scrollIntoView({ block: "center" });
       }
     }
-    sheetCopy(ans.text, function (ok) { copied = ok; done(); });
+    sheetCopy(md, function (ok) { copied = ok; done(); });
     claudeDb.then(function (d) { db = d; if (db) save(); else done(); });
     function save() {
+      var notes = {}, fix = [], skip = [];
+      $$("textarea[data-note]").forEach(function (ta) {
+        if (ta.value.trim()) notes[ta.getAttribute("data-note")] = ta.value.trim();
+      });
+      $$(".tog").forEach(function (t) {
+        var p = $('[aria-pressed="true"]', t);
+        (p && p.getAttribute("data-v") === "fix" ? fix : skip).push(t.getAttribute("data-id"));
+      });
       var doc = {
         title: ans.title,
+        text: md,
         answers: ans.items.map(function (it) {
           return {
             n: it.n, ask: it.ask,
@@ -277,10 +271,13 @@
             recommended: it.picks.some(function (p) { return p.rec; })
           };
         }),
+        notes: notes,
+        fix: fix,
+        skip: skip,
         sentAt: new Date().toISOString()
       };
       try {
-        db.doc("answers/latest").set(doc).then(
+        db.doc("feedback/latest").set(doc).then(
           function () { saved = true; done(); },
           function () { saved = false; done(); });
       } catch (e) { saved = false; done(); }

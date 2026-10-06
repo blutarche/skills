@@ -96,7 +96,8 @@ Leave `options` out for an open question: the card then shows one text box.
 
 Each option is a button. Each card also has an "Other" text box. The panel shows
 "Accept recommended" when any ask has `recommended`, and the keys 1 to 4 pick an option while
-focus is in a card. "Send answers" copies this block:
+focus is in a card. "Send feedback" copies the answers block first, then notes and fix or skip
+choices. The answers block looks like this:
 
 ```
 Answers: <sheet title>
@@ -109,14 +110,17 @@ Answers: <sheet title>
 ```
 
 Picks in a `multi` ask join with `; `. `(recommended)` marks only the recommended pick.
-"Copy feedback" puts the same block first. Answers stay in the page's local storage.
+Answers stay in the page's local storage.
+
+"Send feedback" is the one send button. It sits in a bar at the bottom of the sheet. The bar stays
+on screen while the sheet is in view.
 
 An ask card with `options` and a `more` opens its section only from the question text and the `›`
 link. A click elsewhere on the card does nothing.
 
-Inside a claude.ai artifact viewer, "Send answers" also writes the doc `answers/latest`:
-`{title, answers: [{n, ask, picks: [labels], other, recommended: bool}], sentAt}`. `sentAt` is an
-ISO time. `recommended` is true when a picked option is the recommended one. The write happens
+Inside a claude.ai artifact viewer, "Send feedback" also writes the doc `feedback/latest`:
+`{title, text, answers: [{n, ask, picks: [labels], other, recommended: bool}], notes: {<panel letter>: text},
+fix: [ids], skip: [ids], sentAt}`. `text` is the full copied Markdown. `sentAt` is an ISO time. `recommended` is true when a picked option is the recommended one. The write happens
 only on the button click. Other hosts use the pasted block alone.
 
 ### `more`: links to the full report
@@ -272,7 +276,7 @@ words in the checked fields. `--data-out` writes `kind`, `stamp`, `panels`, `ask
 ## On the page
 
 Notes are a textarea per chapter and per panel. They live in this browser's `localStorage`, under
-a key from the spec's raw bytes, so a rebuilt spec starts feedback fresh. "Copy feedback" builds a
+a key from the spec's raw bytes, so a rebuilt spec starts feedback fresh. "Send feedback" builds a
 plain-text block of the notes and fix or skip choices. The page loads no web fonts.
 
 ## Outputs

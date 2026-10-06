@@ -467,8 +467,7 @@ def _asks(p: dict) -> tuple[str, str]:
     accept = ""
     if any(r.get("recommended") for r in p["rows"]):
         accept = '<button type="button" class="btn" data-accept>Accept recommended</button> '
-    actions = (f'<div class="ask-actions">{accept}<button type="button" class="btn" data-send>Send answers</button>'
-               '<span class="count" data-answers-status></span></div>')
+    actions = f'<div class="ask-actions">{accept.strip()}</div>' if accept else ""
     return f'<ol class="asks">{"".join(items)}</ol>{actions}', f"0 of {len(p['rows'])} answered"
 
 
@@ -649,8 +648,8 @@ def _render_panel(p: dict) -> str:
         f'</section>')
 
 
-def render_sheet(sheet: dict) -> str:
-    """Band, panel grid, and the title block with the color key."""
+def render_sheet(sheet: dict, tail: str = "") -> str:
+    """Band, panel grid, and the title block with the color key. `tail` is the last child of the sheet."""
     tone = sheet["stampTone"]
     facts = "".join(f'<div><span class="kk">{_label(f["k"])}</span><span class="v">{pagelib.esc(f["v"])}</span></div>'
                     for f in sheet["facts"])
@@ -661,7 +660,7 @@ def render_sheet(sheet: dict) -> str:
         f'<h1>{_label(sheet["title"])}</h1><p class="state">{pagelib.sanitize_prose(sheet["state"])}</p></div>'
         f'<div class="stamp {tone}">{sheet["stamp"]}</div></header>'
         f'<div class="grid">{"".join(_render_panel(p) for p in sheet["panels"])}</div>'
-        f'<footer class="tb">{facts}<div class="key">{key}</div></footer></div>')
+        f'<footer class="tb">{facts}<div class="key">{key}</div></footer>{tail}</div>')
 
 
 def render_failure(msg: str, spec_path: str) -> str:

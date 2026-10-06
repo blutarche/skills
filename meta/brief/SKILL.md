@@ -127,7 +127,7 @@ Done when seen rendered.
 **Always:** if `orca status --json` succeeds, run `orca tab create --url file://<abs path> --json`
 (Orca's built-in browser). Else use `open` on macOS or `xdg-open` on Linux. A sandbox can block
 both: try once, then print the path and the command for the user. Feedback comes back through
-the page: Notes, then "Copy feedback", then paste into the chat.
+the page: Notes, then "Send feedback", then paste into the chat.
 
 **On top of that, only when the user explicitly asks to publish or share the brief online**, try
 each of these in order, and use the first that applies:
@@ -152,12 +152,13 @@ either the user has a link or has been told it was not published and pointed bac
 ### 6. Stop
 
 Reply in 3 lines at most: the state (with the stamp), what needs the user (the count and the
-first ask), and the local path. Tell the user to answer on the page and press "Send answers". Add the link if a requested publish succeeded, or a note that it
+first ask), and the local path. Tell the user to answer on the page and press "Send feedback". Add the link if a requested publish succeeded, or a note that it
 did not. Do not act on feedback in this skill; that is the next request.
 
 On the next turn, read the answers from the pasted block. For a page published with sync, they
-are also in the artifact database doc `answers/latest` (Claude Code: the `ArtifactData` tool,
-action `get`). The pasted block wins when both exist.
+are also in the artifact database doc `feedback/latest`. In Claude Code, use the `ArtifactData`
+tool: action `get`, collection `feedback`, doc id `latest`. Read its `text` field. The pasted block
+wins when both exist.
 
 ## Files
 

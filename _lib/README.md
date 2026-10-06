@@ -14,4 +14,4 @@ still gets a real, self-contained `lib/` directory.
 | `svg.py` | Allowlist for SVG figures that an agent draws. |
 | `gitfacts.py` | Reads git: changed files, line counts, and if a `path:line` or commit exists. |
 | `figures.py` | Figures the builder draws: task waves, Venn, severity strip, decision tree, risk matrix, claim stack. |
-| `sheet.py`, `sheet.css`, `sheet.js` | The report sheet: schema, required panels per kind, panel HTML, styles, Copy feedback. |
+| `sheet.py`, `sheet.css`, `sheet.js` | The report sheet: schema, required panels per kind, panel HTML, styles, Send feedback. |

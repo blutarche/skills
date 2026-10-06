@@ -251,10 +251,28 @@ class BuildBriefTest(unittest.TestCase, Harness):
     def test_sheet_js_owns_export_hooks(self) -> None:
         r = self.build(valid_spec(), self.dir)
         page = r.out.read_text(encoding="utf-8")
-        for hook in ("data-export>", "data-export-status", "data-export-preview"):
+        for hook in ("data-export title", "data-export-status", "data-export-preview"):
             self.assertIn(hook, page)
         self.assertEqual(page.count("function sheetCopy"), 1)
         self.assertNotIn("function copyText", page)
+
+    def test_send_bar_is_last_in_the_sheet(self) -> None:
+        asks = valid_spec()
+        asks["panels"][0]["rows"] = [{"ask": "Fix now?", "options": [{"label": "Yes"}, {"label": "No"}]}]
+        for spec in (valid_spec(), asks):
+            r = self.build(spec, self.dir)
+            page = r.out.read_text(encoding="utf-8")
+            bar = page.index('<div class="sendbar">')
+            self.assertGreater(bar, page.index('id="sheet"'))
+            self.assertLess(bar, page.index('id="report"'))
+            self.assertLess(page.index("data-export-preview"), bar)
+            tail = page[bar:page.index('id="report"')]
+            self.assertIn("data-export", tail)
+            self.assertIn("Send feedback", tail)
+            self.assertEqual(tail.count("<div"), tail.count("</div>") - 1)
+            self.assertEqual(page.count("data-export title"), 1)
+            self.assertNotIn('class="fb"', page)
+            self.assertNotIn("data-" + "send", page)
 
     # ---------------------------------------------------------------- prose rules
     def test_long_chapter_prose_builds(self) -> None:

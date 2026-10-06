@@ -446,16 +446,18 @@ class SheetTest(unittest.TestCase):
             with self.subTest(msg=msg):
                 self.assertIn(msg, fails(self, self.asks_spec([{"ask": "Pick one.", **extra}])))
 
-    def test_30_accept_and_send_buttons(self):
+    def test_30_accept_button_and_actions_row(self):
         plain = sheet.render_sheet(check(self.asks_spec([{"ask": "Who owns it?"}])))
-        self.assertIn("data-send", plain)
+        self.assertNotIn("data-" + "send", plain)
         self.assertNotIn("data-accept", plain)
+        self.assertNotIn("ask-actions", plain)
         rec = sheet.render_sheet(check(self.asks_spec([
             {"ask": "Fix now?", "options": [{"label": "Yes"}, {"label": "No"}], "recommended": 2}])))
         self.assertIn("data-accept", rec)
-        self.assertIn("data-send", rec)
+        self.assertIn("ask-actions", rec)
+        self.assertNotIn("data-" + "send", rec)
         none = sheet.render_sheet(check(vet_spec()))
-        self.assertNotIn("data-send", none)
+        self.assertNotIn("data-" + "send", none)
         self.assertNotIn("data-accept", none)
 
     def test_30b_recommended_is_a_corner_icon(self):

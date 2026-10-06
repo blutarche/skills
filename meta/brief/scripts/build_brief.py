@@ -373,9 +373,17 @@ def render_chapter(idx: int, ch: dict, back: str) -> str:
     return "\n".join(o)
 
 
+SEND_BAR = (
+    "<pre data-export-preview hidden></pre>"
+    '<div class="sendbar"><span class="count" data-export-status></span>'
+    '<button type="button" class="btn primary" data-export '
+    'title="Notes stay in this browser until you send them.">Send feedback</button></div>'
+)
+
+
 def build_body(spec: dict, norm: dict, page_key: str, tmpdir: Path, use_mmdc: bool) -> tuple[str, dict, bool]:
     chapters = spec.get("chapters", [])
-    sheet_html, mermaid_left = render_mermaid(sheet.render_sheet(norm), norm, chapters, tmpdir, use_mmdc)
+    sheet_html, mermaid_left = render_mermaid(sheet.render_sheet(norm, SEND_BAR), norm, chapters, tmpdir, use_mmdc)
     built = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M %Z")
 
     o = [
@@ -391,13 +399,6 @@ def build_body(spec: dict, norm: dict, page_key: str, tmpdir: Path, use_mmdc: bo
             for i, ch in enumerate(chapters, start=1)
         )
         o.append("</section>")
-    o.append(
-        '<section class="fb"><p class="lede">Notes stay in this browser. "Copy feedback" turns them '
-        "into Markdown you can paste into the chat.</p>"
-        '<button type="button" class="btn" data-export>Copy feedback</button> '
-        '<span class="count" data-export-status></span>'
-        "<pre data-export-preview hidden></pre></section>"
-    )
     o.append(f'<footer class="pgfoot">Words on sheet: {norm["words"]} · built {esc(built)} from brief.json</footer>')
     o.append("</div>")
 
