@@ -3,7 +3,6 @@
   "kind": "finish",
   "state": "The branch is synced and all checks pass. Pick one next move.",
   "facts": [
-    {"k": "branch", "v": "feat/outbox"},
     {"k": "base", "v": "main"}
   ],
   "tree": {"repo": "../../..", "base": "HEAD~1", "head": "HEAD"},

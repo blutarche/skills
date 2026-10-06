@@ -1,9 +1,10 @@
 {
   "title": "Outbox retries: plan for feat/outbox",
   "kind": "plan",
+  "project": "outbox-service",
+  "branch": "feat/outbox",
   "state": "5 tasks in 3 waves. The plan is hardened and ready to run.",
   "facts": [
-    {"k": "branch", "v": "feat/outbox"},
     {"k": "waves", "v": "3"}
   ],
   "panels": [

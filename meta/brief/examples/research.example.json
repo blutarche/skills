@@ -1,6 +1,8 @@
 {
   "title": "Queue choice: research on outbox delivery",
   "kind": "research",
+  "project": "outbox-service",
+  "branch": "feat/outbox",
   "state": "6 claims checked. 4 hold, 1 was corrected, and 1 has no source.",
   "facts": [
     {"k": "question", "v": "Does the queue keep order?"},

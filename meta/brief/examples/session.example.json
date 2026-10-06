@@ -1,10 +1,9 @@
 {
   "title": "Outbox retries: session summary",
   "kind": "session",
+  "project": "outbox-service",
+  "branch": "feat/outbox",
   "state": "The retry work is half done. 2 risks need a call from you.",
-  "facts": [
-    {"k": "branch", "v": "feat/outbox"}
-  ],
   "panels": [
     {"role": "needs you", "type": "asks", "rows": [
       {"ask": "Accept risk R2 for the first release?", "why": "A fix needs a schema change.", "options": [{"label": "Accept the risk"}, {"label": "Fix it first"}], "recommended": 1, "multi": false},

@@ -12,9 +12,11 @@ report. Panels and rows link down to report sections with `more`.
   "title": "Outbox retries: review of feat/outbox",
   "kind": "vet",
   "state": "7 findings. 5 are fixed by default, 2 need you.",
+  "project": "outbox-service",
+  "branch": "feat/outbox",
   "blocked": false,
   "tree": {"repo": "/abs/path/to/repo", "base": "main", "head": "worktree"},
-  "facts": [{"k": "branch", "v": "feat/outbox"}, {"k": "reviewers", "v": "scrutinize, council"}],
+  "facts": [{"k": "reviewers", "v": "scrutinize, council"}],
   "panels": [
     {"role": "needs you", "type": "asks", "rows": [{"ask": "Fix F2 now or after merge?", "why": "It changes the retry API."}]},
     {"role": "findings", "type": "findings", "rows": [
@@ -48,12 +50,20 @@ Top level:
 |---|---|---|
 | `title` | yes | label |
 | `kind` | yes | one of `plan execute vet finish research grill session` |
+| `project` | yes, unless `tree` is given | literal, 60 characters at most; the repo or folder name |
+| `branch` | no | literal, 60 characters at most |
 | `state` | yes | prose, 2 sentences at most |
 | `blocked` | no | bool |
 | `tree` | when any `files` panel, `findings[].where`, or `tasks[].commit` exists | `{repo, base, head}` literals |
 | `facts` | no, 0 to 6 | `{k: label of 3 words at most, v: literal}` |
 | `panels` | yes, 1 to 8 | the first panel is `{"role": "needs you", "type": "asks"}`; its `rows` may be empty |
 | `chapters` | no, 0 to 12 | the full report; see Full report |
+
+With `tree`, the builder reads `project` and `branch` from git. The project is the main repo folder,
+even in a worktree. A detached head reads `detached at <sha>`. A `project` or `branch` in the spec
+wins. If the spec gives `branch`, `tree.head` is `HEAD` or `worktree`, and git names another branch,
+the build fails with `branch: spec says X, git says Y`. A spec without `tree` must give `project`.
+The page shows both at the top of the sheet and of the full report, and in the page title.
 
 `tree.repo` is absolute, or relative to the spec file's folder. `tree.head` is `HEAD`,
 `worktree`, or a sha. The old kinds `execution`, `investigation`, and `mixed` are gone, with no

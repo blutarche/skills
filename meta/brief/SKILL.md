@@ -155,6 +155,9 @@ Reply in 3 lines at most: the state (with the stamp), what needs the user (the c
 first ask), and the local path. Tell the user to answer on the page and press the floating "Send feedback" button. Add the link if a requested publish succeeded, or a note that it
 did not. Do not act on feedback in this skill; that is the next request.
 
+The pasted text starts with `Project: X · Branch: Y`, and `feedback/latest` has `project` and `branch`
+fields. If they do not match the current repo, stop and say so before you act.
+
 On the next turn, read the answers from the pasted block. For a page published with sync, they
 are also in the artifact database doc `feedback/latest`. In Claude Code, use the `ArtifactData`
 tool: action `get`, collection `feedback`, doc id `latest`. Read its `text` field. The pasted block

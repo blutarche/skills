@@ -1,9 +1,10 @@
 {
   "title": "Outbox retries: review of feat/outbox",
   "kind": "vet",
+  "project": "outbox-service",
+  "branch": "feat/outbox",
   "state": "7 findings. 5 are fixed by default and 2 need you.",
   "facts": [
-    {"k": "branch", "v": "feat/outbox"},
     {"k": "reviewers", "v": "scrutinize, council"}
   ],
   "panels": [

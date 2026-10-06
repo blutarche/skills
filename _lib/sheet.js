@@ -258,7 +258,9 @@
     }, 2500);
   }
   if (sheetExport) sheetExport.addEventListener("click", function () {
-    var md = sheetFeedback(), ans = sheetAnswers();
+    var sh = $(".sheet"), project = sh ? sh.getAttribute("data-project") || "" : "", branch = sh ? sh.getAttribute("data-branch") || "" : "";
+    var md = (project ? "Project: " + project + (branch ? " · Branch: " + branch : "") + "\n\n" : "") + sheetFeedback();
+    var ans = sheetAnswers();
     if (sheetPreview) sheetPreview.textContent = md;
     var copied = null, saved = null, db;
     function done() {
@@ -288,6 +290,8 @@
       });
       var doc = {
         title: ans.title,
+        project: project,
+        branch: branch,
         text: md,
         answers: ans.items.map(function (it) {
           return {

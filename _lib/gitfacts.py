@@ -83,3 +83,24 @@ def line_exists(root: Path, head: str, ref: str) -> bool:
 
 def commit_exists(root: Path, sha: str) -> bool:
     return _git(root, "cat-file", "-e", f"{sha}^{{commit}}").returncode == 0
+
+
+def project_name(root: Path) -> str | None:
+    """Name of the main repo folder. The common git dir is shared by every worktree; `--show-toplevel` is not."""
+    proc = _git(root, "rev-parse", "--path-format=absolute", "--git-common-dir")
+    if proc.returncode != 0:
+        return None
+    common = Path(proc.stdout.decode("utf-8", "replace").strip())
+    name = common.parent.name if common.name == ".git" else re.sub(r"\.git$", "", common.name)
+    return name or None
+
+
+def branch_name(root: Path) -> str | None:
+    """The checked-out branch, `detached at <sha7>` on a detached head, None when git cannot say."""
+    proc = _git(root, "symbolic-ref", "--short", "-q", "HEAD")
+    if proc.returncode == 0 and proc.stdout.strip():
+        return proc.stdout.decode("utf-8", "replace").strip()
+    sha = _git(root, "rev-parse", "--short=7", "HEAD")
+    if sha.returncode != 0:
+        return None
+    return f"detached at {sha.stdout.decode().strip()}"

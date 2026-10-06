@@ -10,6 +10,7 @@ Stdlib only, Python 3.10 or newer.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -343,6 +344,31 @@ def pack_rows(panels: list[dict]) -> None:
         row[-1]["span"] += left
 
 
+def _check_where(spec: dict, tree) -> tuple[str, str | None]:
+    """Resolve `project` and `branch`: a spec value wins, `tree` fills the gap. They are literals, so no voice lint."""
+    given = {}
+    for key in ("project", "branch"):
+        v = spec.get(key)
+        if v is None:
+            continue
+        if not isinstance(v, str) or not v.strip() or len(v) > 60:
+            pagelib.fail(f"{key}: must be a non-empty string of at most 60 characters")
+        given[key] = v.strip()
+    project, branch = given.get("project"), given.get("branch")
+    if tree is not None:
+        root, _, head = tree
+        git_branch = gitfacts.branch_name(root)
+        if branch is None:
+            branch = git_branch[:60] if git_branch else None
+        elif head in ("HEAD", "worktree") and git_branch and git_branch != branch:
+            pagelib.fail(f"branch: spec says {branch}, git says {git_branch}")
+        if project is None:
+            project = (gitfacts.project_name(root) or "")[:60] or None
+    if not project:
+        pagelib.fail('project: give "project" (repo or folder name) or "tree"')
+    return project, branch
+
+
 def check_sheet(spec: dict, *, kind: str, title: str, spec_dir: Path | None = None,
                 auto_panels: list[dict] | None = None,
                 targets: dict[str, tuple[int, str]] | None = None) -> dict:
@@ -375,6 +401,8 @@ def check_sheet(spec: dict, *, kind: str, title: str, spec_dir: Path | None = No
 
     tree = _resolve_tree(spec["tree"], spec_dir) if spec.get("tree") is not None else None
 
+    project, branch = _check_where(spec, tree)
+
     panels = spec.get("panels")
     if not isinstance(panels, list) or not 1 <= len(panels) <= 8:
         pagelib.fail("panels: must be a list of 1 to 8")
@@ -406,7 +434,7 @@ def check_sheet(spec: dict, *, kind: str, title: str, spec_dir: Path | None = No
     else:
         stamp, tone = READY_STAMP.get(kind, "DONE"), "ok"
     return {"title": title, "kind": kind, "state": state, "blocked": blocked, "stamp": stamp,
-            "stampTone": tone, "facts": norm_facts, "panels": normalized, "words": ctx.words}
+            "stampTone": tone, "project": project, "branch": branch, "facts": norm_facts, "panels": normalized, "words": ctx.words}
 
 
 # ---------------------------------------------------------------- rendering
@@ -640,15 +668,31 @@ def _render_panel(p: dict) -> str:
         f'</section>')
 
 
+BRANCH_ICON = ('<svg class="bico" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" fill="none" '
+               'stroke="currentColor" stroke-width="1.6"><circle cx="4" cy="3.5" r="1.7"/><circle cx="4" cy="12.5" r="1.7"/>'
+               '<circle cx="12" cy="5.5" r="1.7"/><path d="M4 5.2v5.6M12 7.2c0 3-8 1.6-8 3.6"/></svg>')
+
+
+def where_chips(project: str, branch: str | None) -> str:
+    """The project chip (one stable hue per name) and the branch chip."""
+    hue = int(hashlib.sha1(project.encode("utf-8")).hexdigest()[:4], 16) % 360
+    out = f'<span class="pchip" style="--hue:{hue}">{pagelib.esc(project)}</span>'
+    if branch:
+        out += f'<span class="bchip">{BRANCH_ICON}{pagelib.esc(branch)}</span>'
+    return out
+
+
 def render_sheet(sheet: dict) -> str:
     """Band, panel grid, and the title block with the color key."""
     tone = sheet["stampTone"]
     facts = "".join(f'<div><span class="kk">{_label(f["k"])}</span><span class="v">{pagelib.esc(f["v"])}</span></div>'
                     for f in sheet["facts"])
+    branch_attr = f' data-branch="{pagelib.esc(sheet["branch"])}"' if sheet["branch"] else ""
     key = "".join(f'<span><i class="sw sw-{c}"></i>{pagelib.esc(t)}</span>' for c, t in KEY_LANES)
     return (
-        f'<div class="sheet" id="sheet" data-kind="{sheet["kind"]}">'
-        f'<header class="band tone-{tone}"><div class="who"><div class="eyebrow">/{sheet["kind"]}</div>'
+        f'<div class="sheet" id="sheet" data-kind="{sheet["kind"]}" data-project="{pagelib.esc(sheet["project"])}"{branch_attr}>'
+        f'<header class="band tone-{tone}"><div class="who"><div class="where">'
+        f'{where_chips(sheet["project"], sheet["branch"])}<span class="eyebrow">/{sheet["kind"]}</span></div>'
         f'<h1>{_label(sheet["title"])}</h1><p class="state">{pagelib.sanitize_prose(sheet["state"])}</p></div>'
         f'<div class="stamp {tone}">{sheet["stamp"]}</div></header>'
         f'<div class="grid">{"".join(_render_panel(p) for p in sheet["panels"])}</div>'

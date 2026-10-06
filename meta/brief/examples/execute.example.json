@@ -3,7 +3,6 @@
   "kind": "execute",
   "state": "5 of 5 tasks are done. One task failed once and passed on retry.",
   "facts": [
-    {"k": "branch", "v": "feat/outbox"},
     {"k": "waves", "v": "3"}
   ],
   "tree": {"repo": "../../..", "base": "HEAD~1", "head": "HEAD"},

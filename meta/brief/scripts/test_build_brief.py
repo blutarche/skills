@@ -49,6 +49,8 @@ def valid_spec() -> dict:
     return {
         "title": "Outbox retries: review of feat/outbox",
         "kind": "vet",
+        "project": "outbox-service",
+        "branch": "feat/outbox",
         "state": "3 findings. 2 are fixed by default.",
         "facts": [{"k": "branch", "v": "feat/outbox"}],
         "panels": [
@@ -293,6 +295,25 @@ class BuildBriefTest(unittest.TestCase, Harness):
         for needle in ('"\u2713 Sent"', ".dock-toast.ok", ".dock-toast.warn", ".dock .send.sent",
                        "prefers-reduced-motion"):
             self.assertIn(needle, page)
+
+    def test_title_and_report_header_carry_project_and_branch(self) -> None:
+        page = self.build(valid_spec(), self.dir).out.read_text(encoding="utf-8")
+        self.assertIn("<title>outbox-service · feat/outbox · Outbox retries: review of feat/outbox</title>", page)
+        rhead = page[page.index('<div class="rhead">'):page.index("data-toggle-all")]
+        self.assertIn('class="pchip"', rhead)
+        self.assertIn('class="bchip"', rhead)
+        self.assertIn('data-project="outbox-service" data-branch="feat/outbox"', page)
+        spec = valid_spec()
+        del spec["branch"]
+        page = self.build(spec, self.dir).out.read_text(encoding="utf-8")
+        self.assertIn("<title>outbox-service · Outbox retries", page)
+
+    def test_missing_project_fails_the_build(self) -> None:
+        spec = valid_spec()
+        del spec["project"]
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn('project: give "project"', r.stderr)
 
     # ---------------------------------------------------------------- prose rules
     def test_long_chapter_prose_builds(self) -> None:

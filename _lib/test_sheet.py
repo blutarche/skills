@@ -11,6 +11,7 @@ import copy
 import re
 import subprocess
 import sys
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -25,8 +26,9 @@ import voice  # noqa: E402
 
 def vet_spec() -> dict:
     return {
+        "project": "outbox-service",
         "state": "3 findings. 2 are fixed by default.",
-        "facts": [{"k": "branch", "v": "feat/outbox"}],
+        "facts": [{"k": "reviewers", "v": "scrutinize, council"}],
         "panels": [
             {"role": "needs you", "type": "asks", "rows": []},
             {"role": "findings", "type": "findings", "rows": [
@@ -218,7 +220,7 @@ class SheetTest(unittest.TestCase):
         s = check(vet_spec())
         html = sheet.render_sheet(s)
         for needle in ['class="stamp ok"', ">DONE<", 'data-letter="A"', "✓ Nothing needs you", "sev-strip",
-                       'aria-label="scrutinize found 2, council found 2, both found 1"', "feat/outbox", 'class="key"']:
+                       'aria-label="scrutinize found 2, council found 2, both found 1"', "outbox-service", 'class="key"']:
             self.assertIn(needle, html)
         self.assertEqual(html.count('data-default="fix"'), 2)
         self.assertEqual(html.count('data-default="skip"'), 1)
@@ -285,9 +287,56 @@ class SheetTest(unittest.TestCase):
         self.assertEqual(self.spans(mk("figure")), [4, 8])
         self.assertEqual(self.spans(mk("tasks"), mk("decisions")), [4, 8, 12])
         self.assertEqual(self.spans(mk("table", span=6)), [4, 8])
-        s = check({"state": "Done.", "panels": [{"role": "needs you", "type": "asks", "rows": [], "span": 12},
+        s = check({"project": "p", "state": "Done.", "panels": [{"role": "needs you", "type": "asks", "rows": [], "span": 12},
                                                 mk("checks")]}, "session")
         self.assertEqual([p["span"] for p in s["panels"]], [12, 12])
+
+    def where_spec(self, **extra):
+        return {"state": "Done.", "panels": [{"role": "needs you", "type": "asks", "rows": []}], **extra}
+
+    def test_40_project_and_branch_from_tree(self):
+        n = check(self.where_spec(tree=self.tree), "session")
+        self.assertEqual((n["project"], n["branch"]), (self.root.name, "main"))
+
+    def test_41_worktree_uses_the_main_repo_name(self):
+        wt = self.root.parent / (self.root.name + "-feat-x")
+        git(self.root, "worktree", "add", "-q", "-b", "feat/x", str(wt))
+        self.addCleanup(lambda: shutil.rmtree(wt, ignore_errors=True))
+        n = check(self.where_spec(tree={**self.tree, "repo": str(wt)}), "session")
+        self.assertEqual((n["project"], n["branch"]), (self.root.name, "feat/x"))
+
+    def test_42_detached_head(self):
+        git(self.root, "checkout", "-q", "--detach", self.sha)
+        n = check(self.where_spec(tree=self.tree), "session")
+        self.assertEqual(n["branch"], "detached at " + self.sha[:7])
+
+    def test_43_spec_value_wins_and_mismatch_fails(self):
+        n = check(self.where_spec(tree={**self.tree, "head": self.sha}, project="Acme", branch="release"), "session")
+        self.assertEqual((n["project"], n["branch"]), ("Acme", "release"))
+        self.assertEqual(check(self.where_spec(tree=self.tree, project="Acme"), "session")["branch"], "main")
+        for head in ("HEAD", "worktree"):
+            msg = fails(self, self.where_spec(tree={**self.tree, "head": head}, branch="release"), "session")
+            self.assertEqual(msg, "branch: spec says release, git says main")
+
+    def test_44_project_is_required_without_tree(self):
+        msg = fails(self, self.where_spec(), "session")
+        self.assertEqual(msg, 'project: give "project" (repo or folder name) or "tree"')
+        n = check(self.where_spec(project="Acme"), "session")
+        self.assertEqual((n["project"], n["branch"]), ("Acme", None))
+        for bad in ("", "x" * 61, 7):
+            with self.subTest(bad=bad):
+                self.assertIn("project: must be a non-empty string", fails(self, self.where_spec(project=bad), "session"))
+
+    def test_45_header_holds_chips_and_data_attributes(self):
+        html = sheet.render_sheet(check(self.where_spec(project="Acme", branch="feat/x"), "session"))
+        self.assertIn('data-project="Acme" data-branch="feat/x"', html)
+        self.assertRegex(html, r'<span class="pchip" style="--hue:\d+">Acme</span><span class="bchip"><svg[^>]*aria-hidden="true"')
+        self.assertLess(html.index('class="pchip"'), html.index('class="bchip"'))
+        self.assertLess(html.index('class="bchip"'), html.index('class="eyebrow"'))
+        self.assertLess(html.index('class="where"'), html.index("<h1>"))
+        nob = sheet.render_sheet(check(self.where_spec(project="Acme"), "session"))
+        self.assertNotIn("data-branch", nob)
+        self.assertNotIn("bchip", nob)
 
     def test_18_checks_cwd_cell(self):
         spec = vet_spec()

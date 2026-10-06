@@ -373,6 +373,10 @@ def render_chapter(idx: int, ch: dict) -> str:
     return "\n".join(o)
 
 
+def page_title(title: str, norm: dict) -> str:
+    return " · ".join(p for p in (norm["project"], norm["branch"], title) if p)
+
+
 def render_dock(has_chapters: bool) -> str:
     """The fixed bottom-right dock: back-to-sheet (chapters only), Send feedback, the toast, and the blocked-clipboard popover."""
     back = '<button type="button" class="tosheet" hidden>\u2191 Back to sheet</button>' if has_chapters else ""
@@ -398,6 +402,7 @@ def build_body(spec: dict, norm: dict, page_key: str, tmpdir: Path, use_mmdc: bo
     ]
     if chapters:
         o.append('<section class="report" id="report"><div class="rhead"><h2>Full report</h2>'
+                 f'<div class="where">{sheet.where_chips(norm["project"], norm["branch"])}</div>'
                  '<button type="button" class="btn" data-toggle-all>Open all</button></div>')
         o.extend(
             render_chapter(i, ch) for i, ch in enumerate(chapters, start=1)
@@ -463,7 +468,7 @@ def main() -> None:
         page_key = hashlib.sha256(spec_bytes).hexdigest()[:12]
         with tempfile.TemporaryDirectory() as tmp:
             body, stats, mermaid_left = build_body(spec, norm, page_key, Path(tmp), not args.no_mmdc)
-        document, fragment = pagelib.assemble(shell, esc(spec["title"]), body)
+        document, fragment = pagelib.assemble(shell, esc(page_title(spec["title"], norm)), body)
     except pagelib.BuildFailed as e:
         document, fragment = pagelib.assemble(shell, "Build failed", sheet.render_failure(e.msg, args.spec))
         Path(args.out).write_text(document, encoding="utf-8")
