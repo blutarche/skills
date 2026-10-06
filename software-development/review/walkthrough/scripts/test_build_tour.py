@@ -836,6 +836,13 @@ class SheetTest(unittest.TestCase):
             self.assertNotIn("<pre data-export-preview hidden>", page)
             self.assertIn('data-project="repo"', page)
 
+    def test_no_text_link_toc_row(self) -> None:
+        for spec in (valid_spec(self.base, self.head), self.sheet_spec()):
+            page = self.page(spec)
+            self.assertNotIn('class="toc"', page)
+            self.assertNotIn('aria-label="Sections"', page)
+            self.assertIn("data-continue", page)
+
     def test_tour_sheet_shows_project_and_branch_chips(self) -> None:
         page = self.page(self.sheet_spec())
         self.assertIn('class="pchip"', page)

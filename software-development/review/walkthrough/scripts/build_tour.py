@@ -1234,23 +1234,6 @@ def build_body(spec: dict, root: Path, pr_lens_views: list[PrLensView]) -> tuple
     o.append('<div class="bar"><i data-bar></i></div>')
     o.append("</div></header>")
 
-    # ---- nav
-    nav = [("overview", "Overview"), ("pr-lens", "Architecture and data flow")]
-    if spec.get("focus"):
-        nav.append(("focus", "Where to focus"))
-    if spec.get("intuition"):
-        nav.append(("intuition", "Intuition"))
-    if spec.get("background"):
-        nav.append(("background", "Background"))
-    nav.append(("tour", "Walkthrough"))
-    nav.append(("everything-else", "Everything else"))
-    if spec.get("verify"):
-        nav.append(("verify", "Verify"))
-    nav.append(("notes", "Notes"))
-    o.append('<nav class="toc" aria-label="Sections">')
-    o.extend(f'<a href="#{i}">{esc(t)}</a>' for i, t in nav)
-    o.append("</nav>")
-
     # ---- overview
     o.append('<section id="overview"><h2>Overview</h2>')
     o.append(sanitize_prose(spec["overview"]))
