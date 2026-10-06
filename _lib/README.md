@@ -12,6 +12,7 @@ still gets a real, self-contained `lib/` directory.
 | `pagelib.py`, `page.css`, `notes.js` | Page shell helpers, base styles, notes kept in the browser. |
 | `voice.py`, `voice-words.json`, `voice.md` | Simple English lint. A build fails on a hard word or a long sentence. |
 | `svg.py` | Allowlist for SVG figures that an agent draws. |
+| `dock.py`, `dock.css`, `dock.js` | The floating Send feedback dock that the brief and the walkthrough share: markup, styles, script. It needs no sheet. |
 | `gitfacts.py` | Reads git: changed files, line counts, if a `path:line` or commit exists, and the project and branch names. |
 | `figures.py` | Figures the builder draws: task waves, Venn, severity strip, decision tree, risk matrix, claim stack. |
 | `sheet.py`, `sheet.css`, `sheet.js` | The report sheet: schema, required panels per kind, panel HTML, styles, the send handler. Every sheet shows its project and branch: from `tree`, or from the spec's `project` and `branch`; the copied feedback and `feedback/latest` carry both. |

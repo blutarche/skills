@@ -97,7 +97,10 @@ facts and the walkthrough. Without it the page is unchanged. Write the words by 
 - Panel letters follow the order on the page: `needs you` is A, `checks` is B, `files` is C.
 - The stats strip in Overview is hidden when a sheet is present.
 - Asks can carry `options`, `recommended`, and `multi` the same way; see the brief spec.
-- One Copy feedback button covers both: it adds the sheet notes and fix or skip choices after the tour notes.
+- One floating "Send feedback" button, bottom right, covers both: it adds the sheet answers, notes, and fix or skip
+  choices to the tour notes. It is the same dock as the brief's, with the same toast and "✓ Sent" flip.
+  Inside a claude.ai artifact viewer it also writes the doc `feedback/latest`, with the brief's fields. Tour
+  chapter notes sit in `notes` by chapter id, plus `general`. "Back to sheet" shows only when the tour has a sheet.
 - If a sheet build fails, the page at `--out` becomes a BUILD FAILED page that shows the error.
   A build without a sheet leaves the old page in place.
 

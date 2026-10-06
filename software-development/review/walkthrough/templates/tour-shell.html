@@ -123,7 +123,7 @@ td.col-command{width:auto}
 footer{padding-top:20px;font-family:var(--mono);font-size:11.5px;color:var(--ink-2);border-top:1px solid var(--line)}
 .sr{position:absolute;left:-9999px}
 @media (max-width:760px){
-  .wrap{padding:0 16px 56px}
+  .wrap{padding:0 16px 96px}
   header.top h1{font-size:23px}
   .chapter .overview,.file{margin-left:0}
   .chapter-head{grid-template-columns:28px 1fr}
@@ -253,14 +253,16 @@ footer{padding-top:20px;font-family:var(--mono);font-size:11.5px;color:var(--ink
     return out.join("\n");
   }
 
-  var ex = $("[data-export]"), exs = $("[data-export-status]"), exp = $("[data-export-preview]");
-  if (ex) ex.addEventListener("click", function () {
-    var md = feedbackMarkdown();
-    if (exp) { exp.textContent = md; exp.hidden = false; }
-    copyText(md, function (ok) {
-      if (exs) exs.textContent = ok ? "Copied to the clipboard. Preview below." : "Clipboard blocked. Copy from the preview below.";
+  // The shared dock sends this. sheetParts exists only when the tour has a sheet.
+  dockCollect = function () {
+    var parts = typeof sheetParts === "function" ? sheetParts() : { answers: [], notes: {}, fix: [], skip: [] };
+    var notes = {};
+    Object.keys(state.notes).forEach(function (id) {
+      if ((state.notes[id] || "").trim()) notes[id] = state.notes[id].trim();
     });
-  });
+    Object.keys(parts.notes).forEach(function (id) { notes[id] = parts.notes[id]; });
+    return { title: DOC_TITLE, text: feedbackMarkdown(), answers: parts.answers, notes: notes, fix: parts.fix, skip: parts.skip };
+  };
 
 <!-- SHEET:SCRIPT -->
   applyRead();

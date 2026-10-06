@@ -115,7 +115,7 @@ numbers match what you expected, and you have looked at the page as described ab
 ### 5. Deliver
 
 **Always:** `open "$DIR/tour.html"` on macOS, `xdg-open` on Linux. Print the local path. Feedback
-comes back through the page: Notes, then "Copy feedback", then paste into the chat.
+comes back through the page: Notes, then the floating "Send feedback" button, then paste into the chat.
 
 **On top of that, only when the user explicitly asks to publish or share the tour online:** on
 Claude Code, publish `tour.fragment.html` as an artifact (title = the spec title, `icon` = one

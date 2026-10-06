@@ -41,7 +41,9 @@ LIB_STYLE, LIB_SCRIPT = "<!-- LIB:STYLE -->", "<!-- LIB:SCRIPT -->"
 SHEET_STYLE, SHEET_SCRIPT = "<!-- SHEET:STYLE -->", "<!-- SHEET:SCRIPT -->"
 
 sys.path.insert(0, str(LIB_DIR))
-import pagelib  # noqa: E402  (needs sys.path set up above)
+import dock  # noqa: E402  (needs sys.path set up above)
+import gitfacts  # noqa: E402
+import pagelib  # noqa: E402
 import sheet  # noqa: E402
 import voice  # noqa: E402
 
@@ -1077,11 +1079,9 @@ def render_pr_lens_view(view: PrLensView, index: int) -> str:
     )
 
 
-# Runs after the tour's export wiring and before sheet.js. sheet.js binds the first
-# [data-export] it finds, which is the tour's Copy feedback button, so the tour drops that hook
-# first. One button then copies the tour notes plus the sheet notes and fix/skip choices.
+# Runs after the tour's dock wiring and before sheet.js. The dock sends the tour's feedback text;
+# this adds the sheet answers, notes, and fix/skip choices to it.
 SHEET_GLUE = """
-  if (ex) ex.removeAttribute("data-export");
   var tourFeedback = feedbackMarkdown;
   feedbackMarkdown = function () {
     var md = tourFeedback(), extra = [];
@@ -1143,6 +1143,11 @@ def build_sheet(spec: dict, root: Path, files: dict[str, FileDiff]) -> str:
     norm = sheet.check_sheet(block | {"tree": tree}, kind="execute", title=spec["title"], auto_panels=auto,
                              targets=targets)
     return sheet.render_sheet(norm)
+
+
+def project_branch(root: Path) -> tuple[str, str | None]:
+    """The main repo folder name and the checked-out branch, both from git."""
+    return gitfacts.project_name(root) or root.name, gitfacts.branch_name(root)
 
 
 def build_body(spec: dict, root: Path, pr_lens_views: list[PrLensView]) -> tuple[str, dict]:
@@ -1385,8 +1390,8 @@ def build_body(spec: dict, root: Path, pr_lens_views: list[PrLensView]) -> tuple
     # ---- notes
     o.append('<section id="notes" class="notes"><h2>Notes</h2>')
     o.append(
-        '<p class="lede">Kept in this browser only. "Copy feedback" turns your notes into Markdown you can paste '
-        "back into the chat.</p>"
+        '<p class="lede">Kept in this browser only. Press Send feedback at the bottom right to copy your notes '
+        "as Markdown, then paste them back into the chat.</p>"
     )
     for ch in chapters:
         o.append('<div class="note">')
@@ -1398,10 +1403,8 @@ def build_body(spec: dict, root: Path, pr_lens_views: list[PrLensView]) -> tuple
         o.append("</div>")
     o.append('<div class="note global"><label for="note-general">Anything else</label>')
     o.append('<textarea id="note-general" data-note="general" placeholder="Notes that belong to no chapter."></textarea></div>')
-    o.append('<p><button type="button" class="btn primary" data-export>Copy feedback</button> ')
-    o.append('<span class="count" data-export-status></span></p>')
-    o.append("<pre data-export-preview hidden></pre>")
     o.append("</section>")
+    o.append(dock.render_dock(*project_branch(root), has_sheet))
 
     o.append(
         f'<footer>Built from review-tour.json against {esc(head_label)} on {esc(built)}. '
@@ -1458,8 +1461,9 @@ def main() -> None:
         fail(f"{template}: missing {LIB_STYLE} or {LIB_SCRIPT} marker")
     # rstrip: the marker carries no trailing newline of its own, and the lib files each end
     # with one, so keeping it would insert a blank line the original template never had
-    shell = shell.replace(LIB_STYLE, (LIB_DIR / "page.css").read_text(encoding="utf-8").rstrip("\n"))
-    shell = shell.replace(LIB_SCRIPT, (LIB_DIR / "notes.js").read_text(encoding="utf-8").rstrip("\n"))
+    dock_css, dock_js = dock.assets()
+    shell = shell.replace(LIB_STYLE, (LIB_DIR / "page.css").read_text(encoding="utf-8").rstrip("\n") + "\n" + dock_css.rstrip("\n"))
+    shell = shell.replace(LIB_SCRIPT, (LIB_DIR / "notes.js").read_text(encoding="utf-8").rstrip("\n") + "\n" + dock_js.rstrip("\n"))
 
     has_sheet = isinstance(spec, dict) and "sheet" in spec
     try:

@@ -822,9 +822,19 @@ class SheetTest(unittest.TestCase):
         page = self.out.read_text(encoding="utf-8")
         self.assertIn("BUILD FAILED", page)
 
-    def test_one_copy_feedback_button(self) -> None:
-        page = self.page(self.sheet_spec())
-        self.assertEqual(page.count("data-export>"), 1)
+    def test_one_dock_with_and_without_a_sheet(self) -> None:
+        for spec, back in ((valid_spec(self.base, self.head), 0), (self.sheet_spec(), 1)):
+            page = self.page(spec)
+            self.assertEqual(page.count('<div class="dock"'), 1)
+            self.assertEqual(page.count('class="tosheet"'), back)
+            self.assertEqual(page.count("data-export "), 1)
+            self.assertIn("data-export-status hidden", page)
+            self.assertIn('<div class="dock-pop" hidden>', page)
+            self.assertIn("dockCollect = function", page)
+            self.assertIn("function dockCopy", page)
+            self.assertNotIn("Copy feedback", page)
+            self.assertNotIn("<pre data-export-preview hidden>", page)
+            self.assertIn('data-project="repo"', page)
 
     def test_tour_sheet_shows_project_and_branch_chips(self) -> None:
         page = self.page(self.sheet_spec())
