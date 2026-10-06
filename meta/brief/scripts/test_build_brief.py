@@ -266,8 +266,9 @@ class BuildBriefTest(unittest.TestCase, Harness):
         page = r.out.read_text(encoding="utf-8")
         for hook in ("data-export ", "data-export-status", "data-export-preview"):
             self.assertIn(hook, page)
-        self.assertEqual(page.count("function sheetCopy"), 1)
+        self.assertEqual(page.count("function dockCopy"), 1)
         self.assertNotIn("function copyText", page)
+        self.assertNotIn("function sheetCopy", page)
 
     def test_dock_holds_send_feedback_outside_the_sheet(self) -> None:
         asks = valid_spec()
@@ -276,9 +277,9 @@ class BuildBriefTest(unittest.TestCase, Harness):
         bare["chapters"] = []
         for spec in (valid_spec(), asks, bare):
             page = self.build(spec, self.dir).out.read_text(encoding="utf-8")
-            self.assertEqual(page.count('<div class="dock">'), 1)
-            dock = page[page.index('<div class="dock">'):]
-            self.assertGreater(page.index('<div class="dock">'), page.index('</footer></div>'))
+            self.assertEqual(page.count('<div class="dock" data-project='), 1)
+            dock = page[page.index('<div class="dock" data-project='):]
+            self.assertGreater(page.index('<div class="dock" data-project='), page.index('</footer></div>'))
             self.assertIn('<div class="dock-pop" hidden>', dock)
             self.assertIn("<pre data-export-preview></pre>", dock)
             self.assertIn('class="dock-toast" role="status" aria-live="polite" data-export-status hidden', dock)

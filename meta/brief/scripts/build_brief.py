@@ -39,6 +39,7 @@ SHEET_STYLE, SHEET_SCRIPT = "<!-- SHEET:STYLE -->", "<!-- SHEET:SCRIPT -->"
 
 sys.path.insert(0, str(LIB_DIR))
 import pagelib  # noqa: E402  (needs sys.path set up above)
+import dock  # noqa: E402
 import sheet  # noqa: E402
 import svg  # noqa: E402
 import voice  # noqa: E402
@@ -377,20 +378,6 @@ def page_title(title: str, norm: dict) -> str:
     return " · ".join(p for p in (norm["project"], norm["branch"], title) if p)
 
 
-def render_dock(has_chapters: bool) -> str:
-    """The fixed bottom-right dock: back-to-sheet (chapters only), Send feedback, the toast, and the blocked-clipboard popover."""
-    back = '<button type="button" class="tosheet" hidden>\u2191 Back to sheet</button>' if has_chapters else ""
-    return (
-        '<div class="dock">'
-        '<div class="dock-pop" hidden><pre data-export-preview></pre>'
-        '<button type="button" class="btn" data-pop-close>Close</button></div>'
-        '<div class="dock-toast" role="status" aria-live="polite" data-export-status hidden></div>'
-        f'<div class="dock-row">{back}'
-        '<button type="button" class="send" data-export title="Notes stay in this browser until you send them.">'
-        'Send feedback</button></div></div>'
-    )
-
-
 def build_body(spec: dict, norm: dict, page_key: str, tmpdir: Path, use_mmdc: bool) -> tuple[str, dict, bool]:
     chapters = spec.get("chapters", [])
     sheet_html, mermaid_left = render_mermaid(sheet.render_sheet(norm), norm, chapters, tmpdir, use_mmdc)
@@ -408,7 +395,7 @@ def build_body(spec: dict, norm: dict, page_key: str, tmpdir: Path, use_mmdc: bo
             render_chapter(i, ch) for i, ch in enumerate(chapters, start=1)
         )
         o.append("</section>")
-    o.append(render_dock(bool(chapters)))
+    o.append(dock.render_dock(norm["project"], norm["branch"], bool(chapters)))
     o.append(f'<footer class="pgfoot">Words on sheet: {norm["words"]} · built {esc(built)} from brief.json</footer>')
     o.append("</div>")
 
@@ -437,8 +424,9 @@ def load_shell(template: Path) -> str:
         if marker not in shell:
             fail(f"{template}: missing {marker} marker")
     sheet_css, sheet_js = sheet.assets()
-    for marker, path in ((LIB_STYLE, LIB_DIR / "page.css"), (LIB_SCRIPT, LIB_DIR / "notes.js")):
-        shell = shell.replace(marker, path.read_text(encoding="utf-8").rstrip("\n"))
+    dock_css, dock_js = dock.assets()
+    for marker, path, extra in ((LIB_STYLE, LIB_DIR / "page.css", dock_css), (LIB_SCRIPT, LIB_DIR / "notes.js", dock_js)):
+        shell = shell.replace(marker, path.read_text(encoding="utf-8").rstrip("\n") + "\n" + extra.rstrip("\n"))
     shell = shell.replace(SHEET_STYLE, sheet_css.rstrip("\n"))
     return shell.replace(SHEET_SCRIPT, sheet_js.rstrip("\n"))
 

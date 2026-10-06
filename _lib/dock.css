@@ -1,0 +1,14 @@
+.wrap{padding-bottom:120px}
+.dock{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:10;display:flex;flex-direction:column;align-items:flex-end;gap:8px;max-width:calc(100vw - 32px)}
+.dock-row{display:flex;gap:8px}
+.tosheet,.dock .send{min-height:44px;padding:0 20px;border:0;border-radius:22px;background:var(--blu,var(--accent));color:var(--surface);font:600 14px var(--sans);box-shadow:0 2px 8px rgba(0,0,0,.3);cursor:pointer}
+.tosheet[hidden],.dock-pop[hidden],.dock-toast[hidden]{display:none}
+.dock-pop{width:min(560px,calc(100vw - 32px));box-sizing:border-box;background:var(--surface);border:1px solid var(--ink);box-shadow:0 2px 8px rgba(0,0,0,.3);padding:8px 12px}
+.dock-pop pre{max-height:50vh;overflow:auto;margin:0 0 8px;font-size:12px;white-space:pre-wrap}
+.dock-pop .btn{font:12px var(--mono);border:1px solid var(--ink);background:var(--surface);color:var(--ink);padding:6px 12px;min-height:32px;cursor:pointer}
+.dock-toast{box-sizing:border-box;font:600 13px var(--sans);padding:8px 14px;border-radius:8px;border:1px solid var(--line);box-shadow:0 2px 8px rgba(0,0,0,.3)}
+.dock-toast.ok{background:var(--green-bg);color:var(--green);border-color:var(--green)}
+.dock-toast.warn{background:var(--amber-bg);color:var(--amber);border-color:var(--amber)}
+.dock .send{transition:background-color .15s}
+.dock .send.sent{background:var(--green);color:var(--surface)}
+@media (prefers-reduced-motion:reduce){.dock .send{transition:none}}

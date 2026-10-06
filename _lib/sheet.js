@@ -2,22 +2,6 @@
   state.toggles = state.toggles || {};
   state.answers = state.answers || {};
 
-  function sheetCopy(text, done) {
-    function ok() { if (done) done(true); }
-    function no() { if (done) done(false); }
-    function fallback() {
-      var ta = document.createElement("textarea");
-      ta.value = text; ta.className = "sr";
-      document.body.appendChild(ta); ta.select();
-      var copied = false;
-      try { copied = document.execCommand("copy"); } catch (e) { copied = false; }
-      document.body.removeChild(ta);
-      if (copied) ok(); else no();
-    }
-    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(ok, fallback);
-    else fallback();
-  }
-
   $$(".note-btn").forEach(function (b) {
     var letter = b.getAttribute("data-for");
     var ta = $('textarea[data-note="' + letter + '"]');
@@ -127,7 +111,6 @@
     return out.join("\n");
   }
 
-  var sheetExport = $("[data-export]"), sheetStatus = $("[data-export-status]"), sheetPreview = $("[data-export-preview]");
   // Asks: option buttons and an Other field per card. state.answers[n] = { picks: [option numbers], other: text }.
   var askCards = $$(".asks > li[data-ask]");
   function askState(li) {
@@ -220,99 +203,34 @@
     return { title: title, items: items, text: lines.join("\n") };
   }
 
-  // Inside a claude.ai artifact viewer only: claude.use("db") resolves to a database, or null.
-  // Send waits on this promise, so a click before the viewer answers still saves.
-  var claudeDb = Promise.resolve(null);
-  if (window.claude && typeof window.claude.use === "function") {
-    try {
-      claudeDb = Promise.resolve(window.claude.use("db")).then(function (db) { return db || null; }, function () { return null; });
-    } catch (e) { claudeDb = Promise.resolve(null); }
+  // The dock sends whatever dockCollect returns. A host page that set it first (the tour) keeps its own.
+  function sheetParts() {
+    var ans = sheetAnswers(), notes = {}, fix = [], skip = [];
+    $$("textarea[data-note]").forEach(function (ta) {
+      if (ta.value.trim()) notes[ta.getAttribute("data-note")] = ta.value.trim();
+    });
+    $$(".tog").forEach(function (t) {
+      var p = $('[aria-pressed="true"]', t);
+      (p && p.getAttribute("data-v") === "fix" ? fix : skip).push(t.getAttribute("data-id"));
+    });
+    return {
+      title: ans.title,
+      answers: ans.items.map(function (it) {
+        return {
+          n: it.n, ask: it.ask,
+          picks: it.picks.map(function (p) { return p.label; }),
+          other: it.other,
+          recommended: it.picks.some(function (p) { return p.rec; })
+        };
+      }),
+      notes: notes, fix: fix, skip: skip
+    };
   }
-
-  var sheetPop = $(".dock-pop"), popClose = $("[data-pop-close]");
-  var toastTimer = null, flipTimer = null;
-  if (popClose) popClose.addEventListener("click", function () {
-    sheetPop.hidden = true;
-    if (sheetStatus) sheetStatus.hidden = true;
-  });
-  // Green for the two success-only messages, amber for any message that names a problem.
-  // A blocked-clipboard toast stays while the popover is open; the rest hide after 4 seconds.
-  function sheetSay(msg) {
-    if (!sheetStatus) return;
-    var good = msg === "Copied." || msg === "Copied. Saved for the agent.";
-    sheetStatus.textContent = msg;
-    sheetStatus.className = "dock-toast " + (good ? "ok" : "warn");
-    sheetStatus.hidden = false;
-    clearTimeout(toastTimer);
-    if (!(sheetPop && !sheetPop.hidden)) toastTimer = setTimeout(function () { sheetStatus.hidden = true; }, 4000);
-  }
-  // The button confirms for 2.5 seconds; a click during the flip sends again and restarts it.
-  function sheetFlip() {
-    if (!sheetExport) return;
-    sheetExport.textContent = "✓ Sent";
-    sheetExport.classList.add("sent");
-    clearTimeout(flipTimer);
-    flipTimer = setTimeout(function () {
-      sheetExport.textContent = "Send feedback";
-      sheetExport.classList.remove("sent");
-    }, 2500);
-  }
-  if (sheetExport) sheetExport.addEventListener("click", function () {
-    var sh = $(".sheet"), project = sh ? sh.getAttribute("data-project") || "" : "", branch = sh ? sh.getAttribute("data-branch") || "" : "";
-    var md = (project ? "Project: " + project + (branch ? " · Branch: " + branch : "") + "\n\n" : "") + sheetFeedback();
-    var ans = sheetAnswers();
-    if (sheetPreview) sheetPreview.textContent = md;
-    var copied = null, saved = null, db;
-    function done() {
-      if (copied === null || db === undefined || (db && saved === null)) return;
-      var msg;
-      if (copied) msg = saved === false ? "Copied. Could not save on the page." : saved ? "Copied. Saved for the agent." : "Copied.";
-      else msg = saved ? "Saved for the agent. Clipboard blocked; copy the text in the box." : "Clipboard blocked. Copy the text in the box.";
-      if (copied || saved) sheetFlip();
-      if (sheetPreview && !copied && sheetPop) sheetPop.hidden = false;
-      sheetSay(msg);
-      if (sheetPreview && !copied) {
-        sheetPreview.hidden = false;
-        var r = document.createRange(); r.selectNodeContents(sheetPreview);
-        var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
-      }
-    }
-    sheetCopy(md, function (ok) { copied = ok; done(); });
-    claudeDb.then(function (d) { db = d; if (db) save(); else done(); });
-    function save() {
-      var notes = {}, fix = [], skip = [];
-      $$("textarea[data-note]").forEach(function (ta) {
-        if (ta.value.trim()) notes[ta.getAttribute("data-note")] = ta.value.trim();
-      });
-      $$(".tog").forEach(function (t) {
-        var p = $('[aria-pressed="true"]', t);
-        (p && p.getAttribute("data-v") === "fix" ? fix : skip).push(t.getAttribute("data-id"));
-      });
-      var doc = {
-        title: ans.title,
-        project: project,
-        branch: branch,
-        text: md,
-        answers: ans.items.map(function (it) {
-          return {
-            n: it.n, ask: it.ask,
-            picks: it.picks.map(function (p) { return p.label; }),
-            other: it.other,
-            recommended: it.picks.some(function (p) { return p.rec; })
-          };
-        }),
-        notes: notes,
-        fix: fix,
-        skip: skip,
-        sentAt: new Date().toISOString()
-      };
-      try {
-        db.doc("feedback/latest").set(doc).then(
-          function () { saved = true; done(); },
-          function () { saved = false; done(); });
-      } catch (e) { saved = false; done(); }
-    }
-  });
+  if (!dockCollect) dockCollect = function () {
+    var p = sheetParts();
+    p.text = sheetFeedback();
+    return p;
+  };
 
   // Whole-row navigation. A click on a [data-go] row or panel header opens its section, unless it hit
   // a control. The go-a anchor stays a real link for keyboard and no-script use.
@@ -363,17 +281,19 @@
       return;
     }
   });
-  // One floating button: visible only while the report is on screen and the sheet is not.
+  // The dock's back button: visible while the report is on screen and the sheet is not. A page with no
+  // #report (the tour) counts everything below the sheet as the report.
   var toSheet = $(".tosheet"), reportEl = $("#report"), sheetEl = $("#sheet");
-  if (toSheet && reportEl && sheetEl) {
-    var seen = { report: false, sheet: false };
+  if (toSheet && sheetEl) {
+    var seen = { report: !reportEl, sheet: false };
     var toSheetShow = function () { toSheet.hidden = !(seen.report && !seen.sheet); };
     if (window.IntersectionObserver) {
       var io = new IntersectionObserver(function (entries) {
-        entries.forEach(function (en) { seen[en.target === reportEl ? "report" : "sheet"] = en.isIntersecting; });
+        entries.forEach(function (en) { seen[en.target === sheetEl ? "sheet" : "report"] = en.isIntersecting; });
         toSheetShow();
       });
-      io.observe(reportEl); io.observe(sheetEl);
+      if (reportEl) io.observe(reportEl);
+      io.observe(sheetEl);
     } else toSheet.hidden = false;
     toSheet.addEventListener("click", function () {
       if (lastGo && document.body.contains(lastGo)) {
