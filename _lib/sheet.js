@@ -234,13 +234,12 @@
   }
 
   // Inside a claude.ai artifact viewer only: claude.use("db") resolves to a database, or null.
-  var claudeDb = null;
+  // Send waits on this promise, so a click before the viewer answers still saves.
+  var claudeDb = Promise.resolve(null);
   if (window.claude && typeof window.claude.use === "function") {
     try {
-      var dbp = window.claude.use("db");
-      if (dbp && typeof dbp.then === "function") dbp.then(function (db) { claudeDb = db || null; }, function () { claudeDb = null; });
-      else claudeDb = dbp || null;
-    } catch (e) { claudeDb = null; }
+      claudeDb = Promise.resolve(window.claude.use("db")).then(function (db) { return db || null; }, function () { return null; });
+    } catch (e) { claudeDb = Promise.resolve(null); }
   }
 
   var sendBtn = $("[data-send]"), askStatus = $("[data-answers-status]");
@@ -251,10 +250,9 @@
   if (sendBtn) sendBtn.addEventListener("click", function () {
     var ans = sheetAnswers();
     if (sheetPreview) sheetPreview.textContent = ans.text;
-    var copied = null, saved = null;
-    var db = claudeDb;
+    var copied = null, saved = null, db;
     function done() {
-      if (copied === null || (db && saved === null)) return;
+      if (copied === null || db === undefined || (db && saved === null)) return;
       var msg;
       if (copied) msg = saved === false ? "Copied. Could not save on the page." : saved ? "Copied. Saved for the agent." : "Copied.";
       else msg = saved ? "Saved for the agent. Clipboard blocked; copy from the box below." : "Clipboard blocked. Copy from the box below.";
@@ -263,27 +261,30 @@
         sheetPreview.hidden = false;
         var r = document.createRange(); r.selectNodeContents(sheetPreview);
         var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+        sheetPreview.scrollIntoView({ block: "center" });
       }
     }
     sheetCopy(ans.text, function (ok) { copied = ok; done(); });
-    if (!db) return;
-    var doc = {
-      title: ans.title,
-      answers: ans.items.map(function (it) {
-        return {
-          n: it.n, ask: it.ask,
-          picks: it.picks.map(function (p) { return p.label; }),
-          other: it.other,
-          recommended: it.picks.some(function (p) { return p.rec; })
-        };
-      }),
-      sentAt: new Date().toISOString()
-    };
-    try {
-      db.doc("answers/latest").set(doc).then(
-        function () { saved = true; done(); },
-        function () { saved = false; done(); });
-    } catch (e) { saved = false; done(); }
+    claudeDb.then(function (d) { db = d; if (db) save(); else done(); });
+    function save() {
+      var doc = {
+        title: ans.title,
+        answers: ans.items.map(function (it) {
+          return {
+            n: it.n, ask: it.ask,
+            picks: it.picks.map(function (p) { return p.label; }),
+            other: it.other,
+            recommended: it.picks.some(function (p) { return p.rec; })
+          };
+        }),
+        sentAt: new Date().toISOString()
+      };
+      try {
+        db.doc("answers/latest").set(doc).then(
+          function () { saved = true; done(); },
+          function () { saved = false; done(); });
+      } catch (e) { saved = false; done(); }
+    }
   });
 
   // Whole-row navigation. A click on a [data-go] row or panel header opens its section, unless it hit
