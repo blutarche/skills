@@ -47,6 +47,8 @@ def slug(s: str) -> str:
 
 PROSE_ALLOWED_TAGS = {"p", "br", "b", "strong", "i", "em", "code", "pre", "a", "ul", "ol", "li", "span"}
 PROSE_VOID_TAGS = {"br"}
+# Opt-in extras for long-form prose (brief chapters): section heads and tables.
+PROSE_RICH_TAGS = frozenset({"h4", "table", "thead", "tbody", "tr", "th", "td"})
 
 
 def _sanitize_href(raw: str) -> str | None:
@@ -74,13 +76,14 @@ class _ProseSanitizer(HTMLParser):
     them, so an entity-obscured `javascript:` href is caught by `_sanitize_href` like a plain
     one."""
 
-    def __init__(self) -> None:
+    def __init__(self, extra_tags: frozenset[str] = frozenset()) -> None:
         super().__init__(convert_charrefs=True)
         self.out: list[str] = []
+        self.allowed = PROSE_ALLOWED_TAGS | extra_tags
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         tag = tag.lower()
-        if tag not in PROSE_ALLOWED_TAGS:
+        if tag not in self.allowed:
             return
         if tag == "a":
             href = None
@@ -99,19 +102,20 @@ class _ProseSanitizer(HTMLParser):
 
     def handle_endtag(self, tag: str) -> None:
         tag = tag.lower()
-        if tag in PROSE_ALLOWED_TAGS and tag not in PROSE_VOID_TAGS:
+        if tag in self.allowed and tag not in PROSE_VOID_TAGS:
             self.out.append(f"</{tag}>")
 
     def handle_data(self, data: str) -> None:
         self.out.append(html.escape(data, quote=False))
 
 
-def sanitize_prose(value) -> str:
+def sanitize_prose(value, extra_tags: frozenset[str] = frozenset()) -> str:
     """Allowlist-sanitize a prose field for direct embedding in the page. Never fails the
-    build: malformed or hostile markup is stripped, not rejected."""
+    build: malformed or hostile markup is stripped, not rejected. `extra_tags` widens the
+    allowlist for one caller; the default stays the small set."""
     if not isinstance(value, str):
         return ""
-    parser = _ProseSanitizer()
+    parser = _ProseSanitizer(frozenset(extra_tags))
     try:
         parser.feed(value)
         parser.close()

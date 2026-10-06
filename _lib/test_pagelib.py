@@ -93,6 +93,14 @@ class FailTest(unittest.TestCase):
         self.assertEqual(cm.exception.code, 1)
         self.assertIsInstance(cm.exception, SystemExit)
 
+    def test_sanitize_prose_extra_tags_are_opt_in(self):
+        raw = "<h4>Why</h4><table><tr><td>x</td></tr></table>"
+        self.assertNotIn("<table>", pagelib.sanitize_prose(raw))
+        self.assertNotIn("<h4>", pagelib.sanitize_prose(raw))
+        out = pagelib.sanitize_prose(raw, pagelib.PROSE_RICH_TAGS)
+        self.assertIn("<h4>Why</h4>", out)
+        self.assertIn("<td>x</td>", out)
+
 
 if __name__ == "__main__":
     unittest.main()

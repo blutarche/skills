@@ -36,9 +36,12 @@ BAN = [_pattern(w) for w in WORDS["ban"]]
 def plain(text: str, cls: str) -> str:
     """Visible text with code spans removed. Prose is sanitized HTML; others are plain."""
     if cls == "prose":
-        text = pagelib.sanitize_prose(text)
+        text = pagelib.sanitize_prose(text, pagelib.PROSE_RICH_TAGS)
         text = CODE_TAG_RE.sub(" ", text)
+        # a table cell or h4 ends a sentence, so cells never run together into one long sentence
+        text = re.sub(r"</(?:t[dh]|h4)>", "\x00", text)
         text = re.sub(r"<[^>]+>", " ", text)
+        text = re.sub(r"([^\s.!?\x00])\s*\x00", r"\1. ", text).replace("\x00", " ")
         text = html.unescape(text)
     return CODE_TICK_RE.sub(" ", text)
 

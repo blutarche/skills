@@ -3,7 +3,7 @@
 
 Reads the spec, checks every field against the rules in references/spec.md, and renders the
 whole page from the spec's fields plus the shell in templates/brief-shell.html. The sheet (stamp,
-panels, figures) comes from _lib/sheet.py; chapters follow it as drawers. The agent never edits
+panels, figures) comes from _lib/sheet.py; chapters follow it as the full report. The agent never edits
 the HTML; a rejected spec is fixed and rebuilt.
 
 Usage:
@@ -46,6 +46,7 @@ import voice  # noqa: E402
 fail = pagelib.fail
 esc = pagelib.esc
 sanitize_prose = pagelib.sanitize_prose
+MAX_CHAPTERS = 12
 
 KINDS = sheet.KINDS
 MERMAID_TYPES = {
@@ -232,15 +233,9 @@ def check_chapter(ch, chapter_idx: int, seen_ids: set) -> None:
     check_text(f"chapter {cid} title", ch["title"], "label")
     if not isinstance(ch["prose"], str):
         fail(f"chapter {cid} prose: must be text")
-    # a chapter earns more than 2 sentences only by saying why in `proseWhy`, which is never shown
     if "proseWhy" in ch:
-        check_text(f"chapter {cid} proseWhy", ch["proseWhy"], "instruction")
-        voice.check_field(f"chapter {cid} prose", ch["prose"], "prose")
-    else:
-        voice.check_field(f"chapter {cid} prose", ch["prose"], "prose", 2)
-    n = len(voice.plain(ch["prose"], "prose").split())
-    if n > 120:
-        fail(f"chapter {cid} prose is {n} words; keep to 120")
+        fail(f"chapter {cid}: proseWhy is no longer used; prose has no length cap")
+    voice.check_field(f"chapter {cid} prose", ch["prose"], "prose")
 
     if "visual" in ch:
         ch["_figures"] = [
@@ -294,17 +289,16 @@ def check_spec(spec, spec_dir: Path | None = None) -> dict:
     if spec["kind"] not in KINDS:
         fail(f"kind {spec['kind']!r} is not one of {sorted(KINDS)}")
 
-    norm = sheet.check_sheet(spec, kind=spec["kind"], title=spec["title"], spec_dir=spec_dir)
-
     chapters = spec.get("chapters", [])
     if not isinstance(chapters, list):
         fail(f"chapters must be an array of chapter objects, got {type(chapters).__name__}")
-    if len(chapters) > 8:
-        fail(f"{len(chapters)} chapters; keep between 0 and 8")
+    if len(chapters) > MAX_CHAPTERS:
+        fail(f"{len(chapters)} chapters; keep between 0 and {MAX_CHAPTERS}")
     seen_ids: set[str] = set()
     for chapter_idx, ch in enumerate(chapters):
         check_chapter(ch, chapter_idx, seen_ids)
-    return norm
+    targets = {ch["id"]: (n, ch["title"]) for n, ch in enumerate(chapters, start=1)}
+    return sheet.check_sheet(spec, kind=spec["kind"], title=spec["title"], spec_dir=spec_dir, targets=targets)
 
 
 # ---------------------------------------------------------------- page
@@ -320,11 +314,13 @@ def render_evidence_chip(exit_val, ok) -> str:
     return f'<span class="chip">{int(exit_val)}</span>'
 
 
-def render_drawer(idx: int, ch: dict) -> str:
+def render_chapter(idx: int, ch: dict, back: str) -> str:
+    """One open section of the full report. `back` is the sheet anchor the back link targets."""
     cid = ch["id"]
     o = [
-        f'<details class="drawer" id="ch-{esc(cid)}" data-chapter="{esc(cid)}">',
-        f'<summary><span class="num">{idx}</span><span class="ttl">{label_html(ch["title"])}</span></summary>',
+        f'<section class="chapter" id="ch-{esc(cid)}" data-chapter="{esc(cid)}">',
+        f'<header class="chead"><h3><span class="num">{idx}</span><span class="ttl">{label_html(ch["title"])}</span></h3>'
+        f'<a class="back" href="{back}">↑ sheet</a></header>',
         '<div class="dbody">',
     ]
     figures = ch.get("_figures", [])
@@ -337,7 +333,7 @@ def render_drawer(idx: int, ch: dict) -> str:
                 inner = f'<div class="fig cfig-svg">{fig["_svg"]}</div>'
             o.append(f'<figure class="cfig">{inner}<figcaption>{label_html(fig["caption"])}</figcaption></figure>')
         o.append("</div>")
-    o.append(f'<div class="prose">{sanitize_prose(ch["prose"])}</div>')
+    o.append(f'<div class="prose">{sanitize_prose(ch["prose"], pagelib.PROSE_RICH_TAGS)}</div>')
 
     decisions = ch.get("decisions", [])
     if decisions:
@@ -373,7 +369,7 @@ def render_drawer(idx: int, ch: dict) -> str:
         f'<section class="dnote" data-role="{esc(ch["title"])}">'
         f'<textarea data-note="ch-{esc(cid)}" placeholder="Note on this chapter"></textarea></section>'
     )
-    o.append("</div></details>")
+    o.append("</div></section>")
     return "\n".join(o)
 
 
@@ -387,8 +383,13 @@ def build_body(spec: dict, norm: dict, page_key: str, tmpdir: Path, use_mmdc: bo
         sheet_html,
     ]
     if chapters:
-        o.append('<section class="drawers">')
-        o.extend(render_drawer(i, ch) for i, ch in enumerate(chapters, start=1))
+        refs = norm["refs"]
+        toc = "".join(f'<li><a href="#ch-{esc(ch["id"])}">{label_html(ch["title"])}</a></li>' for ch in chapters)
+        o.append(f'<section class="report" id="report"><h2>Full report</h2><ol class="toc">{toc}</ol>')
+        o.extend(
+            render_chapter(i, ch, f'#panel-{refs[ch["id"]][0]}' if refs.get(ch["id"]) else "#sheet")
+            for i, ch in enumerate(chapters, start=1)
+        )
         o.append("</section>")
     o.append(
         '<section class="fb"><p class="lede">Notes stay in this browser. "Copy feedback" turns them '
@@ -468,8 +469,8 @@ def main() -> None:
         mermaid_script = (
             f'<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/{MERMAID_VERSION}/'
             'mermaid.min.js"></script>\n'
-            # A diagram inside a closed <details> lays out at zero size, so each drawer's
-            # diagrams render when it first opens, not on page load.
+            # A diagram inside a closed <details> lays out at zero size, so it renders when the
+            # <details> first opens, not on page load.
             "<script>if(window.mermaid){mermaid.initialize({startOnLoad:false, securityLevel: 'strict', theme: "
             'window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "default"});'
             "var mmRun=function(root){var n=[].slice.call(root.querySelectorAll('pre.mermaid:not([data-processed])'))"

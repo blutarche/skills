@@ -76,6 +76,10 @@ class CheckFieldTest(unittest.TestCase):
     def test_check_field_passes_clean(self):
         voice.check_field("panel B why", "We use it.", "instruction")
 
+    def test_table_cells_are_separate_sentences(self):
+        table = "<table><tr><td>" + " ".join(["word"] * 15) + "</td><td>" + " ".join(["word"] * 15) + "</td></tr></table>"
+        self.assertEqual(voice.issues(table, "prose"), [])
+
 
 if __name__ == "__main__":
     unittest.main()

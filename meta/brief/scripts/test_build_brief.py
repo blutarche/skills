@@ -182,14 +182,38 @@ class BuildBriefTest(unittest.TestCase, Harness):
             page.count("cdnjs.cloudflare.com/ajax/libs/mermaid/11.15.0/mermaid.min.js"), 1
         )
 
-    def test_chapters_render_as_drawers_after_the_sheet(self) -> None:
+    def test_chapters_render_as_an_open_full_report_after_the_sheet(self) -> None:
         spec = valid_spec()
         r = self.build(spec, self.dir)
         page = r.out.read_text(encoding="utf-8")
-        for ch in spec["chapters"]:
-            self.assertIn(f'<details class="drawer" id="ch-{ch["id"]}"', page)
+        self.assertIn('<section class="report" id="report">', page)
+        self.assertIn("<h2>Full report</h2>", page)
+        self.assertNotIn("<details", page)
+        self.assertNotIn('class="drawer"', page)
+        self.assertIn('<ol class="toc">', page)
+        for n, ch in enumerate(spec["chapters"], 1):
+            self.assertIn(f'<li><a href="#ch-{ch["id"]}">{ch["title"]}</a></li>', page)
+            self.assertIn(f'<section class="chapter" id="ch-{ch["id"]}" data-chapter="{ch["id"]}">', page)
+            self.assertIn(f'<h3><span class="num">{n}</span>', page)
             self.assertIn(f'data-note="ch-{ch["id"]}"', page)
-        self.assertLess(page.index("</footer>"), page.index('<details class="drawer"'))
+        self.assertLess(page.index("</footer>"), page.index('id="report"'))
+
+    def test_back_link_targets_the_referring_panel_or_the_sheet(self) -> None:
+        spec = valid_spec()
+        spec["panels"][1]["rows"][0]["more"] = "the-drain-loop"
+        page = self.build(spec, self.dir).out.read_text(encoding="utf-8")
+        self.assertIn('<a class="more-row" href="#ch-the-drain-loop"', page)
+        drain = page[page.index('id="ch-the-drain-loop"'):]
+        self.assertIn('<a class="back" href="#panel-B">↑ sheet</a>', drain)
+        first = page[page.index('id="ch-before-the-reply"'):page.index('id="ch-the-drain-loop"')]
+        self.assertIn('<a class="back" href="#sheet">↑ sheet</a>', first)
+
+    def test_more_must_name_a_chapter(self) -> None:
+        spec = valid_spec()
+        spec["panels"][1]["more"] = "nope"
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("more 'nope' is not a chapter", r.stderr)
 
     def test_visual_is_optional_and_novisual_is_ignored(self) -> None:
         spec = valid_spec()
@@ -204,15 +228,18 @@ class BuildBriefTest(unittest.TestCase, Harness):
         del spec["chapters"]
         r = self.build(spec, self.dir)
         self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertNotIn('<details class="drawer"', r.out.read_text(encoding="utf-8"))
+        self.assertNotIn('id="report"', r.out.read_text(encoding="utf-8"))
 
     def test_too_many_chapters(self) -> None:
         spec = valid_spec()
         base = spec["chapters"][0]
-        spec["chapters"] = [{**base, "id": f"ch-{i}"} for i in range(9)]
+        spec["chapters"] = [{**base, "id": f"ch-{i}"} for i in range(12)]
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        spec["chapters"] = [{**base, "id": f"ch-{i}"} for i in range(13)]
         r = self.build(spec, self.dir)
         self.assertEqual(r.returncode, 1)
-        self.assertIn("keep between 0 and 8", r.stderr)
+        self.assertIn("keep between 0 and 12", r.stderr)
 
     def test_no_google_fonts_and_no_stats_strip(self) -> None:
         r = self.build(valid_spec(), self.dir)
@@ -229,35 +256,36 @@ class BuildBriefTest(unittest.TestCase, Harness):
         self.assertNotIn("function copyText", page)
 
     # ---------------------------------------------------------------- prose rules
-    def test_three_sentence_prose_needs_prose_why(self) -> None:
+    def test_long_chapter_prose_builds(self) -> None:
         spec = valid_spec()
-        spec["chapters"][0]["prose"] = "<p>One fact is here. A second fact is here. A third fact is here.</p>"
+        spec["chapters"][0]["prose"] = "<p>" + " ".join(["The route stores one more fact."] * 6) + "</p>"
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        spec["chapters"][0]["prose"] = make_prose(400)
+        r = self.build(spec, self.dir)
+        self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_prose_why_is_rejected(self) -> None:
+        spec = valid_spec()
+        spec["chapters"][0]["proseWhy"] = "The race needs the full order of events."
         r = self.build(spec, self.dir)
         self.assertEqual(r.returncode, 1)
-        self.assertIn("chapter before-the-reply prose: 3 sentences; keep to 2", r.stderr)
+        self.assertIn(
+            "chapter before-the-reply: proseWhy is no longer used; prose has no length cap", r.stderr)
 
-        spec["chapters"][0]["proseWhy"] = "The race needs the full order of events."
-        r = self.build(spec, self.dir)
-        self.assertEqual(r.returncode, 0, r.stderr)
-
-    def test_prose_why_word_cap_is_120(self) -> None:
+    def test_table_and_h4_survive_in_chapter_prose_but_not_in_state(self) -> None:
         spec = valid_spec()
-        spec["chapters"][0]["proseWhy"] = "The race needs the full order of events."
-        spec["chapters"][0]["prose"] = make_prose(120)
-        r = self.build(spec, self.dir)
-        self.assertEqual(r.returncode, 0, r.stderr)
-        spec["chapters"][0]["prose"] = make_prose(121)
-        r = self.build(spec, self.dir)
-        self.assertEqual(r.returncode, 1)
-        self.assertIn("121 words", r.stderr)
-
-    def test_prose_why_never_appears_in_the_page(self) -> None:
-        spec = valid_spec()
-        spec["chapters"][0]["proseWhy"] = "The race needs the full order of events."
-        r = self.build(spec, self.dir)
-        self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertNotIn("full order of events", r.out.read_text(encoding="utf-8"))
-        self.assertNotIn("full order of events", r.fragment.read_text(encoding="utf-8"))
+        spec["chapters"][0]["prose"] = (
+            "<h4>Cost</h4><table><thead><tr><th>Step</th><th>Cost</th></tr></thead>"
+            "<tbody><tr><td>Insert</td><td>One write</td></tr></tbody></table>")
+        spec["state"] = "<h4 id=x><table><tr>3 findings. 2 are fixed.</tr></table></h4>"
+        page = self.build(spec, self.dir).out.read_text(encoding="utf-8")
+        chapter = page[page.index('id="ch-before-the-reply"'):page.index('id="ch-the-drain-loop"')]
+        self.assertIn("<h4>Cost</h4>", chapter)
+        self.assertIn("<td>One write</td>", chapter)
+        state = page[page.index('<p class="state">'):page.index("</p>", page.index('<p class="state">'))]
+        self.assertNotIn("<table", state)
+        self.assertNotIn("<h4", state)
 
     def test_voice_lint_runs_on_chapter_title(self) -> None:
         spec = valid_spec()

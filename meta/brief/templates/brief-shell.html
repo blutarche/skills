@@ -8,14 +8,18 @@
 <style>
 <!-- LIB:STYLE -->
 <!-- SHEET:STYLE -->
-.drawers{margin:20px 0}
-.drawer{border:1px solid var(--line);background:var(--surface);margin:0 0 8px;scroll-margin-top:64px}
-.drawer>summary{display:flex;gap:12px;align-items:center;padding:10px 14px;cursor:pointer;list-style:none;font-weight:600}
-.drawer>summary::-webkit-details-marker{display:none}
-.drawer>summary::before{content:"+";font-family:var(--mono);color:var(--ink-2);width:12px}
-.drawer[open]>summary::before{content:"\2212"}
-.drawer .num{font-family:var(--mono);font-size:12px;border:1px solid var(--ink-3);width:24px;height:24px;display:flex;align-items:center;justify-content:center}
-.dbody{padding:4px 16px 16px;border-top:1px solid var(--line)}
+.report{margin:28px 0 20px;scroll-margin-top:16px}
+.report>h2{font-size:20px;margin:0 0 10px;padding-bottom:8px;border-bottom:2px solid var(--ink)}
+.toc{margin:0 0 20px;padding-left:28px;font-size:14px;line-height:1.7}
+.toc a{color:var(--blu);text-decoration:none}
+.toc a:hover{text-decoration:underline}
+.chapter{margin:0 0 28px;scroll-margin-top:16px}
+.chead{display:flex;gap:12px;align-items:center;justify-content:space-between;padding-bottom:6px;border-bottom:1px solid var(--line)}
+.chead h3{display:flex;gap:12px;align-items:center;margin:0;font-size:17px;font-weight:600}
+.chapter .num{font-family:var(--mono);font-size:12px;border:1px solid var(--ink-3);width:24px;height:24px;flex:none;display:flex;align-items:center;justify-content:center}
+.chead .back{font:11px var(--mono);color:var(--blu);text-decoration:none;white-space:nowrap}
+.chead .back:hover{text-decoration:underline}
+.dbody{padding:8px 0 0}
 .figs{display:grid;grid-template-columns:1fr;gap:14px;margin:12px 0}
 .figs.row{grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
 .cfig{margin:0;border:1px solid var(--line);background:var(--surface)}
@@ -23,19 +27,22 @@
 .cfig pre.mermaid{margin:0;padding:14px;white-space:pre-wrap;word-break:break-word}
 .cfig figcaption{padding:8px 14px;border-top:1px solid var(--line);background:var(--paper);font-size:13px;color:var(--ink-2)}
 picture img{display:block;max-width:100%;height:auto}
-.drawer .prose p{margin:0 0 10px}
-.drawer .scroll{overflow-x:auto;border:1px solid var(--line);margin:10px 0 14px}
-.drawer table{border-collapse:collapse;width:100%;min-width:520px;font-size:13.5px}
-.drawer th,.drawer td{text-align:left;vertical-align:top;padding:8px 12px;border-bottom:1px solid var(--line)}
-.drawer th{font:11px var(--mono);color:var(--ink-2);font-weight:500;background:var(--paper);white-space:nowrap}
-.drawer tr:last-child td{border-bottom:0}
-.drawer td code{word-break:break-all}
-.drawer .col-exit{width:64px;white-space:nowrap}
-.drawer .col-cwd{min-width:160px;white-space:nowrap}
-.drawer .chip{display:inline-block;font:11px var(--mono);padding:1px 7px;border:1px solid var(--line);color:var(--ink-2);white-space:nowrap}
-.drawer .chip.exit-ok{border-color:var(--green);color:var(--green);background:var(--green-bg)}
-.drawer .chip.exit-bad{border-color:var(--del-ink);color:var(--del-ink);background:var(--del-bg)}
-.drawer .chip.exit-none{border-style:dashed}
+.chapter .prose p{margin:0 0 10px}
+.chapter .prose h4{font-size:14px;margin:16px 0 6px}
+.chapter .scroll{overflow-x:auto;border:1px solid var(--line);margin:10px 0 14px}
+.chapter table{border-collapse:collapse;width:100%;font-size:13.5px}
+.chapter .scroll table{min-width:520px}
+.chapter .prose table{margin:10px 0 14px;border:1px solid var(--line)}
+.chapter th,.chapter td{text-align:left;vertical-align:top;padding:8px 12px;border-bottom:1px solid var(--line)}
+.chapter th{font:11px var(--mono);color:var(--ink-2);font-weight:500;background:var(--paper);white-space:nowrap}
+.chapter tr:last-child td{border-bottom:0}
+.chapter td code{word-break:break-all}
+.chapter .col-exit{width:64px;white-space:nowrap}
+.chapter .col-cwd{min-width:160px;white-space:nowrap}
+.chapter .chip{display:inline-block;font:11px var(--mono);padding:1px 7px;border:1px solid var(--line);color:var(--ink-2);white-space:nowrap}
+.chapter .chip.exit-ok{border-color:var(--green);color:var(--green);background:var(--green-bg)}
+.chapter .chip.exit-bad{border-color:var(--del-ink);color:var(--del-ink);background:var(--del-bg)}
+.chapter .chip.exit-none{border-style:dashed}
 .dnote textarea{width:100%;min-height:64px;font:inherit;font-size:14px;padding:8px 10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);resize:vertical}
 .fb{margin:20px 0 8px}
 .fb .lede{color:var(--ink-2);margin:0 0 10px}
