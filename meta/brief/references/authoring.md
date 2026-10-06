@@ -38,8 +38,8 @@ Both bands use simple English.
 The source table and its gates (`diagram-design`, mermaid, `dataviz`, hand-authored SVG) are in
 SKILL.md step 1.
 
-A chapter can carry 1 to 4 figures, mixing mermaid and svg, when more than one picture earns its
-place; each one still needs its own caption and still has to clear the bar below. More often one
+A chapter can carry 1 to 4 figures, mermaid and svg mixed, when more than one picture earns its
+place. Each one still needs its own caption and has to clear the bar below. More often one
 is enough. Figures stack full width by default; set `"figureLayout": "row"` on the chapter to lay
 them side by side instead, and only when every figure in the chapter is narrow, roughly `viewBox`
 width under 500 — a wide figure such as a swimlane or a wide flowchart loses half its width next
