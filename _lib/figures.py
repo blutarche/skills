@@ -71,8 +71,12 @@ def task_waves_svg(tasks: list[dict]) -> str:
             paths.append(
                 f'<path class="e-ok" d="M{x1} {y1} C{mid} {y1} {mid} {y2} {x2} {y2}" marker-end="url(#ar)"/>'
             )
+        go = data = title = ""
+        if t.get("more"):
+            go, data = " go", f' data-go="ch-{pagelib.esc(t["more"])}"'
+            title = f'<title>Section {t["moreN"]}: {pagelib.esc(t["moreTitle"])}</title>'
         boxes.append(
-            f'<g class="task n-{pagelib.esc(t.get("status", "todo"))}">'
+            f'<g class="task n-{pagelib.esc(t.get("status", "todo"))}{go}"{data}>{title}'
             f'<rect x="{x}" y="{y}" width="{BOX_W}" height="{BOX_H}" rx="4"/>'
             f'<text x="{x + 10}" y="{y + 25}"><tspan class="tid">{pagelib.esc(t["id"])}</tspan> '
             f'{pagelib.esc(_short(t.get("name", "")))}</text></g>'

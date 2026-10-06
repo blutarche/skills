@@ -43,6 +43,15 @@ class WavesTest(unittest.TestCase):
         self.assertIn("n-failed", out)
         self.assertIn('aria-label="4 tasks in 3 waves: 2 done, 1 failed, 1 to do"', out)
 
+    def test_task_with_more_is_a_click_target(self):
+        tasks = [{"id": "T1", "name": "A", "status": "done", "more": "x", "moreN": 2, "moreTitle": "The <x>"},
+                 {"id": "T2", "name": "B", "status": "done"}]
+        out = figures.task_waves_svg(tasks)
+        self.assertEqual(out.count("data-go="), 1)
+        self.assertIn('<g class="task n-done go" data-go="ch-x">', out)
+        self.assertIn("<title>Section 2: The &lt;x&gt;</title>", out)
+        self.assertEqual(out.count("<title>"), 1)
+
     def test_svg_escapes_names(self):
         tasks = [{"id": "T1", "name": "<b>x</b>", "status": "done"}]
         self.assertNotIn("<b>", figures.task_waves_svg(tasks))
