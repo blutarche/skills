@@ -101,6 +101,9 @@ facts and the walkthrough. Without it the page is unchanged. Write the words by 
   choices to the tour notes. It is the same dock as the brief's, with the same toast and "✓ Sent" flip.
   Inside a claude.ai artifact viewer it also writes the doc `feedback/latest`, with the brief's fields. Tour
   chapter notes sit in `notes` by chapter id, plus `general`. "Back to sheet" shows only when the tour has a sheet.
+- The tour header shows the project and branch as chips, read from `--repo-root` with git. The project is the
+  main repo folder, even in a worktree; a detached head reads `detached at <sha>`. The chips are larger when
+  there is no sheet. The page title reads `project · branch · title`.
 - If a sheet build fails, the page at `--out` becomes a BUILD FAILED page that shows the error.
   A build without a sheet leaves the old page in place.
 

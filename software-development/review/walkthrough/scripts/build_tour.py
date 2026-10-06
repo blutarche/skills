@@ -1213,7 +1213,9 @@ def build_body(spec: dict, root: Path, pr_lens_views: list[PrLensView]) -> tuple
 
     # ---- header
     built = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M %Z")
+    project, branch = project_branch(root)
     o.append('<header class="top">')
+    o.append(pagelib.at_row(project, branch, has_sheet))
     o.append('<p class="eyebrow">Walkthrough</p>')
     o.append(f"<h1>{esc(spec['title'])}</h1>")
     o.append(
@@ -1387,7 +1389,7 @@ def build_body(spec: dict, root: Path, pr_lens_views: list[PrLensView]) -> tuple
     o.append('<div class="note global"><label for="note-general">Anything else</label>')
     o.append('<textarea id="note-general" data-note="general" placeholder="Notes that belong to no chapter."></textarea></div>')
     o.append("</section>")
-    o.append(dock.render_dock(*project_branch(root), has_sheet))
+    o.append(dock.render_dock(project, branch, has_sheet))
 
     o.append(
         f'<footer>Built from review-tour.json against {esc(head_label)} on {esc(built)}. '
@@ -1453,7 +1455,7 @@ def main() -> None:
         page_shell = splice_sheet_assets(shell, template, has_sheet)
         pr_lens_views = load_pr_lens(spec, spec_path.parent, root)
         body, stats = build_body(spec, root, pr_lens_views)
-        title = esc(spec["title"])
+        title = esc(" · ".join(p for p in (*project_branch(root), spec["title"]) if p))
         document, fragment = pagelib.assemble(page_shell, title, body)
     except pagelib.BuildFailed as e:
         # Only a sheet build gets a failure page: a sheet-less build keeps its old output untouched.

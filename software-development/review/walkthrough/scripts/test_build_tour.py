@@ -836,6 +836,21 @@ class SheetTest(unittest.TestCase):
             self.assertNotIn("<pre data-export-preview hidden>", page)
             self.assertIn('data-project="repo"', page)
 
+    def test_header_chips_and_title_order(self) -> None:
+        branch = subprocess.run(["git", "-C", str(self.repo), "symbolic-ref", "--short", "HEAD"],
+                                capture_output=True, text=True, check=True).stdout.strip()
+        spec = valid_spec(self.base, self.head)
+        page = self.page(spec)
+        self.assertIn(f"<title>repo · {branch} · {spec['title']}</title>", page)
+        top = page[page.index('<header class="top">'):page.index("<h1>")]
+        self.assertIn('<div class="atrow"><span class="pchip"', top)
+        self.assertIn(f"</svg>{branch}</span>", top)
+        self.assertNotIn("atrow sm", page)
+        with_sheet = self.page(self.sheet_spec())
+        start = with_sheet.index('<header class="top">')
+        top = with_sheet[start:with_sheet.index("<h1>", start)]
+        self.assertIn('<div class="atrow sm"><span class="pchip"', top)
+
     def test_no_text_link_toc_row(self) -> None:
         for spec in (valid_spec(self.base, self.head), self.sheet_spec()):
             page = self.page(spec)
