@@ -56,6 +56,14 @@ class WavesTest(unittest.TestCase):
         tasks = [{"id": "T1", "name": "<b>x</b>", "status": "done"}]
         self.assertNotIn("<b>", figures.task_waves_svg(tasks))
 
+    def test_graph_is_never_scaled_above_its_natural_size(self):
+        one = figures.task_waves_svg([{"id": "T1", "name": "Only", "status": "done"}])
+        w = figures.BOX_W + 2 * figures.PAD
+        self.assertIn(f'viewBox="0 0 {w} ', one)
+        self.assertIn(f'style="min-width:min(600px,{w}px);max-width:min(880px,{w}px)"', one)
+        five = figures.task_waves_svg([{"id": f"T{i}", "name": "n", "status": "todo"} for i in range(1, 6)])
+        self.assertIn("max-width:min(880px,", five)
+
 
 class VennTest(unittest.TestCase):
     def test_counts(self):

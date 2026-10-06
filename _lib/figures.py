@@ -90,7 +90,8 @@ def task_waves_svg(tasks: list[dict]) -> str:
         'orient="auto"><path d="M0 0 L10 5 L0 10 z"/></marker></defs>'
     )
     return (
-        f'<svg viewBox="0 0 {width} {height}" role="img" aria-label="{pagelib.esc(label)}">'
+        f'<svg viewBox="0 0 {width} {height}" style="min-width:min(600px,{width}px);max-width:min(880px,{width}px)" '
+        f'role="img" aria-label="{pagelib.esc(label)}">'
         f'{marker}{"".join(paths)}{"".join(boxes)}</svg>'
     )
 
