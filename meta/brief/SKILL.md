@@ -43,7 +43,8 @@ Required panels per kind (role: type). A missing role or a wrong type fails the 
 The build draws task waves, the Venn, the severity strip, the claim stack, and the decision tree
 from your rows. Draw a `figure` panel only for a mechanism a reader must see. Put the full
 report in `chapters`: open sections below the sheet (0 to 12, optional). Each panel or row that
-has more detail links to its chapter with `more` (a chapter id).
+has more detail links to its chapter with `more` (a chapter id). The row or panel header itself
+opens that section.
 
 What the full report holds, by kind.
 

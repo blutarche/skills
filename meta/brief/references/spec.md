@@ -87,9 +87,12 @@ total stays at 8 or fewer.
 so the voice lint skips it. A `more` that names no chapter fails the build:
 `<where>: more 'x' is not a chapter`. The same happens when the spec has no chapters.
 
-- A panel `more` shows a `more ↓` link in the panel title bar.
-- A row `more` shows a small `↓n` link at the end of the row, where `n` is the chapter number.
-- Both jump to `#ch-<id>`. The link title is the chapter title.
+- A panel `more` makes the whole panel title bar open the section. A `›` link sits at its right end.
+- A row `more` makes the whole row open the section. A `›` link sits at the right end of the row.
+  A task node in the task-wave figure opens its section too.
+- Both go to `#ch-<id>`, so the browser Back button returns you. The link label names the section
+  number and title. A click on a button or link inside a row does its own job and does not navigate.
+- The section you land on flashes once. Its `↑ sheet` link scrolls back to the row you clicked.
 - Each panel has the anchor `panel-<letter>`, and the sheet has `sheet`.
 
 Required panels per kind (role: type). A missing role or a wrong type fails the build.
