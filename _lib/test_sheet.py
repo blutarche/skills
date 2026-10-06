@@ -328,9 +328,10 @@ class SheetTest(unittest.TestCase):
         spec["panels"][0]["rows"] = [{"ask": "Pick a delay.", "more": "retry"}]
         norm = check(spec, targets=targets)
         html = sheet.render_sheet(norm)
-        self.assertIn('<a class="more" href="#ch-retry" title="Retry delay">more ↓</a>', html)
-        self.assertIn('<a class="more-row" href="#ch-outbox" title="The outbox">↓1</a>', html)
-        self.assertIn('<a class="more-row" href="#ch-retry" title="Retry delay">↓2</a>', html)
+        self.assertIn('<a class="go-a" href="#ch-outbox" aria-label="Section 1: The outbox">›</a>', html)
+        self.assertIn('<a class="go-a" href="#ch-retry" aria-label="Section 2: Retry delay">›</a>', html)
+        self.assertNotIn("more-row", html)
+        self.assertNotIn('class="more"', html)
         self.assertEqual(norm["refs"], {"retry": ["A", "B"], "outbox": ["B"]})
         self.assertIn('id="panel-A"', html)
         self.assertIn('id="panel-B"', html)
@@ -352,7 +353,58 @@ class SheetTest(unittest.TestCase):
         html = sheet.render_sheet(check(spec, targets={"outbox": (1, "The outbox")}))
         row = re.search(r'<div class="crow.*?</div>', html).group(0)
         self.assertEqual(row.count("<span"), 4)
-        self.assertIn('<span class="res"><a class="more-row"', row)
+        self.assertEqual(row.count("<code"), 1)
+        self.assertTrue(row.endswith('<a class="go-a" href="#ch-outbox" aria-label="Section 1: The outbox">›</a></div>'))
+        self.assertEqual(len(re.findall(r"<(?:span|code|a)\b", row)), 6)
+
+    def test_23_row_with_more_is_a_whole_row_target(self):
+        spec = vet_spec()
+        spec["panels"][1]["rows"][0]["more"] = "x"
+        html = sheet.render_sheet(check(spec, targets={"x": (1, "The x")}))
+        row = re.search(r'<div class="finding[^"]*" [^>]*>.*?</div></div>', html, re.S).group(0)
+        self.assertRegex(row, r'class="finding sev-p1 go"')
+        self.assertIn('data-go="ch-x"', row)
+        self.assertEqual(row.count('<a class="go-a" href="#ch-x" aria-label="Section 1: The x">›</a>'), 1)
+        self.assertEqual(html.count('data-go="ch-x"'), 1)
+        self.assertEqual(html.count("go-a"), 1)
+
+    def test_24_decisions_tr_puts_the_anchor_in_the_last_td(self):
+        spec = vet_spec()
+        spec["panels"].append({"role": "decisions", "type": "decisions", "rows": [
+            {"decision": "Queue", "chosen": "Outbox", "why": "Safe.", "more": "x"}]})
+        html = sheet.render_sheet(check(spec, targets={"x": (1, "The x")}))
+        tr = re.search(r"<tr[^>]*>.*?</tr>", html[html.index('class="dict"'):], re.S).group(0)
+        self.assertIn('<tr class="go" data-go="ch-x">', tr)
+        last_td = tr[tr.rindex("<td"):]
+        self.assertIn('<a class="go-a" href="#ch-x"', last_td)
+        self.assertEqual(tr.count("go-a"), 1)
+
+    def test_25_panel_more_goes_on_the_h2_before_the_note_button(self):
+        spec = vet_spec()
+        spec["panels"][1]["more"] = "x"
+        html = sheet.render_sheet(check(spec, targets={"x": (1, "The x")}))
+        h2 = re.search(r'<h2 class="go" data-go="ch-x">.*?</h2>', html, re.S).group(0)
+        self.assertLess(h2.index("go-a"), h2.index("note-btn"))
+        self.assertIn('<a class="go-a" href="#ch-x" aria-label="Section 1: The x">›</a>', h2)
+
+    def test_26_rows_and_panels_without_more_have_no_go(self):
+        html = sheet.render_sheet(check(vet_spec()))
+        self.assertNotIn("go-a", html)
+        self.assertNotIn("data-go", html)
+        self.assertNotRegex(html, r'class="[^"]*\bgo\b')
+
+    def test_27_every_row_type_is_a_target(self):
+        t = {"x": (1, "The x")}
+        spec = vet_spec()
+        spec["panels"][0]["rows"] = [{"ask": "Pick.", "more": "x"}]
+        spec["panels"] += [
+            {"role": "claims", "type": "claims", "rows": [{"id": "C1", "claim": "It works.", "source": "a.py:1", "result": "verified", "more": "x"}]},
+            {"role": "commands", "type": "commands", "rows": [{"cmd": "ls", "does": "Lists.", "more": "x"}]},
+            {"role": "tasks", "type": "tasks", "rows": [{"id": "T1", "name": "Do", "status": "done", "more": "x"}]},
+        ]
+        html = sheet.render_sheet(check(spec, targets=t))
+        for sel in ('<li class="go"', '<div class="crow2 go"', '<div class="cmd go"', '<div class="trow n-done go"'):
+            self.assertIn(sel, html)
 
 
 if __name__ == "__main__":

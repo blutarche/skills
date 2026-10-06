@@ -138,3 +138,31 @@
       }
     });
   });
+
+  // Whole-row navigation. A click on a [data-go] row or panel header opens its section, unless it hit
+  // a control. The go-a anchor navigates natively; this only covers the rest of the row.
+  var lastGo = null;
+  var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  document.addEventListener("click", function (e) {
+    var t = e.target;
+    if (!t || !t.closest) return;
+    var go = t.closest("[data-go]");
+    if (go) {
+      lastGo = go;
+      if (!t.closest("a, button, input, textarea, select, label, .tog")) location.hash = "#" + go.getAttribute("data-go");
+      return;
+    }
+    var back = t.closest(".chead .back");
+    if (back && lastGo && document.body.contains(lastGo)) {
+      e.preventDefault();
+      lastGo.scrollIntoView({ block: "center" });
+      if (reduceMotion) return;
+      lastGo.classList.remove("flash");
+      void lastGo.offsetWidth;
+      lastGo.classList.add("flash");
+    }
+  });
+  document.addEventListener("animationend", function (e) {
+    var f = e.target.closest ? e.target.closest(".flash") : null;
+    if (f) f.classList.remove("flash");
+  });

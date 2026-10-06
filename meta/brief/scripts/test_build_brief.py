@@ -202,7 +202,8 @@ class BuildBriefTest(unittest.TestCase, Harness):
         spec = valid_spec()
         spec["panels"][1]["rows"][0]["more"] = "the-drain-loop"
         page = self.build(spec, self.dir).out.read_text(encoding="utf-8")
-        self.assertIn('<a class="more-row" href="#ch-the-drain-loop"', page)
+        self.assertIn('<a class="go-a" href="#ch-the-drain-loop"', page)
+        self.assertIn('data-go="ch-the-drain-loop"', page)
         drain = page[page.index('id="ch-the-drain-loop"'):]
         self.assertIn('<a class="back" href="#panel-B">↑ sheet</a>', drain)
         first = page[page.index('id="ch-before-the-reply"'):page.index('id="ch-the-drain-loop"')]

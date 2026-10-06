@@ -787,8 +787,9 @@ class SheetTest(unittest.TestCase):
         spec["sheet"]["panels"][1]["more"] = "core"
         spec["sheet"]["panels"][2]["rows"][0]["more"] = "core"
         page = self.page(spec)
-        self.assertIn('<a class="more" href="#ch-core" title="Alpha returns 42 and delta arrives">more', page)
-        self.assertIn('<a class="more-row" href="#ch-core" title="Alpha returns 42 and delta arrives">↓1</a>', page)
+        self.assertIn('<h2 class="go" data-go="ch-core">', page)
+        self.assertIn('<a class="go-a" href="#ch-core" aria-label="Section 1: Alpha returns 42 and delta arrives">›</a>', page)
+        self.assertNotIn("more-row", page)
         self.assertIn('id="ch-core"', page)
 
     def test_sheet_more_to_an_unknown_chapter_fails(self) -> None:

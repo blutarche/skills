@@ -388,11 +388,13 @@ def _tag(cls: str, text: str) -> str:
     return f'<span class="chip {cls}">{pagelib.esc(text)}</span>'
 
 
-def _more_row(r: dict) -> str:
+def _go(r: dict) -> tuple[str, str, str]:
+    """Whole-target markup for a row or panel with `more`: class suffix, data attribute, the one real anchor."""
     if not r.get("more"):
-        return ""
-    return (f'<a class="more-row" href="#ch-{pagelib.esc(r["more"])}" '
-            f'title="{pagelib.esc(r["moreTitle"])}">↓{r["moreN"]}</a>')
+        return "", "", ""
+    cid = pagelib.esc(r["more"])
+    return (" go", f' data-go="ch-{cid}"',
+            f'<a class="go-a" href="#ch-{cid}" aria-label="Section {r["moreN"]}: {pagelib.esc(r["moreTitle"])}">›</a>')
 
 
 def _asks(p: dict) -> tuple[str, str]:
@@ -401,7 +403,9 @@ def _asks(p: dict) -> tuple[str, str]:
     items = []
     for i, r in enumerate(p["rows"], 1):
         why = f'<div class="why">{_label(r["why"])}</div>' if r.get("why") else ""
-        items.append(f'<li><span class="n">{i}</span><div><div class="q">{_label(r["ask"])}{_more_row(r)}</div>{why}</div></li>')
+        cls, data, a = _go(r)
+        cls = f' class="{cls.strip()}"' if cls else ""
+        items.append(f'<li{cls}{data}><span class="n">{i}</span><div><div class="q">{_label(r["ask"])}</div>{why}</div>{a}</li>')
     return f'<ol class="asks">{"".join(items)}</ol>', str(len(p["rows"]))
 
 
@@ -410,14 +414,13 @@ def _checks(p: dict) -> tuple[str, str]:
     for r in rows:
         mark, cls = {None: ("○", "nr")}.get(r["exit"], ("✓", "ok") if r["exit"] == 0 else ("✕", "bad"))
         exit_txt = "not run" if r["exit"] is None else f'exit {r["exit"]}'
-        more = _more_row(r)
-        res = (f'<span class="res">{_label(r["result"]) if r.get("result") else ""}{more}</span>'
-               if r.get("result") or more else "<span></span>")
+        go, data, a = _go(r)
+        res = f'<span class="res">{_label(r["result"])}</span>' if r.get("result") else "<span></span>"
         cwd = f'<code class="cwd">{pagelib.esc(r["cwd"])}</code>' if r["cwd"] != "." else "<span></span>"
         out.append(
-            f'<div class="crow {cls}"><span class="ico">{mark}</span>'
+            f'<div class="crow {cls}{go}"{data}><span class="ico">{mark}</span>'
             f'<code title="{pagelib.esc(r["cwd"])}">{pagelib.esc(r["cmd"])}</code>{cwd}'
-            f'<span class="exit">{exit_txt}</span>{res}</div>')
+            f'<span class="exit">{exit_txt}</span>{res}{a}</div>')
     ok = sum(1 for r in rows if r["exit"] == 0)
     nr = sum(1 for r in rows if r["exit"] is None)
     sub = f"{ok} pass · {len(rows) - ok - nr} fail · {nr} not run · agent-reported"
@@ -466,8 +469,10 @@ def _decisions(p: dict) -> tuple[str, str]:
     rows = []
     for r in p["rows"]:
         rej = f'<td class="bad">✕ <s>{_label(r["rejected"])}</s></td>' if r.get("rejected") else "<td></td>"
-        rows.append(f'<tr><td>{_label(r["decision"])}</td><td class="ok">✓ {_label(r["chosen"])}</td>'
-                    f'{rej}<td class="why">{_label(r["why"])}{_more_row(r)}</td></tr>')
+        go, data, a = _go(r)
+        tr = f'<tr class="go"{data}>' if go else "<tr>"
+        rows.append(f'{tr}<td>{_label(r["decision"])}</td><td class="ok">✓ {_label(r["chosen"])}</td>'
+                    f'{rej}<td class="why">{_label(r["why"])}{a}</td></tr>')
     tree = figures.decision_tree(p["rows"]) if any("parent" in r for r in p["rows"]) else ""
     table = f'<table class="dict"><tbody>{"".join(rows)}</tbody></table>'
     return tree + table, str(len(p["rows"]))
@@ -478,10 +483,11 @@ def _tasks(p: dict) -> tuple[str, str]:
     out = []
     for r in rows:
         commit = f'<code>{pagelib.esc(r["commit"][:8])}</code>' if r.get("commit") else ""
-        out.append(f'<div class="trow n-{r["status"]}"><code>{pagelib.esc(r["id"])}</code>'
+        go, data, a = _go(r)
+        out.append(f'<div class="trow n-{r["status"]}{go}"{data}><code>{pagelib.esc(r["id"])}</code>'
                    f'<span class="tname">{_label(r["name"])}</span>'
                    f'{_tag("st-" + r["status"], figures.STATUS_WORDS.get(r["status"], r["status"]))}{commit}'
-                   f'{_more_row(r)}</div>')
+                   f'{a}</div>')
     done = sum(1 for r in rows if r["status"] == "done")
     body = f'<div class="fig">{figures.task_waves_svg(rows)}</div><div class="tasks">{"".join(out)}</div>'
     return body, f"{done} of {len(rows)} done"
@@ -508,10 +514,11 @@ def _findings(p: dict) -> tuple[str, str]:
             tail = (f'<span class="tog" data-id="{pagelib.esc(r["id"])}" data-default="{d}">'
                     f'<button type="button" class="fix" data-v="fix" aria-pressed="{str(d == "fix").lower()}">fix</button>'
                     f'<button type="button" class="skp" data-v="skip" aria-pressed="{str(d == "skip").lower()}">skip</button></span>')
+        go, data, a = _go(r)
         out.append(
-            f'<div class="finding sev-{r["sev"].lower()}" data-id="{pagelib.esc(r["id"])}">'
+            f'<div class="finding sev-{r["sev"].lower()}{go}" data-id="{pagelib.esc(r["id"])}"{data}>'
             f'<code class="fid">{pagelib.esc(r["id"])}</code>{_tag("sev-" + r["sev"].lower(), r["sev"])}'
-            f'<div class="fmain"><div class="claim">{_label(r["claim"])}{_more_row(r)}</div>{where}{chips}{dispute}</div>{tail}</div>')
+            f'<div class="fmain"><div class="claim">{_label(r["claim"])}</div>{where}{chips}{dispute}</div>{tail}{a}</div>')
     venn = figures.venn_svg(rows)
     board = f'<div class="findings">{"".join(out)}</div>'
     side = f'<div class="fside"><div class="venn">{venn}</div></div>' if venn else ""
@@ -524,20 +531,29 @@ def _claims(p: dict) -> tuple[str, str]:
     for r in p["rows"]:
         cls = {"verified": "ok", "corrected": "amb", "unverified": "gry"}[r["result"]]
         note = f'<div class="note-line">{_label(r["note"])}</div>' if r.get("note") else ""
-        out.append(f'<div class="crow2"><code>{pagelib.esc(r["id"])}</code>'
-                   f'<div class="cl">{_label(r["claim"])}{_more_row(r)}{note}</div>'
-                   f'<code class="src">{pagelib.esc(r["source"])}</code>{_tag("c-" + cls, r["result"])}</div>')
+        go, data, a = _go(r)
+        out.append(f'<div class="crow2{go}"{data}><code>{pagelib.esc(r["id"])}</code>'
+                   f'<div class="cl">{_label(r["claim"])}{note}</div>'
+                   f'<code class="src">{pagelib.esc(r["source"])}</code>{_tag("c-" + cls, r["result"])}{a}</div>')
     return figures.claim_stack(p["rows"]) + f'<div class="claims">{"".join(out)}</div>', str(len(p["rows"]))
 
 
 def _commands(p: dict) -> tuple[str, str]:
-    out = [f'<div class="cmd{" danger" if r.get("danger") else ""}"><code>{pagelib.esc(r["cmd"])}</code>'
-           f'<span>{_label(r["does"])}{_more_row(r)}</span></div>' for r in p["rows"]]
+    out = []
+    for r in p["rows"]:
+        go, data, a = _go(r)
+        out.append(f'<div class="cmd{" danger" if r.get("danger") else ""}{go}"{data}><code>{pagelib.esc(r["cmd"])}</code>'
+                   f'<span>{_label(r["does"])}</span>{a}</div>')
     return f'<div class="cmds">{"".join(out)}</div>', str(len(p["rows"]))
 
 
 def _matrix(p: dict) -> tuple[str, str]:
-    legend = "".join(f'<div><code>{pagelib.esc(r["id"])}</code> {_label(r["label"])}{_more_row(r)}</div>' for r in p["rows"])
+    items = []
+    for r in p["rows"]:
+        go, data, a = _go(r)
+        cls = ' class="go"' if go else ""
+        items.append(f'<div{cls}{data}><code>{pagelib.esc(r["id"])}</code> {_label(r["label"])}{a}</div>')
+    legend = "".join(items)
     return figures.heat_matrix(p["rows"]) + f'<div class="legend">{legend}</div>', str(len(p["rows"]))
 
 
@@ -559,11 +575,11 @@ def _render_panel(p: dict) -> str:
     if p["type"] == "asks":
         cls += " needs" + (" has" if p["rows"] else "")
     sub_html = f'<span class="sub">{pagelib.esc(sub)}</span>' if sub else ""
-    more = (f'<a class="more" href="#ch-{pagelib.esc(p["more"])}" title="{pagelib.esc(p["moreTitle"])}">more ↓</a>'
-            if p.get("more") else "")
+    go, data, a = _go(p)
+    h2 = f'<h2 class="go"{data}>' if go else "<h2>"
     return (
         f'<section class="{cls}" id="panel-{letter}" data-letter="{letter}" data-role="{pagelib.esc(p["role"])}">'
-        f'<h2><span class="ltr">{letter}</span>{_label(p["role"])}{sub_html}{more}'
+        f'{h2}<span class="ltr">{letter}</span>{_label(p["role"])}{sub_html}{a}'
         f'<button type="button" class="note-btn" data-for="{letter}">note</button></h2>'
         f'<div class="pbody">{body}</div>'
         f'<textarea class="note" data-note="{letter}" hidden placeholder="Note on panel {letter}"></textarea>'
