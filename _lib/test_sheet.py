@@ -406,6 +406,58 @@ class SheetTest(unittest.TestCase):
         for sel in ('<li class="go"', '<div class="crow2 go"', '<div class="cmd go"', '<div class="trow n-done go"'):
             self.assertIn(sel, html)
 
+    def asks_spec(self, rows):
+        spec = vet_spec()
+        spec["panels"][0]["rows"] = rows
+        return spec
+
+    def test_28_options_render(self):
+        rows = [{"ask": "Fix F2 now?", "why": "It changes the API.",
+                 "options": [{"label": "Fix now", "why": "Cheaper today."}, {"label": "After merge"}],
+                 "recommended": 1},
+                {"ask": "Who owns it?"}]
+        html = sheet.render_sheet(check(self.asks_spec(rows)))
+        self.assertEqual(len(re.findall(r'<button type="button" class="opt" aria-pressed="false" data-i="\d">', html)), 2)
+        self.assertIn('data-i="1"', html)
+        self.assertIn('data-i="2"', html)
+        first = re.search(r'data-i="1">(.*?)</button>', html, re.S).group(1)
+        self.assertIn('class="rec"', first)
+        self.assertIn("Cheaper today.", first)
+        second = re.search(r'data-i="2">(.*?)</button>', html, re.S).group(1)
+        self.assertNotIn('class="rec"', second)
+        self.assertEqual(html.count('class="opt-other"'), 2)
+        self.assertIn('placeholder="Other answer"', html)
+        self.assertIn('placeholder="Your answer"', html)
+        self.assertIn("0 of 2 answered", html)
+
+    def test_29_options_validation(self):
+        def opts(*labels):
+            return [{"label": x} for x in labels]
+        cases = [
+            ({"options": opts("Only")}, "panel A asks[0] options: give 2 to 4"),
+            ({"options": opts("a", "b", "c", "d", "e")}, "panel A asks[0] options: give 2 to 4"),
+            ({"options": opts("Same", "Same")}, "panel A asks[0] options[1] label: duplicate"),
+            ({"options": opts("One two three four five six seven", "b")}, "panel A asks[0] options[0] label: keep to 6 words"),
+            ({"options": opts("a", "b"), "recommended": 5}, "panel A asks[0] recommended: 5 is not an option"),
+            ({"recommended": 1}, "panel A asks[0] recommended: needs options"),
+            ({"multi": True}, "panel A asks[0] multi: needs options"),
+        ]
+        for extra, msg in cases:
+            with self.subTest(msg=msg):
+                self.assertIn(msg, fails(self, self.asks_spec([{"ask": "Pick one.", **extra}])))
+
+    def test_30_accept_and_send_buttons(self):
+        plain = sheet.render_sheet(check(self.asks_spec([{"ask": "Who owns it?"}])))
+        self.assertIn("data-send", plain)
+        self.assertNotIn("data-accept", plain)
+        rec = sheet.render_sheet(check(self.asks_spec([
+            {"ask": "Fix now?", "options": [{"label": "Yes"}, {"label": "No"}], "recommended": 2}])))
+        self.assertIn("data-accept", rec)
+        self.assertIn("data-send", rec)
+        none = sheet.render_sheet(check(vet_spec()))
+        self.assertNotIn("data-send", none)
+        self.assertNotIn("data-accept", none)
+
 
 if __name__ == "__main__":
     unittest.main()

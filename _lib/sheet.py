@@ -37,10 +37,11 @@ ENUMS = {
     "level": ("low", "med", "high"),
 }
 # field -> (class, required). Classes: label, instruction, literal, exit (int or null), bool,
-# litlist (list of literals), litlist1 (non-empty), enum:<name>. `more` names a chapter id; check_sheet
+# litlist (list of literals), litlist1 (non-empty), options (2 to 4 {label, why?}), int, enum:<name>. `more` names a chapter id; check_sheet
 # resolves it against its `targets`.
 ROW_FIELDS = {
-    "asks": {"ask": ("label", True), "why": ("instruction", False), "more": ("literal", False)},
+    "asks": {"ask": ("label", True), "why": ("instruction", False), "more": ("literal", False),
+             "options": ("options", False), "recommended": ("int", False), "multi": ("bool", False)},
     "checks": {"cmd": ("literal", True), "cwd": ("literal", True), "exit": ("exit", True),
                "result": ("label", False), "more": ("literal", False)},
     "decisions": {"id": ("literal", False), "decision": ("label", True), "chosen": ("label", True),
@@ -129,6 +130,11 @@ def _check_value(ctx: _Ctx, where: str, name: str, value, cls: str) -> None:
     elif cls == "bool":
         if not isinstance(value, bool):
             pagelib.fail(f"{here}: must be true or false")
+    elif cls == "int":
+        if not _is_int(value):
+            pagelib.fail(f"{here}: must be a whole number")
+    elif cls == "options":
+        _check_options(ctx, here, value)
     elif cls in ("litlist", "litlist1"):
         ok = isinstance(value, list) and all(isinstance(x, str) and x for x in value)
         if not ok or (cls == "litlist1" and not value):
@@ -137,6 +143,27 @@ def _check_value(ctx: _Ctx, where: str, name: str, value, cls: str) -> None:
         allowed = ENUMS[cls[5:]]
         if value not in allowed:
             pagelib.fail(f"{here}: must be one of {', '.join(allowed)}")
+
+
+def _check_options(ctx: _Ctx, here: str, value) -> None:
+    if not isinstance(value, list) or not 2 <= len(value) <= 4:
+        pagelib.fail(f"{here}: give 2 to 4")
+    seen = set()
+    for j, o in enumerate(value):
+        at = f"{here}[{j}]"
+        if not isinstance(o, dict):
+            pagelib.fail(f"{at}: must be an object with label and why")
+        for k in o:
+            if k not in ("label", "why"):
+                pagelib.fail(f"{at}: unknown field {k!r}")
+        label = ctx.text(f"{at} label", o.get("label"), "label")
+        if len(voice.plain(label, "label").split()) > 6:
+            pagelib.fail(f"{at} label: keep to 6 words")
+        if label in seen:
+            pagelib.fail(f"{at} label: duplicate {label!r}")
+        seen.add(label)
+        if "why" in o:
+            ctx.text(f"{at} why", o["why"], "instruction")
 
 
 def _check_row(ctx: _Ctx, where: str, row, fields: dict) -> dict:
@@ -268,7 +295,15 @@ def _normalize_panel(ctx: _Ctx, p, letter: str, tree) -> dict:
 
 
 def _check_rows_extra(where: str, typ: str, rows: list[dict], tree) -> None:
-    if typ == "findings":
+    if typ == "asks":
+        for i, r in enumerate(rows):
+            n = len(r.get("options", []))
+            for name in ("recommended", "multi"):
+                if name in r and not n:
+                    pagelib.fail(f"{where}[{i}] {name}: needs options")
+            if "recommended" in r and not 1 <= r["recommended"] <= n:
+                pagelib.fail(f"{where}[{i}] recommended: {r['recommended']} is not an option")
+    elif typ == "findings":
         for i, r in enumerate(rows):
             if "where" in r:
                 if tree is None:
@@ -397,6 +432,13 @@ def _go(r: dict) -> tuple[str, str, str]:
             f'<a class="go-a" href="#ch-{cid}" aria-label="Section {r["moreN"]}: {pagelib.esc(r["moreTitle"])}">›</a>')
 
 
+def _opt(i: int, o: dict, rec: bool) -> str:
+    tag = '<span class="rec">recommended</span>' if rec else ""
+    why = f'<span class="opt-why">{_label(o["why"])}</span>' if o.get("why") else ""
+    return (f'<button type="button" class="opt" aria-pressed="false" data-i="{i}">'
+            f'<span class="opt-l">{_label(o["label"])}</span>{tag}{why}</button>')
+
+
 def _asks(p: dict) -> tuple[str, str]:
     if not p["rows"]:
         return '<p class="empty">✓ Nothing needs you</p>', "0"
@@ -405,8 +447,22 @@ def _asks(p: dict) -> tuple[str, str]:
         why = f'<div class="why">{_label(r["why"])}</div>' if r.get("why") else ""
         cls, data, a = _go(r)
         cls = f' class="{cls.strip()}"' if cls else ""
-        items.append(f'<li{cls}{data}><span class="n">{i}</span><div><div class="q">{_label(r["ask"])}</div>{why}</div>{a}</li>')
-    return f'<ol class="asks">{"".join(items)}</ol>', str(len(p["rows"]))
+        opts = r.get("options")
+        multi = ' data-multi="1"' if r.get("multi") else ""
+        buttons = ""
+        if opts:
+            rec = r.get("recommended")
+            buttons = '<div class="opts">' + "".join(_opt(j, o, j == rec) for j, o in enumerate(opts, 1)) + "</div>"
+        other = "Other answer" if opts else "Your answer"
+        field = f'<input type="text" class="opt-other" placeholder="{other}" aria-label="{other}">'
+        items.append(f'<li{cls}{data} data-ask="{i}"{multi}><span class="n">{i}</span><div><div class="q">{_label(r["ask"])}</div>'
+                     f'{why}{buttons}{field}</div>{a}</li>')
+    accept = ""
+    if any(r.get("recommended") for r in p["rows"]):
+        accept = '<button type="button" class="btn" data-accept>Accept recommended</button> '
+    actions = (f'<div class="ask-actions">{accept}<button type="button" class="btn" data-send>Send answers</button>'
+               '<span class="count" data-answers-status></span></div>')
+    return f'<ol class="asks">{"".join(items)}</ol>{actions}', f"0 of {len(p['rows'])} answered"
 
 
 def _checks(p: dict) -> tuple[str, str]:
