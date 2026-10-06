@@ -265,7 +265,7 @@
       if (copied === null || db === undefined || (db && saved === null)) return;
       var msg;
       if (copied) msg = saved === false ? "Copied. Could not save on the page." : saved ? "Copied. Saved for the agent." : "Copied.";
-      else msg = saved ? "Saved for the agent. Clipboard blocked; copy from the box below." : "Clipboard blocked. Copy from the box below.";
+      else msg = saved ? "Saved for the agent. Clipboard blocked; copy the text in the box." : "Clipboard blocked. Copy the text in the box.";
       if (copied || saved) sheetFlip();
       if (sheetPreview && !copied && sheetPop) sheetPop.hidden = false;
       sheetSay(msg);
