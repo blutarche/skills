@@ -62,7 +62,7 @@
     {
       "id": "retry-spacing",
       "title": "How retries are spaced",
-      "prose": "<p>The delay doubles after each failed try, up to a cap of 10 minutes. A service that is down gets less load as the outage grows.</p><table><thead><tr><th>Try</th><th>Delay</th></tr></thead><tbody><tr><td>1</td><td>30 seconds</td></tr><tr><td>2</td><td>1 minute</td></tr><tr><td>3</td><td>2 minutes</td></tr><tr><td>5</td><td>8 minutes</td></tr></tbody></table>"
+      "prose": "<p>The delay doubles after each failed try, up to a cap of 10 minutes. A service that is down gets less load as the outage grows.</p><table><thead><tr><th>Try</th><th>Delay</th></tr></thead><tbody><tr><td>1</td><td>30 seconds</td></tr><tr><td>2</td><td>1 minute</td></tr><tr><td>3</td><td>2 minutes</td></tr><tr><td>4</td><td>4 minutes</td></tr><tr><td>5</td><td>8 minutes</td></tr></tbody></table>"
     }
   ]
 }

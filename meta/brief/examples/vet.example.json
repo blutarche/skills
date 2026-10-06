@@ -19,7 +19,7 @@
       "role": "findings",
       "type": "findings",
       "rows": [
-        {"id": "F1", "sev": "P0", "claim": "A crash between insert and commit drops the event.", "foundBy": ["scrutinize", "council"], "default": "fix"},
+        {"id": "F1", "sev": "P0", "claim": "A crash between insert and commit drops the event.", "foundBy": ["scrutinize", "council"], "default": "fix", "more": "lost-event"},
         {"id": "F2", "sev": "P1", "claim": "The retry call has no limit on attempts.", "foundBy": ["scrutinize", "council"], "default": "fix"},
         {"id": "F3", "sev": "P1", "claim": "Two workers can claim the same row.", "foundBy": ["scrutinize"], "default": "fix"},
         {"id": "F4", "sev": "P2", "claim": "The delay between retries has no cap.", "foundBy": ["council"], "default": "fix"},
@@ -30,6 +30,11 @@
     }
   ],
   "chapters": [
+    {
+      "id": "lost-event",
+      "title": "F1: a crash can drop an event",
+      "prose": "<p>The handler sends the event before it commits the row. A crash between the two steps loses the event.</p><h4>How to see it</h4><p>Stop the process after the send and before the commit. The row is gone and nothing retries it.</p><h4>The fix</h4><p>Write the row and commit first. The worker sends it after the commit.</p>"
+    },
     {
       "id": "starved-rows",
       "title": "F6: slow rows may wait too long",
