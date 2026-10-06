@@ -1,5 +1,6 @@
   // Sheet behavior. Runs inside the page IIFE after notes.js, so $, $$, state, and save exist.
   state.toggles = state.toggles || {};
+  state.answers = state.answers || {};
 
   function sheetCopy(text, done) {
     function ok() { if (done) done(true); }
@@ -105,6 +106,7 @@
   function sheetFeedback() {
     var h1 = $(".sheet h1");
     var out = ["# Feedback on " + (h1 ? h1.textContent : "the sheet"), ""];
+    if (askCards.length) out.unshift(sheetAnswers().text, "");
     $$("textarea[data-note]").forEach(function (ta) {
       var text = ta.value.trim();
       if (!text) return;
@@ -137,6 +139,151 @@
         var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
       }
     });
+  });
+
+  // Asks: option buttons and an Other field per card. state.answers[n] = { picks: [option numbers], other: text }.
+  var askCards = $$(".asks > li[data-ask]");
+  function askState(li) {
+    var n = li.getAttribute("data-ask");
+    return state.answers[n] || (state.answers[n] = { picks: [], other: "" });
+  }
+  function askAnswered(li) {
+    var a = askState(li);
+    return a.picks.length > 0 || a.other.trim() !== "";
+  }
+  function askPaint(li) {
+    var a = askState(li);
+    $$(".opt", li).forEach(function (b) {
+      b.setAttribute("aria-pressed", a.picks.indexOf(Number(b.getAttribute("data-i"))) >= 0 ? "true" : "false");
+    });
+    var other = $(".opt-other", li);
+    if (other && other.value !== a.other) other.value = a.other;
+  }
+  function askCount() {
+    var sub = $("#panel-A .sub");
+    if (!sub || !askCards.length) return;
+    sub.textContent = askCards.filter(askAnswered).length + " of " + askCards.length + " answered";
+  }
+  function askPick(li, i) {
+    var a = askState(li), at = a.picks.indexOf(i);
+    if (li.hasAttribute("data-multi")) {
+      if (at >= 0) a.picks.splice(at, 1); else a.picks.push(i);
+    } else {
+      a.picks = at >= 0 ? [] : [i];
+      if (a.picks.length) a.other = "";
+    }
+  }
+  function askRecommended(li) {
+    var b = $(".opt .rec", li);
+    return b ? Number(b.parentNode.getAttribute("data-i")) : 0;
+  }
+  askCards.forEach(function (li) {
+    askPaint(li);
+    $$(".opt", li).forEach(function (b) {
+      b.addEventListener("click", function () {
+        askPick(li, Number(b.getAttribute("data-i")));
+        askPaint(li); askCount(); save();
+      });
+    });
+    var other = $(".opt-other", li);
+    other.addEventListener("input", function () {
+      var a = askState(li);
+      a.other = other.value;
+      if (a.other.trim() && !li.hasAttribute("data-multi")) a.picks = [];
+      askPaint(li); askCount(); save();
+    });
+    li.addEventListener("keydown", function (e) {
+      if (e.ctrlKey || e.metaKey || e.altKey || !/^[1-4]$/.test(e.key)) return;
+      if (e.target.closest && e.target.closest("input, textarea")) return;
+      var b = $('.opt[data-i="' + e.key + '"]', li);
+      if (b) { e.preventDefault(); b.click(); }
+    });
+  });
+  askCount();
+
+  var acceptBtn = $("[data-accept]");
+  if (acceptBtn) acceptBtn.addEventListener("click", function () {
+    askCards.forEach(function (li) {
+      var rec = askRecommended(li);
+      if (!rec || askAnswered(li)) return;
+      askState(li).picks = [rec];
+      askPaint(li);
+    });
+    askCount(); save();
+  });
+
+  // The answer block is one plain-text format for every host; the agent reads it from the paste.
+  function sheetAnswers() {
+    var h1 = $(".sheet h1");
+    var title = h1 ? h1.textContent : "the sheet";
+    var items = askCards.map(function (li) {
+      var a = askState(li), rec = askRecommended(li);
+      var picks = a.picks.slice().sort(function (x, y) { return x - y; }).map(function (i) {
+        var b = $('.opt[data-i="' + i + '"] .opt-l', li);
+        return { label: b ? b.textContent : "", rec: i === rec };
+      });
+      return { n: Number(li.getAttribute("data-ask")), ask: $(".q", li).textContent, picks: picks, other: a.other.trim() };
+    });
+    var lines = ["Answers: " + title];
+    items.forEach(function (it) {
+      var parts = it.picks.map(function (p) { return p.label + (p.rec ? " (recommended)" : ""); });
+      if (it.other) parts.push("Other: " + it.other);
+      lines.push(it.n + ". " + it.ask, "   -> " + (parts.join("; ") || "(no answer)"));
+    });
+    return { title: title, items: items, text: lines.join("\n") };
+  }
+
+  // Inside a claude.ai artifact viewer only: claude.use("db") resolves to a database, or null.
+  var claudeDb = null;
+  if (window.claude && typeof window.claude.use === "function") {
+    try {
+      var dbp = window.claude.use("db");
+      if (dbp && typeof dbp.then === "function") dbp.then(function (db) { claudeDb = db || null; }, function () { claudeDb = null; });
+      else claudeDb = dbp || null;
+    } catch (e) { claudeDb = null; }
+  }
+
+  var sendBtn = $("[data-send]"), askStatus = $("[data-answers-status]");
+  function sheetSay(msg) {
+    if (askStatus) askStatus.textContent = msg;
+    if (sheetStatus) sheetStatus.textContent = msg;
+  }
+  if (sendBtn) sendBtn.addEventListener("click", function () {
+    var ans = sheetAnswers();
+    if (sheetPreview) sheetPreview.textContent = ans.text;
+    var copied = null, saved = null;
+    var db = claudeDb;
+    function done() {
+      if (copied === null || (db && saved === null)) return;
+      var msg;
+      if (copied) msg = saved === false ? "Copied. Could not save on the page." : saved ? "Copied. Saved for the agent." : "Copied.";
+      else msg = saved ? "Saved for the agent. Clipboard blocked; copy from the box below." : "Clipboard blocked. Copy from the box below.";
+      sheetSay(msg);
+      if (sheetPreview && !copied) {
+        sheetPreview.hidden = false;
+        var r = document.createRange(); r.selectNodeContents(sheetPreview);
+        var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+      }
+    }
+    sheetCopy(ans.text, function (ok) { copied = ok; done(); });
+    if (!db) return;
+    var doc = {
+      title: ans.title,
+      answers: ans.items.map(function (it) {
+        return {
+          n: it.n, ask: it.ask,
+          picks: it.picks.map(function (p) { return p.label; }),
+          other: it.other,
+          recommended: it.picks.some(function (p) { return p.rec; })
+        };
+      }),
+      sentAt: new Date().toISOString()
+    };
+    try {
+      db.doc("answers/latest").set(doc).then(
+        function () { saved = true; done(); },
+        function () { saved = false; done(); });
+    } catch (e) { saved = false; done(); }
   });
 
   // Whole-row navigation. A click on a [data-go] row or panel header opens its section, unless it hit

@@ -826,6 +826,10 @@ class SheetTest(unittest.TestCase):
         page = self.page(self.sheet_spec())
         self.assertEqual(page.count("data-export>"), 1)
 
+    def test_tour_feedback_puts_the_answer_block_first(self) -> None:
+        page = self.page(self.sheet_spec())
+        self.assertIn("sheetAnswers().text", page)
+
 
 class HighlightTest(unittest.TestCase):
     def strip(self, rendered: str) -> str:

@@ -448,6 +448,12 @@ def _asks(p: dict) -> tuple[str, str]:
         cls, data, a = _go(r)
         cls = f' class="{cls.strip()}"' if cls else ""
         opts = r.get("options")
+        q_attrs = ' class="q"'
+        if opts and r.get("more"):
+            # An option card is a form: only the question text and the chevron navigate, not the whole card.
+            q_attrs = f' class="q go"{data}'
+            a = a.replace('<a class="go-a"', f'<a class="go-a"{data}', 1)
+            cls = data = ""
         multi = ' data-multi="1"' if r.get("multi") else ""
         buttons = ""
         if opts:
@@ -455,7 +461,7 @@ def _asks(p: dict) -> tuple[str, str]:
             buttons = '<div class="opts">' + "".join(_opt(j, o, j == rec) for j, o in enumerate(opts, 1)) + "</div>"
         other = "Other answer" if opts else "Your answer"
         field = f'<input type="text" class="opt-other" placeholder="{other}" aria-label="{other}">'
-        items.append(f'<li{cls}{data} data-ask="{i}"{multi}><span class="n">{i}</span><div><div class="q">{_label(r["ask"])}</div>'
+        items.append(f'<li{cls}{data} data-ask="{i}"{multi}><span class="n">{i}</span><div><div{q_attrs}>{_label(r["ask"])}</div>'
                      f'{why}{buttons}{field}</div>{a}</li>')
     accept = ""
     if any(r.get("recommended") for r in p["rows"]):

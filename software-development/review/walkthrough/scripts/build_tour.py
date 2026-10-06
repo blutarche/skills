@@ -1100,6 +1100,7 @@ SHEET_GLUE = """
       });
       extra.push("Fix: " + (fix.join(", ") || "none"), "Skip: " + (skip.join(", ") || "none"), "");
     }
+    if (typeof sheetAnswers === "function" && $$(".asks > li[data-ask]").length) md = sheetAnswers().text + "\\n\\n" + md;
     if (!extra.length) return md;
     return md.replace("(no notes written)\\n\\n", "") + "\\n\\n## Report sheet\\n\\n" + extra.join("\\n");
   };

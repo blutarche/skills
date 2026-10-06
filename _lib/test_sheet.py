@@ -458,6 +458,18 @@ class SheetTest(unittest.TestCase):
         self.assertNotIn("data-send", none)
         self.assertNotIn("data-accept", none)
 
+    def test_31_option_card_with_more_navigates_only_from_question_and_chevron(self):
+        t = {"x": (1, "The x")}
+        opts = [{"label": "Yes"}, {"label": "No"}]
+        html = sheet.render_sheet(check(self.asks_spec([
+            {"ask": "Pick.", "more": "x", "options": opts}, {"ask": "Plain.", "more": "x"}]), targets=t))
+        card, plain = re.findall(r"<li.*?</li>", html, re.S)
+        self.assertTrue(card.startswith('<li data-ask="1">'))
+        self.assertIn('<div class="q go" data-go="ch-x">Pick.</div>', card)
+        self.assertIn('<a class="go-a" data-go="ch-x" href="#ch-x"', card)
+        self.assertEqual(card.count("data-go"), 2)
+        self.assertTrue(plain.startswith('<li class="go" data-go="ch-x"'))
+
 
 if __name__ == "__main__":
     unittest.main()
