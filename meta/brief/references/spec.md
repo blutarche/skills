@@ -112,8 +112,9 @@ Answers: <sheet title>
 Picks in a `multi` ask join with `; `. `(recommended)` marks only the recommended pick.
 Answers stay in the page's local storage.
 
-"Send feedback" is the one send button. It sits in a bar at the bottom of the sheet. The bar stays
-on screen while the sheet is in view.
+"Send feedback" is the one send button. It is a floating button at the bottom right, so it stays
+on screen from the sheet and from the report. When the clipboard is blocked, a box above the button
+shows the text, selected, with a Close button.
 
 An ask card with `options` and a `more` opens its section only from the question text and the `›`
 link. A click elsewhere on the card does nothing.

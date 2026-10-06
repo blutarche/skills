@@ -152,7 +152,7 @@ either the user has a link or has been told it was not published and pointed bac
 ### 6. Stop
 
 Reply in 3 lines at most: the state (with the stamp), what needs the user (the count and the
-first ask), and the local path. Tell the user to answer on the page and press "Send feedback". Add the link if a requested publish succeeded, or a note that it
+first ask), and the local path. Tell the user to answer on the page and press the floating "Send feedback" button. Add the link if a requested publish succeeded, or a note that it
 did not. Do not act on feedback in this skill; that is the next request.
 
 On the next turn, read the answers from the pasted block. For a page published with sync, they

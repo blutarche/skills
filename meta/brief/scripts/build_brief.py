@@ -373,17 +373,23 @@ def render_chapter(idx: int, ch: dict) -> str:
     return "\n".join(o)
 
 
-SEND_BAR = (
-    "<pre data-export-preview hidden></pre>"
-    '<div class="sendbar"><span class="count" data-export-status></span>'
-    '<button type="button" class="btn primary" data-export '
-    'title="Notes stay in this browser until you send them.">Send feedback</button></div>'
-)
+def render_dock(has_chapters: bool) -> str:
+    """The fixed bottom-right dock: back-to-sheet (chapters only), Send feedback, the toast, and the blocked-clipboard popover."""
+    back = '<button type="button" class="tosheet" hidden>\u2191 Back to sheet</button>' if has_chapters else ""
+    return (
+        '<div class="dock">'
+        '<div class="dock-pop" hidden><pre data-export-preview></pre>'
+        '<button type="button" class="btn" data-pop-close>Close</button></div>'
+        '<div class="dock-toast" role="status" aria-live="polite" data-export-status hidden></div>'
+        f'<div class="dock-row">{back}'
+        '<button type="button" class="send" data-export title="Notes stay in this browser until you send them.">'
+        'Send feedback</button></div></div>'
+    )
 
 
 def build_body(spec: dict, norm: dict, page_key: str, tmpdir: Path, use_mmdc: bool) -> tuple[str, dict, bool]:
     chapters = spec.get("chapters", [])
-    sheet_html, mermaid_left = render_mermaid(sheet.render_sheet(norm, SEND_BAR), norm, chapters, tmpdir, use_mmdc)
+    sheet_html, mermaid_left = render_mermaid(sheet.render_sheet(norm), norm, chapters, tmpdir, use_mmdc)
     built = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M %Z")
 
     o = [
@@ -397,7 +403,7 @@ def build_body(spec: dict, norm: dict, page_key: str, tmpdir: Path, use_mmdc: bo
             render_chapter(i, ch) for i, ch in enumerate(chapters, start=1)
         )
         o.append("</section>")
-        o.append('<button type="button" class="tosheet" hidden>\u2191 Back to sheet</button>')
+    o.append(render_dock(bool(chapters)))
     o.append(f'<footer class="pgfoot">Words on sheet: {norm["words"]} · built {esc(built)} from brief.json</footer>')
     o.append("</div>")
 

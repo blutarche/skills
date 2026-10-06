@@ -229,8 +229,12 @@
     } catch (e) { claudeDb = Promise.resolve(null); }
   }
 
+  var sheetPop = $(".dock-pop"), popClose = $("[data-pop-close]");
+  if (popClose) popClose.addEventListener("click", function () { sheetPop.hidden = true; });
   function sheetSay(msg) {
-    if (sheetStatus) sheetStatus.textContent = msg;
+    if (!sheetStatus) return;
+    sheetStatus.textContent = msg;
+    sheetStatus.hidden = false;
   }
   if (sheetExport) sheetExport.addEventListener("click", function () {
     var md = sheetFeedback(), ans = sheetAnswers();
@@ -243,10 +247,10 @@
       else msg = saved ? "Saved for the agent. Clipboard blocked; copy from the box below." : "Clipboard blocked. Copy from the box below.";
       sheetSay(msg);
       if (sheetPreview && !copied) {
+        if (sheetPop) sheetPop.hidden = false;
         sheetPreview.hidden = false;
         var r = document.createRange(); r.selectNodeContents(sheetPreview);
         var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
-        sheetPreview.scrollIntoView({ block: "center" });
       }
     }
     sheetCopy(md, function (ok) { copied = ok; done(); });

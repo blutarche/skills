@@ -640,8 +640,8 @@ def _render_panel(p: dict) -> str:
         f'</section>')
 
 
-def render_sheet(sheet: dict, tail: str = "") -> str:
-    """Band, panel grid, and the title block with the color key. `tail` is the last child of the sheet."""
+def render_sheet(sheet: dict) -> str:
+    """Band, panel grid, and the title block with the color key."""
     tone = sheet["stampTone"]
     facts = "".join(f'<div><span class="kk">{_label(f["k"])}</span><span class="v">{pagelib.esc(f["v"])}</span></div>'
                     for f in sheet["facts"])
@@ -652,7 +652,7 @@ def render_sheet(sheet: dict, tail: str = "") -> str:
         f'<h1>{_label(sheet["title"])}</h1><p class="state">{pagelib.sanitize_prose(sheet["state"])}</p></div>'
         f'<div class="stamp {tone}">{sheet["stamp"]}</div></header>'
         f'<div class="grid">{"".join(_render_panel(p) for p in sheet["panels"])}</div>'
-        f'<footer class="tb">{facts}<div class="key">{key}</div></footer>{tail}</div>')
+        f'<footer class="tb">{facts}<div class="key">{key}</div></footer></div>')
 
 
 def render_failure(msg: str, spec_path: str) -> str:
