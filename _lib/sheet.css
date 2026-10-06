@@ -44,7 +44,8 @@
 .panel h2 .sub{font:11px var(--mono);font-weight:400;color:var(--ink-2);margin:auto 10px auto auto;white-space:nowrap}
 .panel h2 .sub:first-of-type{margin-left:auto}
 .panel h2:not(:has(.sub)) .note-btn{margin-left:auto}
-.panel h2{align-items:center;flex:none;align-content:flex-start}
+.panel h2{align-items:center;flex:none;align-content:stretch}
+.panel h2 .ltr{align-self:stretch}
 .more,.more-row{color:var(--blu);text-decoration:none;font:11px var(--mono);white-space:nowrap}
 .more:hover,.more-row:hover{text-decoration:underline}
 .panel h2 .more{margin:auto 10px auto 0}
@@ -110,7 +111,7 @@ textarea.note[hidden]{display:none}
 .fig svg{display:block;width:100%;height:auto;font-family:var(--sans);font-size:12px}
 .fig svg{min-width:600px;max-width:880px}
 .fig .venn svg,.venn svg{min-width:0;max-width:260px}
-.fig svg text{fill:var(--ink)}
+.fig svg text,.venn svg text{fill:var(--ink)}
 .fig svg rect{stroke-width:1.5}
 .n-done rect{fill:var(--add-bg);stroke:var(--add)}
 .n-failed rect{fill:var(--del-bg);stroke:var(--del)}
