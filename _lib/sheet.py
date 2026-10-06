@@ -433,7 +433,8 @@ def _go(r: dict) -> tuple[str, str, str]:
 
 
 def _opt(i: int, o: dict, rec: bool) -> str:
-    tag = '<span class="rec">recommended</span>' if rec else ""
+    tag = ('<span class="rec" title="recommended"><span aria-hidden="true">\u2605</span>'
+           '<span class="sr">recommended</span></span>') if rec else ""
     why = f'<span class="opt-why">{_label(o["why"])}</span>' if o.get("why") else ""
     return (f'<button type="button" class="opt" aria-pressed="false" data-i="{i}">'
             f'<span class="opt-l">{_label(o["label"])}</span>{tag}{why}</button>')

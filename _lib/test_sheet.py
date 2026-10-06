@@ -458,6 +458,16 @@ class SheetTest(unittest.TestCase):
         self.assertNotIn("data-send", none)
         self.assertNotIn("data-accept", none)
 
+    def test_30b_recommended_is_a_corner_icon(self):
+        rec = sheet.render_sheet(check(self.asks_spec([
+            {"ask": "Fix now?", "options": [{"label": "Yes"}, {"label": "No"}], "recommended": 2}])))
+        tag = ('<span class="rec" title="recommended"><span aria-hidden="true">\u2605</span>'
+               '<span class="sr">recommended</span></span>')
+        self.assertEqual(rec.count('class="rec"'), 1)
+        self.assertIn(tag, rec)
+        self.assertEqual(rec.replace(tag, "").count("recommended"), rec.replace(tag, "").count("Accept recommended"))
+        self.assertNotIn(">recommended</span>", rec.replace(tag, ""))
+
     def test_31_option_card_with_more_navigates_only_from_question_and_chevron(self):
         t = {"x": (1, "The x")}
         opts = [{"label": "Yes"}, {"label": "No"}]

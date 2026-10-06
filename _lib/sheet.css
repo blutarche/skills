@@ -88,11 +88,12 @@ textarea.note[hidden]{display:none}
 .asks li[data-ask]{position:relative}
 .asks .q.go:hover{background:var(--blu-bg)}
 .opts{display:grid;gap:6px;margin-top:6px}
-.opt{display:grid;gap:2px;width:100%;text-align:left;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:13px var(--sans);padding:8px 10px;cursor:pointer}
+.opt{position:relative;display:grid;gap:2px;width:100%;text-align:left;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:13px var(--sans);padding:8px 28px 8px 10px;cursor:pointer}
 .opt:hover{background:var(--blu-bg)}
-.opt[aria-pressed="true"]{border:2px solid var(--blu);background:var(--blu-bg);padding:7px 9px}
+.opt[aria-pressed="true"]{border:2px solid var(--blu);background:var(--blu-bg);padding:7px 27px 7px 9px}
 .opt[aria-pressed="true"] .opt-l::before{content:"✓ "}
-.opt .rec{font:10px var(--mono);color:var(--add);margin-left:6px}
+.opt .rec{position:absolute;top:6px;right:6px;font:12px/1 var(--sans);color:var(--add)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .opt-why{color:var(--ink-2);font-size:12px}
 .opt-other{display:block;box-sizing:border-box;width:100%;margin-top:6px;font:13px var(--sans);background:var(--paper);color:var(--ink);border:1px solid var(--line);padding:6px}
 .ask-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
