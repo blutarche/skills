@@ -1,6 +1,6 @@
 ---
 name: brief
-description: "Render a run as one glanceable HTML sheet: stamp, asks, checks, diff, findings, tasks, and claims as typed panels, with detail in drawers. Use when a workflow ends, or the user asks to brief, recap, or visualize a run. Also use when the user calls the last output a wall of text."
+description: "Render a run as one glanceable HTML sheet: stamp, asks, checks, diff, findings, tasks, and claims as typed panels, with a linked full report below. Use when a workflow ends, or the user asks to brief, recap, or visualize a run. Also use when the user calls the last output a wall of text."
 ---
 
 # Brief
@@ -41,10 +41,23 @@ Required panels per kind (role: type). A missing role or a wrong type fails the 
 | `session` | needs you: asks |
 
 The build draws task waves, the Venn, the severity strip, the claim stack, and the decision tree
-from your rows. Draw a `figure` panel only for a mechanism a reader must see. Put detail in
-chapters, which render as drawers below the sheet (0 to 8, optional).
+from your rows. Draw a `figure` panel only for a mechanism a reader must see. Put the full
+report in `chapters`: open sections below the sheet (0 to 12, optional). Each panel or row that
+has more detail links to its chapter with `more` (a chapter id).
 
-Figures in a `figure` panel or a drawer come from these sources.
+What the full report holds, by kind.
+
+| Kind | One section for each | Each section says |
+|---|---|---|
+| `plan` | hard task or decision | what, why, and the risk |
+| `execute` | task | what changed, why, and how it was checked |
+| `vet` | P0 or P1 finding | what breaks, how to reproduce it, and the fix |
+| `finish` | the whole branch | what ships, what is left, and how to roll back |
+| `research` | sub-question, after the full answer | the answer, with sources |
+| `grill` | decision | the question, the options, and why the chosen one won |
+| `session` | the whole session | what was done and what was found |
+
+Figures in a `figure` panel or a chapter come from these sources.
 
 | Need | Source | How |
 |---|---|---|
@@ -63,7 +76,7 @@ mermaid script from a CDN; offline, a mermaid figure shows "Diagram loads when o
 Read `references/authoring.md` before drawing: what earns a diagram, the mermaid type picker,
 inline SVG mechanics, dataviz condensation, and figure layout (`figureLayout`).
 
-Done when: every required panel for the kind is present (an empty `asks` panel is fine), and each drawer title states a claim.
+Done when: every required panel for the kind is present (an empty `asks` panel is fine), and each chapter title states a claim.
 
 ### 2. Write the spec
 
@@ -96,9 +109,10 @@ most. Then reply "sheet failed", the first error, and the path.
 
 ### 4. Look before delivering
 
-Open the page and confirm it before handing it over: render a screenshot of `brief.html` with a
-headless browser if one is available; at minimum, Read `brief.html` and confirm the stamp, every
-panel role, and every drawer title appear once, in order. Every figure, mermaid or svg, needs
+Open the page and confirm it before handing it over. Render a screenshot of `brief.html` with a
+headless browser if one is available. At minimum, Read `brief.html` and confirm that the stamp,
+every panel role, the full report, and every chapter title appear once, in order. Check that each
+`more` link lands on the chapter it names, and that each chapter links back to the sheet. Every figure, mermaid or svg, needs
 to be seen rendered; an svg figure that shows nothing or clips is a spec defect, not a page bug.
 Mermaid without `mmdc` shows "Diagram loads when online" until the CDN script runs.
 

@@ -1,19 +1,23 @@
 # Authoring rules
 
 A brief replaces the long markdown an agent would otherwise dump after a planning, execution,
-research, or debugging stretch. It is one sheet of typed panels, with detail in drawers, in
-simple English. The sheet stays a page a reader glances at rather than scrolls past.
+research, or debugging stretch. It is one page with two bands: a sheet of typed panels that a
+reader glances at, then a full report. Panels and rows link down to report sections with `more`.
+Both bands use simple English.
 
-## Drawers
+## Full report
 
-- Drawers hold detail only. The panels carry the state, the asks, and the facts. A drawer is
-  optional, and a sheet may have none.
-- Cut by concept, not by file or commit. 0 to 8 drawers.
-- A drawer title states its claim: "The handler stores the event before it returns", not
+- The sheet carries the state, the asks, and the facts. The report holds the detail the sheet
+  cannot. A report is optional, and a sheet may have none.
+- Cut by concept, not by file or commit. 0 to 12 chapters.
+- A chapter title states its claim: "The handler stores the event before it returns", not
   "Webhook changes".
-- `prose` is 2 sentences at most. Add `proseWhy` (never shown) only when a drawer truly needs
-  more, and then keep `prose` to 120 words.
-- A drawer's `visual` is optional. A figure caption is a label of 12 words at most.
+- A section may be long, but every sentence keeps the voice rules. Write short sentences.
+- A table or a figure beats a paragraph where it fits: costs, options, steps, and
+  before and after. Use `<h4>` to split a long section, and `<table>` for rows of facts.
+- Link in from the sheet. Give each panel or row that has more detail a `more` with the chapter
+  id. A chapter that nothing links to is fine, but ask why it is there.
+- A chapter's `visual` is optional. A figure caption is a label of 12 words at most.
 
 ## What to draw
 
@@ -34,7 +38,7 @@ simple English. The sheet stays a page a reader glances at rather than scrolls p
 The source table and its gates (`diagram-design`, mermaid, `dataviz`, hand-authored SVG) are in
 SKILL.md step 1.
 
-A drawer can carry 1 to 4 figures, mixing mermaid and svg, when more than one picture earns its
+A chapter can carry 1 to 4 figures, mixing mermaid and svg, when more than one picture earns its
 place; each one still needs its own caption and still has to clear the bar below. More often one
 is enough. Figures stack full width by default; set `"figureLayout": "row"` on the chapter to lay
 them side by side instead, and only when every figure in the chapter is narrow, roughly `viewBox`
@@ -96,7 +100,7 @@ dashes. You check the rest: one meaning per word, active voice, short common wor
 
 ## Anti-patterns
 
-- A drawer per file or per commit.
+- A chapter per file or per commit.
 - Hand-drawn boxes-and-lines for a `diagram-design` figure with no type reference behind it.
 - A box-per-noun diagram with no arrows between the boxes.
 - A diagram that restates a table already on the page.

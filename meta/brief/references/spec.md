@@ -2,7 +2,8 @@
 
 The brief spec. All prose lives here; the agent never edits the HTML. The build reads this
 file, checks every field against the rules below, and renders the sheet from it. The sheet
-fields sit at the top level next to `chapters`.
+fields sit at the top level next to `chapters`. A page has two bands: the sheet, then the full
+report. Panels and rows link down to report sections with `more`.
 
 ## Sheet fields
 
@@ -36,7 +37,8 @@ Every string field has one class. The build runs the voice lint on every `label`
 | `literal` | no voice check | escaped, in `<code>` for a command or path |
 
 Prose fields are sanitized and embedded as HTML. Only `<p> <br> <b> <strong> <i> <em> <code>
-<pre> <a> <ul> <ol> <li> <span>` survive; on `<a>`, only `href` survives, and only when it is a
+<pre> <a> <ul> <ol> <li> <span>` survive. Chapter prose also keeps `<h4> <table> <thead> <tbody>
+<tr> <th> <td>`; no other field does. On `<a>`, only `href` survives, and only when it is a
 `#` fragment, an absolute `http://` or `https://` URL, or a scheme-less relative path.
 Sanitizing never fails the build.
 
@@ -51,7 +53,7 @@ Top level:
 | `tree` | when any `files` panel, `findings[].where`, or `tasks[].commit` exists | `{repo, base, head}` literals |
 | `facts` | no, 0 to 6 | `{k: label of 3 words at most, v: literal}` |
 | `panels` | yes, 1 to 8 | the first panel is `{"role": "needs you", "type": "asks"}`; its `rows` may be empty |
-| `chapters` | no, 0 to 8 | drawers; see Drawers |
+| `chapters` | no, 0 to 12 | the full report; see Full report |
 
 `tree.repo` is absolute, or relative to the spec file's folder. `tree.head` is `HEAD`,
 `worktree`, or a sha. The old kinds `execution`, `investigation`, and `mixed` are gone, with no
@@ -66,17 +68,29 @@ total stays at 8 or fewer.
 
 | Type | Row fields (class) | The build derives or checks |
 |---|---|---|
-| `asks` | `ask` label, required; `why` instruction | the count; amber when rows exist, else "Nothing needs you" |
-| `checks` | `cmd` literal, `cwd` literal, `exit` int or null, all required; `result` label | pass, fail, and not-run counts; an "agent-reported" note |
+| `asks` | `ask` label, required; `why` instruction; `more` | the count; amber when rows exist, else "Nothing needs you" |
+| `checks` | `cmd` literal, `cwd` literal, `exit` int or null, all required; `result` label; `more` | pass, fail, and not-run counts; an "agent-reported" note |
 | `files` | no rows (fails if given) | rows from git for `tree`; A/M/D letter; +/- bars; totals |
 | `figure` | Panel fields, not rows. Exactly one of `svg` or `mermaid`. `caption` label, required. `steps` `[{n: int, say: instruction}]` (svg only). | `svg` allowlist. Steps number 1..N. Each step is used by a `data-s`, and each `data-s` is a step. |
-| `decisions` | `id` literal (required when any row has `parent`); `decision` label, `chosen` label, `why` instruction, all required; `rejected` label; `parent` literal | the decision tree when any row has `parent` |
-| `tasks` | `id` literal, `name` label, `status` (`done failed blocked skipped todo`), all required. `after` list of ids. `commit` literal. `exit` int or null. | Task waves from `after`; n of m done. An unknown id or a cycle fails. `commit` must exist. |
-| `findings` | `id` literal, `sev` (`P0` to `P3`), `claim` instruction, `foundBy` non-empty list, `default` (`fix` or `skip`), all required. `where` literal. `dispute` instruction. `outcome` (`fixed skipped rejected open`). | Severity strip. Venn when exactly 2 reviewers. Fix and skip toggles. `where` checked, else an "agent-reported" chip. |
-| `claims` | `id` literal, `claim` instruction, `source` literal, `result` (`verified corrected unverified`), all required; `note` instruction | a stacked bar of results |
-| `commands` | `cmd` literal and `does` label, required; `danger` bool | a red border on `danger` rows |
-| `matrix` | `id` literal, `label` label, `likelihood` and `impact` (`low med high`), all required | a 3 by 3 heat grid holding the ids |
+| `decisions` | `id` literal (required when any row has `parent`); `decision` label, `chosen` label, `why` instruction, all required; `rejected` label; `parent` literal; `more` | the decision tree when any row has `parent` |
+| `tasks` | `id` literal, `name` label, `status` (`done failed blocked skipped todo`), all required. `after` list of ids. `commit` literal. `exit` int or null. `more`. | Task waves from `after`; n of m done. An unknown id or a cycle fails. `commit` must exist. |
+| `findings` | `id` literal, `sev` (`P0` to `P3`), `claim` instruction, `foundBy` non-empty list, `default` (`fix` or `skip`), all required. `where` literal. `dispute` instruction. `outcome` (`fixed skipped rejected open`). `more`. | Severity strip. Venn when exactly 2 reviewers. Fix and skip toggles. `where` checked, else an "agent-reported" chip. |
+| `claims` | `id` literal, `claim` instruction, `source` literal, `result` (`verified corrected unverified`), all required; `note` instruction; `more` | a stacked bar of results |
+| `commands` | `cmd` literal and `does` label, required; `danger` bool; `more` | a red border on `danger` rows |
+| `matrix` | `id` literal, `label` label, `likelihood` and `impact` (`low med high`), all required; `more` | a 3 by 3 heat grid holding the ids |
 | `table` | panel fields: `columns` (1 to 5 labels of 3 words at most); `rows` (1 to 8 lists of labels, one per column) | none |
+
+### `more`: links to the full report
+
+`more` is a chapter `id`. It is optional on every panel and on rows of these types: `asks`,
+`checks`, `decisions`, `tasks`, `findings`, `claims`, `commands`, and `matrix`. It is a literal,
+so the voice lint skips it. A `more` that names no chapter fails the build:
+`<where>: more 'x' is not a chapter`. The same happens when the spec has no chapters.
+
+- A panel `more` shows a `more ↓` link in the panel title bar.
+- A row `more` shows a small `↓n` link at the end of the row, where `n` is the chapter number.
+- Both jump to `#ch-<id>`. The link title is the chapter title.
+- Each panel has the anchor `panel-<letter>`, and the sheet has `sheet`.
 
 Required panels per kind (role: type). A missing role or a wrong type fails the build.
 
@@ -94,17 +108,22 @@ The stamp is derived, never supplied. `blocked` gives `BLOCKED` (red). Else any 
 `NEEDS YOU` (amber). Else `plan` and `finish` give `READY`, `research` gives `ANSWERED`, and
 the other kinds give `DONE` (green).
 
-## Drawers
+## Full report
 
-`chapters` are optional drawers below the sheet, 0 to 8, closed by default. They hold detail the
-panels do not.
+`chapters` are the full report below the sheet, 0 to 12. They are open sections, not drawers.
+The sheet is the summary, and the report holds the long answer. The report starts with an
+`<h2>` "Full report" and a numbered contents list. Each chapter then follows, in order, with a
+numbered title.
+
+Each chapter shows a small back link, "↑ sheet". It goes to the first panel that links to the
+chapter with `more`, from the panel itself or from any row in it. A chapter that no panel links to
+goes back to the top of the sheet.
 
 ```json
 {
   "id": "kebab-case",
   "title": "States its claim",
-  "prose": "<p>HTML. Two sentences at most.</p>",
-  "proseWhy": "Optional. Why this drawer needs more than 2 sentences. 20 words per sentence.",
+  "prose": "<p>HTML. As long as the answer needs.</p><h4>A sub-head</h4><table>...</table>",
   "figureLayout": "row",
   "visual": {
     "mermaid": "flowchart LR\n  a[Handler] -->|writes| b[(Outbox)]",
@@ -120,10 +139,11 @@ panels do not.
 }
 ```
 
-`id`, `title`, and `prose` are required. `title` is a label. `prose` is at most 2 sentences,
-unless `proseWhy` is present; then `prose` may be longer, up to 120 words. `proseWhy` is never
-rendered. `visual`, `decisions`, `evidence`, and `figureLayout` are optional. A drawer needs no
-`visual`.
+`id`, `title`, and `prose` are required. `title` is a label. `prose` has no sentence cap and no
+word cap. The voice lint still checks every sentence: 25 words at most, the word lists, and no
+em dash. A table cell or an `<h4>` counts as its own sentence. `proseWhy` is gone: a chapter that
+still has it fails with `chapter <id>: proseWhy is no longer used; prose has no length cap`.
+`visual`, `decisions`, `evidence`, and `figureLayout` are optional. A chapter needs no `visual`.
 
 Plain-text fields: `cmd` and `cwd`. `decision`, `chosen`, `rejected` are labels; `why` and
 evidence `summary` are instructions.
@@ -154,7 +174,7 @@ If `mmdc` is on `PATH`, each mermaid figure is pre-rendered through it, in a lig
 theme, and a non-zero exit fails the build. `--no-mmdc` skips that. Without `mmdc`, the build
 prints `build_brief: mmdc not found; mermaid figures render only online` and loads the mermaid
 script from a CDN, pinned to 11.15.0. Until it runs, the figure shows "Diagram loads when
-online". A drawer's diagrams render when the drawer opens.
+online".
 
 An `svg` is checked against an **allowlist**: every element and attribute has to be named below,
 or the build fails naming the chapter or panel, the figure's index, and the offending tag or attribute.
@@ -193,9 +213,10 @@ FAILED page, described under Outputs.
   a `where` that does not exist shows an "agent-reported" chip instead of failing.
 - A `tasks` panel has unique ids, no unknown `after` id, and no cycle.
 - Each `svg` passes the allowlist, and `steps` match the `data-s` attributes.
-- Drawers: at most 8; ids are kebab-case and unique; `prose` has 2 sentences at most unless
-  `proseWhy` is set, and never more than 120 words; `figureLayout` is `"row"` or absent.
-- Drawer `decisions` rows need `decision`, `chosen`, `rejected`, `why`. Drawer `evidence` rows need `cmd` and `cwd`,
+- Chapters are checked first. There are at most 12, and ids are kebab-case and unique. `prose` has
+  no length cap but passes the voice lint. `proseWhy` fails. `figureLayout` is `"row"` or absent.
+- Every `more` names a chapter id.
+- Chapter `decisions` rows need `decision`, `chosen`, `rejected`, `why`. Chapter `evidence` rows need `cmd` and `cwd`,
   and `exit` as an integer or `null`; `ok`, when present, is `true` or `false`.
 
 ## What the build derives
@@ -208,10 +229,9 @@ words in the checked fields. `--data-out` writes `kind`, `stamp`, `panels`, `ask
 
 ## On the page
 
-Notes are a textarea per drawer and per panel, stored in this browser's `localStorage`
-under a key derived from the spec's raw bytes, so editing and rebuilding the spec starts feedback
-fresh. "Copy feedback" builds a plain-text block of the notes and fix or skip choices. The page
-loads no web fonts. A drawer's `proseWhy` is never rendered.
+Notes are a textarea per chapter and per panel. They live in this browser's `localStorage`, under
+a key from the spec's raw bytes, so a rebuilt spec starts feedback fresh. "Copy feedback" builds a
+plain-text block of the notes and fix or skip choices. The page loads no web fonts.
 
 ## Outputs
 
