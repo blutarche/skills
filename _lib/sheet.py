@@ -37,24 +37,27 @@ ENUMS = {
     "level": ("low", "med", "high"),
 }
 # field -> (class, required). Classes: label, instruction, literal, exit (int or null), bool,
-# litlist (list of literals), litlist1 (non-empty), enum:<name>.
+# litlist (list of literals), litlist1 (non-empty), enum:<name>. `more` names a chapter id; check_sheet
+# resolves it against its `targets`.
 ROW_FIELDS = {
-    "asks": {"ask": ("label", True), "why": ("instruction", False)},
+    "asks": {"ask": ("label", True), "why": ("instruction", False), "more": ("literal", False)},
     "checks": {"cmd": ("literal", True), "cwd": ("literal", True), "exit": ("exit", True),
-               "result": ("label", False)},
+               "result": ("label", False), "more": ("literal", False)},
     "decisions": {"id": ("literal", False), "decision": ("label", True), "chosen": ("label", True),
-                  "rejected": ("label", False), "why": ("instruction", True), "parent": ("literal", False)},
+                  "rejected": ("label", False), "why": ("instruction", True), "parent": ("literal", False),
+                  "more": ("literal", False)},
     "tasks": {"id": ("literal", True), "name": ("label", True), "status": ("enum:status", True),
-              "after": ("litlist", False), "commit": ("literal", False), "exit": ("exit", False)},
+              "after": ("litlist", False), "commit": ("literal", False), "exit": ("exit", False),
+              "more": ("literal", False)},
     "findings": {"id": ("literal", True), "sev": ("enum:sev", True), "claim": ("instruction", True),
                  "where": ("literal", False), "foundBy": ("litlist1", True),
                  "dispute": ("instruction", False), "default": ("enum:default", True),
-                 "outcome": ("enum:outcome", False)},
+                 "outcome": ("enum:outcome", False), "more": ("literal", False)},
     "claims": {"id": ("literal", True), "claim": ("instruction", True), "source": ("literal", True),
-               "result": ("enum:result", True), "note": ("instruction", False)},
-    "commands": {"cmd": ("literal", True), "does": ("label", True), "danger": ("bool", False)},
+               "result": ("enum:result", True), "note": ("instruction", False), "more": ("literal", False)},
+    "commands": {"cmd": ("literal", True), "does": ("label", True), "danger": ("bool", False), "more": ("literal", False)},
     "matrix": {"id": ("literal", True), "label": ("label", True), "likelihood": ("enum:level", True),
-               "impact": ("enum:level", True)},
+               "impact": ("enum:level", True), "more": ("literal", False)},
 }
 PANEL_KEYS = {
     "figure": {"svg", "mermaid", "caption", "steps"},
@@ -85,8 +88,21 @@ def _label(text: str) -> str:
 class _Ctx:
     """Carries the words counter and the first reviewer-order table through one check."""
 
-    def __init__(self) -> None:
+    def __init__(self, targets: dict[str, tuple[int, str]] | None = None) -> None:
         self.words = 0
+        self.targets = targets or {}
+        self.refs: dict[str, list[str]] = {}
+        self.letter = ""
+
+    def link(self, where: str, target: dict) -> None:
+        """Resolve `more` on a panel or row to its chapter; record the panel letter for back links."""
+        cid = target["more"]
+        if cid not in self.targets:
+            pagelib.fail(f"{where}: more {cid!r} is not a chapter")
+        target["moreN"], target["moreTitle"] = self.targets[cid]
+        letters = self.refs.setdefault(cid, [])
+        if self.letter not in letters:
+            letters.append(self.letter)
 
     def text(self, where: str, value, cls: str, max_sentences: int | None = None) -> str:
         if not isinstance(value, str) or not value.strip():
@@ -135,7 +151,10 @@ def _check_row(ctx: _Ctx, where: str, row, fields: dict) -> dict:
                 pagelib.fail(f"{where}: missing {name}")
             continue
         _check_value(ctx, where, name, row[name], cls)
-    return dict(row)
+    out = dict(row)
+    if "more" in out:
+        ctx.link(where, out)
+    return out
 
 
 def _resolve_tree(tree, spec_dir: Path | None) -> tuple[Path, str, str]:
@@ -209,7 +228,7 @@ def _normalize_panel(ctx: _Ctx, p, letter: str, tree) -> dict:
     typ = p.get("type")
     if typ not in DEFAULT_SPAN:
         pagelib.fail(f"{where}: unknown type {typ!r}")
-    allowed = {"role", "type", "span"} | PANEL_KEYS.get(typ, {"rows"})
+    allowed = {"role", "type", "span", "more"} | PANEL_KEYS.get(typ, {"rows"})
     for k in p:
         if k not in allowed:
             pagelib.fail(f"{where} {typ}: unknown field {k!r}")
@@ -221,6 +240,11 @@ def _normalize_panel(ctx: _Ctx, p, letter: str, tree) -> dict:
         pagelib.fail(f"{where} span: must be one of {', '.join(map(str, SPANS))}")
     out = {"letter": letter, "role": role, "type": typ, "span": span, "fixed": "span" in p}
     where = f"{where} {typ}"
+    ctx.letter = letter
+    if "more" in p:
+        _check_value(ctx, where, "more", p["more"], "literal")
+        out["more"] = p["more"]
+        ctx.link(where, out)
 
     if typ == "figure":
         out.update(_check_figure(ctx, where, p, letter))
@@ -291,13 +315,16 @@ def pack_rows(panels: list[dict]) -> None:
 
 
 def check_sheet(spec: dict, *, kind: str, title: str, spec_dir: Path | None = None,
-                auto_panels: list[dict] | None = None) -> dict:
+                auto_panels: list[dict] | None = None,
+                targets: dict[str, tuple[int, str]] | None = None) -> dict:
     """Validate the sheet fields of `spec`, run the voice lint on every label, instruction, and
     prose field, check git facts, and return a normalized sheet. `auto_panels` are builder-made
-    panels inserted after panel A. A relative `tree.repo` resolves against `spec_dir`."""
+    panels inserted after panel A. A relative `tree.repo` resolves against `spec_dir`. `targets` maps
+    each chapter id a `more` may name to (number, title); `refs` in the result maps each linked
+    chapter id to the panel letters that link to it."""
     if kind not in KINDS:
         pagelib.fail(f"kind: {kind!r} is not one of {', '.join(KINDS)}")
-    ctx = _Ctx()
+    ctx = _Ctx(targets)
     ctx.text("title", title, "label")
     state = ctx.text("state", spec.get("state"), "prose", 2)
     blocked = spec.get("blocked", False)
@@ -351,7 +378,8 @@ def check_sheet(spec: dict, *, kind: str, title: str, spec_dir: Path | None = No
     else:
         stamp, tone = READY_STAMP.get(kind, "DONE"), "ok"
     return {"title": title, "kind": kind, "state": state, "blocked": blocked, "stamp": stamp,
-            "stampTone": tone, "facts": norm_facts, "panels": normalized, "words": ctx.words}
+            "stampTone": tone, "facts": norm_facts, "panels": normalized, "words": ctx.words,
+            "refs": ctx.refs}
 
 
 # ---------------------------------------------------------------- rendering
@@ -360,13 +388,20 @@ def _tag(cls: str, text: str) -> str:
     return f'<span class="chip {cls}">{pagelib.esc(text)}</span>'
 
 
+def _more_row(r: dict) -> str:
+    if not r.get("more"):
+        return ""
+    return (f'<a class="more-row" href="#ch-{pagelib.esc(r["more"])}" '
+            f'title="{pagelib.esc(r["moreTitle"])}">↓{r["moreN"]}</a>')
+
+
 def _asks(p: dict) -> tuple[str, str]:
     if not p["rows"]:
         return '<p class="empty">✓ Nothing needs you</p>', "0"
     items = []
     for i, r in enumerate(p["rows"], 1):
         why = f'<div class="why">{_label(r["why"])}</div>' if r.get("why") else ""
-        items.append(f'<li><span class="n">{i}</span><div><div class="q">{_label(r["ask"])}</div>{why}</div></li>')
+        items.append(f'<li><span class="n">{i}</span><div><div class="q">{_label(r["ask"])}{_more_row(r)}</div>{why}</div></li>')
     return f'<ol class="asks">{"".join(items)}</ol>', str(len(p["rows"]))
 
 
@@ -375,7 +410,9 @@ def _checks(p: dict) -> tuple[str, str]:
     for r in rows:
         mark, cls = {None: ("○", "nr")}.get(r["exit"], ("✓", "ok") if r["exit"] == 0 else ("✕", "bad"))
         exit_txt = "not run" if r["exit"] is None else f'exit {r["exit"]}'
-        res = f'<span class="res">{_label(r["result"])}</span>' if r.get("result") else "<span></span>"
+        more = _more_row(r)
+        res = (f'<span class="res">{_label(r["result"]) if r.get("result") else ""}{more}</span>'
+               if r.get("result") or more else "<span></span>")
         cwd = f'<code class="cwd">{pagelib.esc(r["cwd"])}</code>' if r["cwd"] != "." else "<span></span>"
         out.append(
             f'<div class="crow {cls}"><span class="ico">{mark}</span>'
@@ -430,7 +467,7 @@ def _decisions(p: dict) -> tuple[str, str]:
     for r in p["rows"]:
         rej = f'<td class="bad">✕ <s>{_label(r["rejected"])}</s></td>' if r.get("rejected") else "<td></td>"
         rows.append(f'<tr><td>{_label(r["decision"])}</td><td class="ok">✓ {_label(r["chosen"])}</td>'
-                    f'{rej}<td class="why">{_label(r["why"])}</td></tr>')
+                    f'{rej}<td class="why">{_label(r["why"])}{_more_row(r)}</td></tr>')
     tree = figures.decision_tree(p["rows"]) if any("parent" in r for r in p["rows"]) else ""
     table = f'<table class="dict"><tbody>{"".join(rows)}</tbody></table>'
     return tree + table, str(len(p["rows"]))
@@ -443,7 +480,8 @@ def _tasks(p: dict) -> tuple[str, str]:
         commit = f'<code>{pagelib.esc(r["commit"][:8])}</code>' if r.get("commit") else ""
         out.append(f'<div class="trow n-{r["status"]}"><code>{pagelib.esc(r["id"])}</code>'
                    f'<span class="tname">{_label(r["name"])}</span>'
-                   f'{_tag("st-" + r["status"], figures.STATUS_WORDS.get(r["status"], r["status"]))}{commit}</div>')
+                   f'{_tag("st-" + r["status"], figures.STATUS_WORDS.get(r["status"], r["status"]))}{commit}'
+                   f'{_more_row(r)}</div>')
     done = sum(1 for r in rows if r["status"] == "done")
     body = f'<div class="fig">{figures.task_waves_svg(rows)}</div><div class="tasks">{"".join(out)}</div>'
     return body, f"{done} of {len(rows)} done"
@@ -473,7 +511,7 @@ def _findings(p: dict) -> tuple[str, str]:
         out.append(
             f'<div class="finding sev-{r["sev"].lower()}" data-id="{pagelib.esc(r["id"])}">'
             f'<code class="fid">{pagelib.esc(r["id"])}</code>{_tag("sev-" + r["sev"].lower(), r["sev"])}'
-            f'<div class="fmain"><div class="claim">{_label(r["claim"])}</div>{where}{chips}{dispute}</div>{tail}</div>')
+            f'<div class="fmain"><div class="claim">{_label(r["claim"])}{_more_row(r)}</div>{where}{chips}{dispute}</div>{tail}</div>')
     venn = figures.venn_svg(rows)
     board = f'<div class="findings">{"".join(out)}</div>'
     side = f'<div class="fside"><div class="venn">{venn}</div></div>' if venn else ""
@@ -487,19 +525,19 @@ def _claims(p: dict) -> tuple[str, str]:
         cls = {"verified": "ok", "corrected": "amb", "unverified": "gry"}[r["result"]]
         note = f'<div class="note-line">{_label(r["note"])}</div>' if r.get("note") else ""
         out.append(f'<div class="crow2"><code>{pagelib.esc(r["id"])}</code>'
-                   f'<div class="cl">{_label(r["claim"])}{note}</div>'
+                   f'<div class="cl">{_label(r["claim"])}{_more_row(r)}{note}</div>'
                    f'<code class="src">{pagelib.esc(r["source"])}</code>{_tag("c-" + cls, r["result"])}</div>')
     return figures.claim_stack(p["rows"]) + f'<div class="claims">{"".join(out)}</div>', str(len(p["rows"]))
 
 
 def _commands(p: dict) -> tuple[str, str]:
     out = [f'<div class="cmd{" danger" if r.get("danger") else ""}"><code>{pagelib.esc(r["cmd"])}</code>'
-           f'<span>{_label(r["does"])}</span></div>' for r in p["rows"]]
+           f'<span>{_label(r["does"])}{_more_row(r)}</span></div>' for r in p["rows"]]
     return f'<div class="cmds">{"".join(out)}</div>', str(len(p["rows"]))
 
 
 def _matrix(p: dict) -> tuple[str, str]:
-    legend = "".join(f'<div><code>{pagelib.esc(r["id"])}</code> {_label(r["label"])}</div>' for r in p["rows"])
+    legend = "".join(f'<div><code>{pagelib.esc(r["id"])}</code> {_label(r["label"])}{_more_row(r)}</div>' for r in p["rows"])
     return figures.heat_matrix(p["rows"]) + f'<div class="legend">{legend}</div>', str(len(p["rows"]))
 
 
@@ -521,9 +559,11 @@ def _render_panel(p: dict) -> str:
     if p["type"] == "asks":
         cls += " needs" + (" has" if p["rows"] else "")
     sub_html = f'<span class="sub">{pagelib.esc(sub)}</span>' if sub else ""
+    more = (f'<a class="more" href="#ch-{pagelib.esc(p["more"])}" title="{pagelib.esc(p["moreTitle"])}">more ↓</a>'
+            if p.get("more") else "")
     return (
-        f'<section class="{cls}" data-letter="{letter}" data-role="{pagelib.esc(p["role"])}">'
-        f'<h2><span class="ltr">{letter}</span>{_label(p["role"])}{sub_html}'
+        f'<section class="{cls}" id="panel-{letter}" data-letter="{letter}" data-role="{pagelib.esc(p["role"])}">'
+        f'<h2><span class="ltr">{letter}</span>{_label(p["role"])}{sub_html}{more}'
         f'<button type="button" class="note-btn" data-for="{letter}">note</button></h2>'
         f'<div class="pbody">{body}</div>'
         f'<textarea class="note" data-note="{letter}" hidden placeholder="Note on panel {letter}"></textarea>'
@@ -537,7 +577,7 @@ def render_sheet(sheet: dict) -> str:
                     for f in sheet["facts"])
     key = "".join(f'<span><i class="sw sw-{c}"></i>{pagelib.esc(t)}</span>' for c, t in KEY_LANES)
     return (
-        f'<div class="sheet" data-kind="{sheet["kind"]}">'
+        f'<div class="sheet" id="sheet" data-kind="{sheet["kind"]}">'
         f'<header class="band tone-{tone}"><div class="who"><div class="eyebrow">/{sheet["kind"]}</div>'
         f'<h1>{_label(sheet["title"])}</h1><p class="state">{pagelib.sanitize_prose(sheet["state"])}</p></div>'
         f'<div class="stamp {tone}">{sheet["stamp"]}</div></header>'

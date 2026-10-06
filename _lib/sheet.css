@@ -45,6 +45,12 @@
 .panel h2 .sub:first-of-type{margin-left:auto}
 .panel h2:not(:has(.sub)) .note-btn{margin-left:auto}
 .panel h2{align-items:center;flex:none;align-content:flex-start}
+.more,.more-row{color:var(--blu);text-decoration:none;font:11px var(--mono);white-space:nowrap}
+.more:hover,.more-row:hover{text-decoration:underline}
+.panel h2 .more{margin:auto 10px auto 0}
+.panel h2:not(:has(.sub)) .more{margin-left:auto}
+.panel h2 .more+.note-btn{margin-left:0}
+.more-row{font-size:10px;margin-left:6px;opacity:.85}
 .note-btn{border:0;border-left:1px solid var(--line);align-self:stretch;background:none;color:var(--ink-2);font:11px var(--mono);padding:0 10px;cursor:pointer}
 .note-btn:hover{color:var(--ink);background:var(--paper)}
 .pbody{padding:10px 12px;flex:1 1 auto;overflow-x:auto}
@@ -213,6 +219,7 @@ pre.mermaid:not([data-processed="true"])::after{content:"Diagram loads when onli
   .venn{position:static}
   .venn svg{margin:0 auto}
   .panel h2 .note-btn{margin-left:auto}
+  .panel h2 .more{margin-left:auto}
   .panel h2 .sub{order:3;flex-basis:100%;margin:0 10px 6px 44px}
   .checks{grid-template-columns:18px auto minmax(0,1fr)}
   .crow>span:empty{display:none}

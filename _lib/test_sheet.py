@@ -320,6 +320,40 @@ class SheetTest(unittest.TestCase):
         self.assertNotIn("--add-bg:", css)
         self.assertNotIn("--del-bg:", css)
 
+    def test_20_more_links(self):
+        targets = {"outbox": (1, "The outbox"), "retry": (2, "Retry delay")}
+        spec = vet_spec()
+        spec["panels"][1]["more"] = "retry"
+        spec["panels"][1]["rows"][0]["more"] = "outbox"
+        spec["panels"][0]["rows"] = [{"ask": "Pick a delay.", "more": "retry"}]
+        norm = check(spec, targets=targets)
+        html = sheet.render_sheet(norm)
+        self.assertIn('<a class="more" href="#ch-retry" title="Retry delay">more ↓</a>', html)
+        self.assertIn('<a class="more-row" href="#ch-outbox" title="The outbox">↓1</a>', html)
+        self.assertIn('<a class="more-row" href="#ch-retry" title="Retry delay">↓2</a>', html)
+        self.assertEqual(norm["refs"], {"retry": ["A", "B"], "outbox": ["B"]})
+        self.assertIn('id="panel-A"', html)
+        self.assertIn('id="panel-B"', html)
+        self.assertIn('id="sheet"', html)
+
+    def test_21_more_must_name_a_chapter(self):
+        spec = vet_spec()
+        spec["panels"][1]["rows"][0]["more"] = "nope"
+        self.assertIn("more 'nope' is not a chapter", fails(self, spec, targets={"outbox": (1, "The outbox")}))
+        self.assertIn("more 'nope' is not a chapter", fails(self, spec))
+        spec = vet_spec()
+        spec["panels"][1]["more"] = "nope"
+        self.assertIn("more 'nope' is not a chapter", fails(self, spec))
+
+    def test_22_more_row_in_checks_keeps_five_cells(self):
+        spec = vet_spec()
+        spec["panels"].append({"role": "checks", "type": "checks", "rows": [
+            {"cmd": "pytest", "cwd": ".", "exit": 0, "more": "outbox"}]})
+        html = sheet.render_sheet(check(spec, targets={"outbox": (1, "The outbox")}))
+        row = re.search(r'<div class="crow.*?</div>', html).group(0)
+        self.assertEqual(row.count("<span"), 4)
+        self.assertIn('<span class="res"><a class="more-row"', row)
+
 
 if __name__ == "__main__":
     unittest.main()
