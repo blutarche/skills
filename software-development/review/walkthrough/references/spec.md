@@ -92,8 +92,8 @@ facts and the walkthrough. Without it the page is unchanged. Write the words by 
   base and head. Do not write either panel: the build fails with "walkthrough builds checks and files itself".
 - You write the other panels: `needs you` (first), `tasks`, `review`, and `decisions`. Each is
   required. Panel fields, row fields, and the voice lint are the same as in `brief`.
-- A panel, or a row in an `asks`, `checks`, `decisions`, `tasks`, `findings`, `claims`, `commands`, or `matrix` panel,
-  may carry `more`: a chapter `id` from this tour. It shows a link that jumps to that chapter. An unknown id fails the build.
+- A panel may carry `more`: a chapter `id` from this tour. So may a row in an `asks`, `checks`, `decisions`,
+  `tasks`, `findings`, `claims`, `commands`, or `matrix` panel. It shows a link to that chapter. An unknown id fails the build.
 - Panel letters follow the order on the page: `needs you` is A, `checks` is B, `files` is C.
 - The stats strip in Overview is hidden when a sheet is present.
 - One Copy feedback button covers both: it adds the sheet notes and fix or skip choices after the tour notes.
