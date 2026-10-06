@@ -101,7 +101,7 @@ textarea.note[hidden]{display:none}
 .opt-other{display:block;box-sizing:border-box;width:100%;margin-top:6px;font:13px var(--sans);background:var(--paper);color:var(--ink);border:1px solid var(--line);padding:6px}
 .sheet pre[data-export-preview]{max-height:280px;overflow:auto;font-size:12px;background:var(--paper);border:0;border-top:1px solid var(--line);margin:0;padding:10px 12px;white-space:pre-wrap}
 .sendbar{position:sticky;bottom:0;z-index:5;display:flex;gap:10px;align-items:center;justify-content:space-between;min-height:44px;box-sizing:border-box;padding:6px 12px;background:var(--paper);border-top:1px solid var(--line)}
-.sheet .btn.primary{border-color:var(--blu);color:var(--blu)}
+.sheet .btn.primary{border-color:var(--blu);background:var(--blu);color:var(--surface);font-weight:600;min-height:34px;padding:6px 16px}
 .sendbar .count{font:12px var(--mono);color:var(--ink-2)}
 .ask-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
 
