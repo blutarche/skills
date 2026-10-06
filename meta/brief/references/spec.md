@@ -158,8 +158,9 @@ the other kinds give `DONE` (green).
 
 `chapters` are the full report below the sheet, 0 to 12. They are open sections, not drawers.
 The sheet is the summary, and the report holds the long answer. The report starts with an
-`<h2>` "Full report" and a numbered contents list. Each chapter then follows, in order, with a
-numbered title.
+`<h2>` "Full report" with one "Open all" button. Each chapter then follows, in order, as a closed
+card with a numbered title. A click on the card opens it. The closed cards are the contents list.
+A link to `#ch-<id>` opens that card.
 
 Each chapter shows a small back link, "↑ sheet". It goes to the first panel that links to the
 chapter with `more`, from the panel itself or from any row in it. A chapter that no panel links to

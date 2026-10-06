@@ -315,12 +315,12 @@ def render_evidence_chip(exit_val, ok) -> str:
 
 
 def render_chapter(idx: int, ch: dict, back: str) -> str:
-    """One open section of the full report. `back` is the sheet anchor the back link targets."""
+    """One closed card of the full report. `back` is the sheet anchor the back link targets."""
     cid = ch["id"]
     o = [
-        f'<section class="chapter" id="ch-{esc(cid)}" data-chapter="{esc(cid)}">',
-        f'<header class="chead"><h3><span class="num">{idx}</span><span class="ttl">{label_html(ch["title"])}</span></h3>'
-        f'<a class="back" href="{back}">↑ sheet</a></header>',
+        f'<details class="chapter" id="ch-{esc(cid)}" data-chapter="{esc(cid)}">',
+        f'<summary class="chead"><span class="num">{idx}</span><h3 class="ttl">{label_html(ch["title"])}</h3>'
+        f'<a class="back" href="{back}">↑ sheet</a><span class="chev" aria-hidden="true">▸</span></summary>',
         '<div class="dbody">',
     ]
     figures = ch.get("_figures", [])
@@ -369,7 +369,7 @@ def render_chapter(idx: int, ch: dict, back: str) -> str:
         f'<section class="dnote" data-role="{esc(ch["title"])}">'
         f'<textarea data-note="ch-{esc(cid)}" placeholder="Note on this chapter"></textarea></section>'
     )
-    o.append("</div></section>")
+    o.append("</div></details>")
     return "\n".join(o)
 
 
@@ -392,8 +392,8 @@ def build_body(spec: dict, norm: dict, page_key: str, tmpdir: Path, use_mmdc: bo
     ]
     if chapters:
         refs = norm["refs"]
-        toc = "".join(f'<li><a href="#ch-{esc(ch["id"])}">{label_html(ch["title"])}</a></li>' for ch in chapters)
-        o.append(f'<section class="report" id="report"><h2>Full report</h2><ol class="toc">{toc}</ol>')
+        o.append('<section class="report" id="report"><div class="rhead"><h2>Full report</h2>'
+                 '<button type="button" class="btn" data-toggle-all>Open all</button></div>')
         o.extend(
             render_chapter(i, ch, f'#panel-{refs[ch["id"]][0]}' if refs.get(ch["id"]) else "#sheet")
             for i, ch in enumerate(chapters, start=1)

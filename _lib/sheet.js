@@ -297,8 +297,30 @@
   // Setting location.hash to its current value does not scroll, so a second visit scrolls by hand.
   function open(id) {
     var target = document.getElementById(id);
+    if (target && target.tagName === "DETAILS") target.open = true;
     if (location.hash !== "#" + id) location.hash = "#" + id;
     else if (target) { target.scrollIntoView({ block: "start" }); flash(target); }
+  }
+  // A chapter is a closed card; a hash that names one opens it, on load and on later changes.
+  function openHashChapter() {
+    var el = location.hash.length > 1 ? document.getElementById(decodeURIComponent(location.hash.slice(1))) : null;
+    if (el && el.tagName === "DETAILS" && el.classList.contains("chapter")) el.open = true;
+  }
+  openHashChapter();
+  window.addEventListener("hashchange", openHashChapter);
+  var toggleAll = $("[data-toggle-all]");
+  function chapters() { return $$("details.chapter"); }
+  function toggleLabel() {
+    if (toggleAll) toggleAll.textContent = chapters().every(function (d) { return d.open; }) ? "Close all" : "Open all";
+  }
+  if (toggleAll) {
+    toggleAll.addEventListener("click", function () {
+      var openAll = toggleAll.textContent === "Open all";
+      chapters().forEach(function (d) { d.open = openAll; });
+      toggleLabel();
+    });
+    chapters().forEach(function (d) { d.addEventListener("toggle", toggleLabel); });
+    toggleLabel();
   }
   document.addEventListener("click", function (e) {
     var t = e.target;

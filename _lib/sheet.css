@@ -246,7 +246,7 @@ tr.go.flash{animation:none}
 tr.go.flash td{animation:go-wash 1.2s ease-out}
 .task.go.flash{animation:none}
 .task.go.flash rect{animation:go-wash-svg 1.2s ease-out}
-.chapter:target{box-shadow:inset 3px 0 0 var(--blu);padding-left:10px;margin-left:-10px;animation:go-wash 1.2s ease-out}
+.chapter:target{box-shadow:inset 3px 0 0 var(--blu);animation:go-wash 1.2s ease-out}
 @keyframes go-wash-again{from{background-color:var(--blu-bg)}}
 .chapter.flash{animation:go-wash-again 1.2s ease-out}
 @media (prefers-reduced-motion:reduce){

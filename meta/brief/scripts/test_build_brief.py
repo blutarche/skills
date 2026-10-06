@@ -188,15 +188,24 @@ class BuildBriefTest(unittest.TestCase, Harness):
         page = r.out.read_text(encoding="utf-8")
         self.assertIn('<section class="report" id="report">', page)
         self.assertIn("<h2>Full report</h2>", page)
-        self.assertNotIn("<details", page)
         self.assertNotIn('class="drawer"', page)
-        self.assertIn('<ol class="toc">', page)
+        self.assertNotIn('class="toc"', page)
+        self.assertEqual(page.count("<details"), len(spec["chapters"]))
         for n, ch in enumerate(spec["chapters"], 1):
-            self.assertIn(f'<li><a href="#ch-{ch["id"]}">{ch["title"]}</a></li>', page)
-            self.assertIn(f'<section class="chapter" id="ch-{ch["id"]}" data-chapter="{ch["id"]}">', page)
-            self.assertIn(f'<h3><span class="num">{n}</span>', page)
+            self.assertIn(f'<details class="chapter" id="ch-{ch["id"]}" data-chapter="{ch["id"]}">', page)
+            self.assertIn(f'<summary class="chead"><span class="num">{n}</span>', page)
             self.assertIn(f'data-note="ch-{ch["id"]}"', page)
         self.assertLess(page.index("</footer>"), page.index('id="report"'))
+
+    def test_report_has_one_open_all_button_only_with_chapters(self) -> None:
+        page = self.build(valid_spec(), self.dir).out.read_text(encoding="utf-8")
+        self.assertEqual(page.count("data-toggle-all>"), 1)
+        self.assertIn(">Open all</button>", page)
+        spec = valid_spec()
+        spec["chapters"] = []
+        page = self.build(spec, self.dir).out.read_text(encoding="utf-8")
+        self.assertNotIn("data-toggle-all>", page)
+        self.assertNotIn("<details", page)
 
     def test_back_link_targets_the_referring_panel_or_the_sheet(self) -> None:
         spec = valid_spec()
