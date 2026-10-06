@@ -7,7 +7,7 @@
   ],
   "panels": [
     {"role": "needs you", "type": "asks", "rows": [
-      {"ask": "Accept risk R2 for the first release?", "why": "A fix needs a schema change."},
+      {"ask": "Accept risk R2 for the first release?", "why": "A fix needs a schema change.", "options": [{"label": "Accept the risk"}, {"label": "Fix it first"}], "recommended": 1, "multi": false},
       {"ask": "Who owns the parked row alert?", "why": "No team is named yet."}
     ]},
     {

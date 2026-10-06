@@ -86,6 +86,9 @@ Format: `references/spec.md`. Shape to copy: one example per kind in `examples/`
 `examples/<kind>.example.json`. Voice rules are in `lib/voice.md`; the build fails on the ones
 it can check.
 
+Asks: when the answer is one of a known set, give 2 to 4 `options`, recommended first. This is
+the same shape as the Claude Code question tool. For an open question, leave `options` out.
+
 Evidence rows only for commands actually run this session, with their real exit codes; a
 command not run gets `exit: null`. Do not describe a green suite you did not see. Exit codes are
 shown as reported. `files`, `where`, and `commit` are checked against git, so give `tree`.
@@ -130,7 +133,8 @@ the page: Notes, then "Copy feedback", then paste into the chat.
 each of these in order, and use the first that applies:
 
 a. **Claude Code with the Artifact tool:** publish `brief.fragment.html` (title = the spec
-   title, `icon` = one generic word such as `map`). Feedback comes back as artifact comments.
+   title, `icon` = one generic word such as `map`). Also pass `capabilities: {db: {}}` so answers can sync.
+   Feedback comes back as artifact comments.
 b. **`orca status --json` succeeds:** `ORCA` below is a placeholder for the resolved binary:
    `$ORCA_CLI_COMMAND` when set, otherwise `orca`; on Linux outside an Orca terminal use
    `orca-ide`, never bare `orca` (it is the GNOME screen reader there). The `orca-cli` skill,
@@ -148,8 +152,12 @@ either the user has a link or has been told it was not published and pointed bac
 ### 6. Stop
 
 Reply in 3 lines at most: the state (with the stamp), what needs the user (the count and the
-first ask), and the local path. Add the link if a requested publish succeeded, or a note that it
+first ask), and the local path. Tell the user to answer on the page and press "Send answers". Add the link if a requested publish succeeded, or a note that it
 did not. Do not act on feedback in this skill; that is the next request.
+
+On the next turn, read the answers from the pasted block. For a page published with sync, they
+are also in the artifact database doc `answers/latest` (Claude Code: the `ArtifactData` tool,
+action `get`). The pasted block wins when both exist.
 
 ## Files
 

@@ -9,7 +9,7 @@
   "tree": {"repo": "../../..", "base": "HEAD~1", "head": "HEAD"},
   "panels": [
     {"role": "needs you", "type": "asks", "rows": [
-      {"ask": "Land, open a PR, or discard?", "why": "Each move is a command in the next move panel."}
+      {"ask": "Land, open a PR, or discard?", "why": "Each move is a command in the next move panel.", "options": [{"label": "Land it"}, {"label": "Open a PR"}, {"label": "Discard it"}], "recommended": 2}
     ]},
     {
       "role": "next move",

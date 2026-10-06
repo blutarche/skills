@@ -68,7 +68,7 @@ total stays at 8 or fewer.
 
 | Type | Row fields (class) | The build derives or checks |
 |---|---|---|
-| `asks` | `ask` label, required; `why` instruction; `more` | the count; amber when rows exist, else "Nothing needs you" |
+| `asks` | `ask` label, required; `why` instruction; `more`; `options`, `recommended`, `multi` (see Asks with options) | the count; amber when rows exist, else "Nothing needs you" |
 | `checks` | `cmd` literal, `cwd` literal, `exit` int or null, all required; `result` label; `more` | pass, fail, and not-run counts; an "agent-reported" note |
 | `files` | no rows (fails if given) | rows from git for `tree`; A/M/D letter; +/- bars; totals |
 | `figure` | Panel fields, not rows. Exactly one of `svg` or `mermaid`. `caption` label, required. `steps` `[{n: int, say: instruction}]` (svg only). | `svg` allowlist. Steps number 1..N. Each step is used by a `data-s`, and each `data-s` is a step. |
@@ -79,6 +79,45 @@ total stays at 8 or fewer.
 | `commands` | `cmd` literal and `does` label, required; `danger` bool; `more` | a red border on `danger` rows |
 | `matrix` | `id` literal, `label` label, `likelihood` and `impact` (`low med high`), all required; `more` | a 3 by 3 heat grid holding the ids |
 | `table` | panel fields: `columns` (1 to 5 labels of 3 words at most); `rows` (1 to 8 lists of labels, one per column) | none |
+
+### Asks with options
+
+An ask can carry answer choices, in the same shape as the Claude Code question tool.
+
+| Field | Rule |
+|---|---|
+| `options` | Optional list of 2 to 4 objects `{label, why?}`. `label` has 6 words or fewer and is unique in the ask. `why` is an instruction. |
+| `recommended` | Optional 1-based whole number. It must point at an option, and it needs `options`. |
+| `multi` | Optional true or false. True lets the reader pick several. It needs `options`. |
+
+Failures read like `panel A asks[0] options: give 2 to 4` and
+`panel A asks[0] recommended: 5 is not an option`. Put the recommended option first.
+Leave `options` out for an open question: the card then shows one text box.
+
+Each option is a button. Each card also has an "Other" text box. The panel shows
+"Accept recommended" when any ask has `recommended`, and the keys 1 to 4 pick an option while
+focus is in a card. "Send answers" copies this block:
+
+```
+Answers: <sheet title>
+1. <ask>
+   -> <label> (recommended)
+2. <ask>
+   -> Other: <text>
+3. <ask>
+   -> (no answer)
+```
+
+Picks in a `multi` ask join with `; `. `(recommended)` marks only the recommended pick.
+"Copy feedback" puts the same block first. Answers stay in the page's local storage.
+
+An ask card with `options` and a `more` opens its section only from the question text and the `›`
+link. A click elsewhere on the card does nothing.
+
+Inside a claude.ai artifact viewer, "Send answers" also writes the doc `answers/latest`:
+`{title, answers: [{n, ask, picks: [labels], other, recommended: bool}], sentAt}`. `sentAt` is an
+ISO time. `recommended` is true when a picked option is the recommended one. The write happens
+only on the button click. Other hosts use the pasted block alone.
 
 ### `more`: links to the full report
 

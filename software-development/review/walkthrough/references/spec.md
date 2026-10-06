@@ -96,6 +96,7 @@ facts and the walkthrough. Without it the page is unchanged. Write the words by 
   `tasks`, `findings`, `claims`, `commands`, or `matrix` panel. It shows a link to that chapter. An unknown id fails the build.
 - Panel letters follow the order on the page: `needs you` is A, `checks` is B, `files` is C.
 - The stats strip in Overview is hidden when a sheet is present.
+- Asks can carry `options`, `recommended`, and `multi` the same way; see the brief spec.
 - One Copy feedback button covers both: it adds the sheet notes and fix or skip choices after the tour notes.
 - If a sheet build fails, the page at `--out` becomes a BUILD FAILED page that shows the error.
   A build without a sheet leaves the old page in place.

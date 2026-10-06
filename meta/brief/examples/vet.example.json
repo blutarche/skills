@@ -11,8 +11,8 @@
       "role": "needs you",
       "type": "asks",
       "rows": [
-        {"ask": "Fix F2 now or after merge?", "why": "It changes the retry API."},
-        {"ask": "Is F6 a real risk for you?", "why": "The two reviewers disagree on it."}
+        {"ask": "Fix F2 now or after merge?", "why": "It changes the retry API.", "options": [{"label": "Fix now", "why": "The API stays stable."}, {"label": "After merge"}], "recommended": 1},
+        {"ask": "Is F6 a real risk for you?", "why": "The two reviewers disagree on it.", "options": [{"label": "Yes, fix it"}, {"label": "No, skip it"}], "recommended": 2}
       ]
     },
     {
