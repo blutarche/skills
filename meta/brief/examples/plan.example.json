@@ -31,6 +31,7 @@
     {
       "role": "tasks",
       "type": "tasks",
+      "more": "claim-and-park",
       "rows": [
         {"id": "T1", "name": "Add the outbox table", "status": "todo"},
         {"id": "T2", "name": "Write the sender loop", "status": "todo", "after": ["T1"]},
@@ -44,9 +45,24 @@
       "type": "decisions",
       "rows": [
         {"decision": "Where to keep retry state", "chosen": "In the outbox row", "rejected": "In a new table", "why": "One row holds all state for one event."},
-        {"decision": "How to space retries", "chosen": "Double the delay each time", "rejected": "Fixed delay", "why": "It spares a service that is down."},
+        {"decision": "How to space retries", "chosen": "Double the delay each time", "rejected": "Fixed delay", "why": "It spares a service that is down.", "more": "retry-spacing"},
         {"decision": "What to do after 5 tries", "chosen": "Park the row", "rejected": "Drop the row", "why": "A person can inspect parked rows later."}
       ]
+    }
+  ],
+  "chapters": [
+    {
+      "id": "claim-and-park",
+      "title": "How a worker claims and parks a row",
+      "prose": "<p>Each worker takes one row with a lock and skips rows that are already locked. This stops two workers from sending the same event.</p><p>A failed post adds one to the try count in the same row. After 5 tries the worker marks the row as parked and stops.</p><h4>Risk</h4><p>A crash after the post but before the commit sends the event twice. The receiver must ignore an event id it has seen.</p>",
+      "decisions": [
+        {"decision": "How a worker claims a row", "chosen": "Row lock with skip", "rejected": "Claim flag", "why": "The lock cannot go stale after a crash."}
+      ]
+    },
+    {
+      "id": "retry-spacing",
+      "title": "How retries are spaced",
+      "prose": "<p>The delay doubles after each failed try, up to a cap of 10 minutes. A service that is down gets less load as the outage grows.</p><table><thead><tr><th>Try</th><th>Delay</th></tr></thead><tbody><tr><td>1</td><td>30 seconds</td></tr><tr><td>2</td><td>1 minute</td></tr><tr><td>3</td><td>2 minutes</td></tr><tr><td>5</td><td>8 minutes</td></tr></tbody></table>"
     }
   ]
 }

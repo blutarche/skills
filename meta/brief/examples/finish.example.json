@@ -37,9 +37,16 @@
       "rows": [
         {"id": "F1", "sev": "P1", "claim": "Two workers can claim the same row.", "foundBy": ["scrutinize", "council"], "default": "fix", "outcome": "fixed"},
         {"id": "F2", "sev": "P2", "claim": "The delay between retries has no cap.", "foundBy": ["council"], "default": "fix", "outcome": "fixed"},
-        {"id": "F3", "sev": "P2", "claim": "A parked row loses its last error text.", "foundBy": ["scrutinize"], "default": "fix", "outcome": "open"},
+        {"id": "F3", "sev": "P2", "claim": "A parked row loses its last error text.", "foundBy": ["scrutinize"], "default": "fix", "outcome": "open", "more": "ship-and-rollback"},
         {"id": "F4", "sev": "P3", "claim": "One log line is too noisy.", "foundBy": ["scrutinize"], "default": "skip", "outcome": "skipped"}
       ]
+    }
+  ],
+  "chapters": [
+    {
+      "id": "ship-and-rollback",
+      "title": "What ships, what is left, and how to roll back",
+      "prose": "<p>The branch ships the outbox table, the sender loop, and the retry delay. Three findings are closed and one is open.</p><p>The open finding (F3) is a lost error text on a parked row. It does not block the merge, and a follow-up task can fix it.</p><h4>Roll back</h4><p>Revert the merge commit and run the down migration for the outbox table. Parked rows are lost when the table drops.</p>"
     }
   ]
 }

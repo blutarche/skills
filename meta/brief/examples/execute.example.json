@@ -37,7 +37,7 @@
       "rows": [
         {"id": "T1", "name": "Add the outbox table", "status": "done", "exit": 0},
         {"id": "T2", "name": "Write the sender loop", "status": "failed", "after": ["T1"], "exit": 1},
-        {"id": "T2r", "name": "Retry the sender loop", "status": "done", "after": ["T1"], "exit": 0},
+        {"id": "T2r", "name": "Retry the sender loop", "status": "done", "after": ["T1"], "exit": 0, "more": "sender-retry"},
         {"id": "T3", "name": "Add the retry delay", "status": "done", "after": ["T2r"], "exit": 0},
         {"id": "T4", "name": "Write the tests", "status": "done", "after": ["T3"], "exit": 0}
       ]
@@ -56,6 +56,17 @@
       "rows": [
         {"decision": "How a worker claims a row", "chosen": "Row lock with skip", "rejected": "Claim flag", "why": "The lock cannot go stale after a crash."},
         {"decision": "Where the retry count lives", "chosen": "In the outbox row", "why": "It survives a restart."}
+      ]
+    }
+  ],
+  "chapters": [
+    {
+      "id": "sender-retry",
+      "title": "The sender loop failed once and passed on retry",
+      "prose": "<p>The first sender loop (T2) failed its test. Two workers claimed the same row in a race.</p><p>The retry (T2r) takes the row with a lock that skips locked rows. The test now passes with exit 0.</p>",
+      "evidence": [
+        {"cmd": "npm test", "cwd": ".", "exit": 0, "ok": true, "summary": "42 tests pass"},
+        {"cmd": "npm run e2e", "cwd": ".", "exit": null, "summary": "Needs a live queue."}
       ]
     }
   ]

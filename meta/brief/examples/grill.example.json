@@ -14,7 +14,7 @@
       "type": "decisions",
       "rows": [
         {"id": "D1", "decision": "Where retry state lives", "chosen": "In the outbox row", "rejected": "A new table", "why": "One row holds all state for one event."},
-        {"id": "D2", "decision": "How to space retries", "chosen": "Double the delay", "rejected": "Fixed delay", "why": "It spares a service that is down.", "parent": "D1"},
+        {"id": "D2", "decision": "How to space retries", "chosen": "Double the delay", "rejected": "Fixed delay", "why": "It spares a service that is down.", "parent": "D1", "more": "retry-spacing"},
         {"id": "D3", "decision": "How to cap the delay", "chosen": "Cap at 10 minutes", "why": "A person can still see progress.", "parent": "D2"},
         {"id": "D4", "decision": "When to give up", "chosen": "After 5 tries", "rejected": "Never", "why": "A stuck row must not hide a bug.", "parent": "D1"},
         {"id": "D5", "decision": "What to do with a parked row", "chosen": "Keep it and flag it", "rejected": "Delete it", "why": "A person can inspect it later.", "parent": "D4"},
@@ -23,5 +23,15 @@
       ]
     },
     {"role": "docs changed", "type": "files"}
+  ],
+  "chapters": [
+    {
+      "id": "retry-spacing",
+      "title": "D2: why the delay doubles",
+      "prose": "<p>The question was how to space retries after a failed post. A fixed delay is simple, but it keeps load on a service that is down.</p><p>Doubling the delay gives the service room to recover. The cap in D3 keeps the wait short enough for a person to watch.</p>",
+      "decisions": [
+        {"decision": "How to space retries", "chosen": "Double the delay", "rejected": "Fixed delay", "why": "It spares a service that is down."}
+      ]
+    }
   ]
 }

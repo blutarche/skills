@@ -15,7 +15,7 @@
       "type": "matrix",
       "rows": [
         {"id": "R1", "label": "Duplicate sends after a crash", "likelihood": "med", "impact": "high"},
-        {"id": "R2", "label": "Parked rows grow without bound", "likelihood": "high", "impact": "med"},
+        {"id": "R2", "label": "Parked rows grow without bound", "likelihood": "high", "impact": "med", "more": "parked-rows"},
         {"id": "R3", "label": "Retry delay hides an outage", "likelihood": "low", "impact": "high"},
         {"id": "R4", "label": "Noisy logs hide real errors", "likelihood": "med", "impact": "low"}
       ]
@@ -23,6 +23,7 @@
     {
       "role": "what happened",
       "type": "table",
+      "more": "work-done",
       "columns": ["Area", "State", "Next"],
       "rows": [
         ["Outbox table", "Done", "None"],
@@ -30,6 +31,18 @@
         ["Retry delay", "In progress", "Add the cap"],
         ["Parked rows", "Not started", "Pick an owner"]
       ]
+    }
+  ],
+  "chapters": [
+    {
+      "id": "parked-rows",
+      "title": "R2: parked rows grow without bound",
+      "prose": "<p>Today a parked row stays in the table forever. A long outage can park thousands of rows.</p><p>A fix needs a schema change to add a parked-at date. Then a job can drop old rows. This is why the question in panel A is open.</p>"
+    },
+    {
+      "id": "work-done",
+      "title": "What was done and what was found",
+      "prose": "<p>The outbox table and the sender loop are done. The retry delay is in progress and needs its cap.</p><p>The review found one real gap, the parked row growth. The other risks are known and have no fix yet.</p>"
     }
   ]
 }

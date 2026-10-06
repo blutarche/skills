@@ -24,7 +24,7 @@
         {"id": "F3", "sev": "P1", "claim": "Two workers can claim the same row.", "foundBy": ["scrutinize"], "default": "fix"},
         {"id": "F4", "sev": "P2", "claim": "The delay between retries has no cap.", "foundBy": ["council"], "default": "fix"},
         {"id": "F5", "sev": "P2", "claim": "A parked row loses its last error text.", "foundBy": ["scrutinize"], "default": "fix"},
-        {"id": "F6", "sev": "P2", "claim": "The worker may starve slow rows.", "foundBy": ["council"], "dispute": "Scrutinize says the queue order stops this.", "default": "skip"},
+        {"id": "F6", "sev": "P2", "claim": "The worker may starve slow rows.", "foundBy": ["council"], "dispute": "Scrutinize says the queue order stops this.", "default": "skip", "more": "starved-rows"},
         {"id": "F7", "sev": "P3", "claim": "One log line is too noisy.", "foundBy": ["scrutinize"], "default": "skip"}
       ]
     }
