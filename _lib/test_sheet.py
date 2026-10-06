@@ -333,10 +333,15 @@ class SheetTest(unittest.TestCase):
         self.assertRegex(html, r'<span class="pchip" style="--hue:\d+">Acme</span><span class="bchip"><svg[^>]*aria-hidden="true"')
         self.assertLess(html.index('class="pchip"'), html.index('class="bchip"'))
         self.assertLess(html.index('class="bchip"'), html.index('class="eyebrow"'))
-        self.assertLess(html.index('class="where"'), html.index("<h1>"))
+        self.assertLess(html.index('class="atrow"'), html.index("<h1>"))
         nob = sheet.render_sheet(check(self.where_spec(project="Acme"), "session"))
         self.assertNotIn("data-branch", nob)
         self.assertNotIn("bchip", nob)
+
+    def test_46_chip_row_does_not_reuse_the_finding_where_class(self):
+        css = (Path(sheet.__file__).resolve().parent / "sheet.css").read_text(encoding="utf-8")
+        self.assertNotRegex(css, r"(^|\n)\.where\{")
+        self.assertNotIn('class="where"', sheet.render_sheet(check(self.where_spec(project="Acme"), "session")))
 
     def test_18_checks_cwd_cell(self):
         spec = vet_spec()

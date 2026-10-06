@@ -389,7 +389,7 @@ def build_body(spec: dict, norm: dict, page_key: str, tmpdir: Path, use_mmdc: bo
     ]
     if chapters:
         o.append('<section class="report" id="report"><div class="rhead"><h2>Full report</h2>'
-                 f'<div class="where">{sheet.where_chips(norm["project"], norm["branch"])}</div>'
+                 f'{pagelib.at_row(norm["project"], norm["branch"], True)}'
                  '<button type="button" class="btn" data-toggle-all>Open all</button></div>')
         o.extend(
             render_chapter(i, ch) for i, ch in enumerate(chapters, start=1)

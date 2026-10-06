@@ -7,6 +7,7 @@ Stdlib only, Python 3.10 or newer.
 
 from __future__ import annotations
 
+import hashlib
 import html
 import re
 import sys
@@ -33,6 +34,25 @@ def fail(msg: str) -> None:
     prog = Path(sys.argv[0]).stem if sys.argv and sys.argv[0] else "build"
     print(f"{prog}: {msg}", file=sys.stderr)
     raise BuildFailed(msg)
+
+
+BRANCH_ICON = ('<svg class="bico" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" fill="none" '
+               'stroke="currentColor" stroke-width="1.6"><circle cx="4" cy="3.5" r="1.7"/><circle cx="4" cy="12.5" r="1.7"/>'
+               '<circle cx="12" cy="5.5" r="1.7"/><path d="M4 5.2v5.6M12 7.2c0 3-8 1.6-8 3.6"/></svg>')
+
+
+def where_chips(project: str, branch: str | None) -> str:
+    """The project chip (one stable hue per name) and the branch chip."""
+    hue = int(hashlib.sha1(project.encode("utf-8")).hexdigest()[:4], 16) % 360
+    out = f'<span class="pchip" style="--hue:{hue}">{esc(project)}</span>'
+    if branch:
+        out += f'<span class="bchip">{BRANCH_ICON}{esc(branch)}</span>'
+    return out
+
+
+def at_row(project: str, branch: str | None, small: bool = False) -> str:
+    """A row of the two chips on their own; `small` is for a page whose sheet already shows them large."""
+    return f'<div class="atrow{" sm" if small else ""}">{where_chips(project, branch)}</div>'
 
 
 def esc(s: str) -> str:

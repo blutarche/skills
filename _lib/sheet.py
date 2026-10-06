@@ -10,7 +10,6 @@ Stdlib only, Python 3.10 or newer.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import re
 from pathlib import Path
@@ -668,20 +667,6 @@ def _render_panel(p: dict) -> str:
         f'</section>')
 
 
-BRANCH_ICON = ('<svg class="bico" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" fill="none" '
-               'stroke="currentColor" stroke-width="1.6"><circle cx="4" cy="3.5" r="1.7"/><circle cx="4" cy="12.5" r="1.7"/>'
-               '<circle cx="12" cy="5.5" r="1.7"/><path d="M4 5.2v5.6M12 7.2c0 3-8 1.6-8 3.6"/></svg>')
-
-
-def where_chips(project: str, branch: str | None) -> str:
-    """The project chip (one stable hue per name) and the branch chip."""
-    hue = int(hashlib.sha1(project.encode("utf-8")).hexdigest()[:4], 16) % 360
-    out = f'<span class="pchip" style="--hue:{hue}">{pagelib.esc(project)}</span>'
-    if branch:
-        out += f'<span class="bchip">{BRANCH_ICON}{pagelib.esc(branch)}</span>'
-    return out
-
-
 def render_sheet(sheet: dict) -> str:
     """Band, panel grid, and the title block with the color key."""
     tone = sheet["stampTone"]
@@ -691,8 +676,8 @@ def render_sheet(sheet: dict) -> str:
     key = "".join(f'<span><i class="sw sw-{c}"></i>{pagelib.esc(t)}</span>' for c, t in KEY_LANES)
     return (
         f'<div class="sheet" id="sheet" data-kind="{sheet["kind"]}" data-project="{pagelib.esc(sheet["project"])}"{branch_attr}>'
-        f'<header class="band tone-{tone}"><div class="who"><div class="where">'
-        f'{where_chips(sheet["project"], sheet["branch"])}<span class="eyebrow">/{sheet["kind"]}</span></div>'
+        f'<header class="band tone-{tone}"><div class="who"><div class="atrow">'
+        f'{pagelib.where_chips(sheet["project"], sheet["branch"])}<span class="eyebrow">/{sheet["kind"]}</span></div>'
         f'<h1>{_label(sheet["title"])}</h1><p class="state">{pagelib.sanitize_prose(sheet["state"])}</p></div>'
         f'<div class="stamp {tone}">{sheet["stamp"]}</div></header>'
         f'<div class="grid">{"".join(_render_panel(p) for p in sheet["panels"])}</div>'
