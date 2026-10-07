@@ -150,7 +150,7 @@ tree changes, rebuild; never patch a line number by hand.
 ## Files
 
 - `scripts/build_tour.py`: validator and renderer, stdlib only, Python 3.10 or newer.
-  `--data-out` writes the derived stats as JSON. `--seed N` fixes the spot-check samples.
+  `--data-out` writes the derived stats as JSON. `--seed N` fixes the spot-check samples for tests; by default the change sets them.
 - `scripts/digest.py`: sorts changed files into tiers, proves substitution groups, and draws
   samples. `build_tour.py` imports it.
 - `scripts/test_build_tour.py`: `python3 -m unittest scripts/test_build_tour.py` from this

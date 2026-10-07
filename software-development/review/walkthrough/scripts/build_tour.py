@@ -24,7 +24,6 @@ import json
 import keyword
 import math
 import re
-import secrets
 import subprocess
 import sys
 from dataclasses import asdict, dataclass, field
@@ -1386,13 +1385,15 @@ def word_card(g: digest.Group, files: dict[str, FileDiff], ee_why: dict[str, str
             whys = [f"<li><code>{esc(p)}</code>: {sanitize_prose(ee_why[p])}</li>" for p in g.files if ee_why.get(p)]
             if whys:
                 o.append(f'<ul class="whys">{"".join(whys)}</ul>')
+        origin = (
+            "Samples drawn from this commit."
+            if stats["digest"]["seedSource"] == "commit"
+            else f"Samples drawn with seed {seed}, set by hand."
+        )
         if k > 1:
-            method = (
-                f"Samples: the largest file plus {k - 1} drawn at random at build time (seed {seed}), "
-                "each at a random change."
-            )
+            method = f"Samples: the largest file plus {k - 1} drawn at random, each at a random change. {origin}"
         elif k == 1:
-            method = f"Sample: the largest file, at a random change drawn at build time (seed {seed})."
+            method = f"Sample: the largest file, at a random change. {origin}"
         else:
             method = "No file here has a changed line to sample."
         o.append(f'<p class="method">{method}</p>')
@@ -1499,12 +1500,17 @@ def project_branch(root: Path) -> tuple[str, str | None]:
     return gitfacts.project_name(root) or root.name, gitfacts.branch_name(root)
 
 
-def build_body(spec: dict, root: Path, pr_lens_views: list[PrLensView], seed: int) -> tuple[str, dict]:
+def build_body(spec: dict, root: Path, pr_lens_views: list[PrLensView], seed: int | None) -> tuple[str, dict]:
     base, head = spec["base"], spec["head"]
     check_spec(spec)
     git_bytes(root, "rev-parse", "--verify", f"{base}^{{commit}}")
+    head_sha = ""
     if head != WORKTREE:
-        git_bytes(root, "rev-parse", "--verify", f"{head}^{{commit}}")
+        head_sha = git_bytes(root, "rev-parse", "--verify", f"{head}^{{commit}}").decode("ascii").strip()
+    # the draw comes from the change itself, so rebuilding cannot re-roll it; --seed is for tests
+    seed_source = "commit" if seed is None else "manual"
+    if seed is None:
+        seed = int((head_sha or revision_hash(root, base))[:8], 16)
     files = load_changed_files(root, base, head)
     dg = digest.classify(spec, files, root, base, head, seed)
     placed, lines_shown, unshown_opened, unshown_unopened = check_coverage(spec, files)
@@ -1535,6 +1541,7 @@ def build_body(spec: dict, root: Path, pr_lens_views: list[PrLensView], seed: in
         "flagged": len(dg.flags),
         "digest": {
             "seed": dg.seed,
+            "seedSource": seed_source,
             "counts": dg.counts,
             "lines": dg.lines,
             "tiers": dict(sorted(dg.tiers.items())),
@@ -1768,7 +1775,7 @@ def main() -> None:
     ap.add_argument("--fragment", default=None, help="same content without the document wrappers")
     ap.add_argument("--data-out", default=None, help="write the derived stats as JSON here")
     ap.add_argument("--template", default=str(DEFAULT_TEMPLATE))
-    ap.add_argument("--seed", type=int, default=None, help="seed for the spot-check samples (default: random)")
+    ap.add_argument("--seed", type=int, default=None, help="seed for the spot-check samples, for tests (default: taken from the change)")
     ap.add_argument("--print-worktree-hash", metavar="BASE", help="print the tracked and untracked tree fingerprint")
     args = ap.parse_args()
 
@@ -1801,7 +1808,7 @@ def main() -> None:
         shell = shell.replace(marker, "\n".join(parts) + "\n" + extra.rstrip("\n"))
 
     has_sheet = isinstance(spec, dict) and "sheet" in spec
-    seed = args.seed if args.seed is not None else secrets.randbits(32)
+    seed = args.seed
     try:
         page_shell = splice_sheet_assets(shell, template, has_sheet)
         pr_lens_views = load_pr_lens(spec, spec_path.parent, root)

@@ -1216,8 +1216,8 @@ class DigestBuildTest(unittest.TestCase):
                       '<span class="kind">generated</span><h3 class="ttl">Generated constants</h3>'
                       '<span class="meta">4 files · 3 sampled</span>', gen)
         self.assertIn("<p>Written by <code>make gen</code>.</p>", gen)
-        self.assertIn("Samples: the largest file plus 2 drawn at random at build time (seed 5), "
-                      "each at a random change.", gen)
+        self.assertIn("Samples: the largest file plus 2 drawn at random, each at a random change. "
+                      "Samples drawn with seed 5, set by hand.", gen)
         self.assertEqual(len(re.findall(r'<div class="file" id="f-sample-gen-gen-g\d-js" data-file="gen/g\d.js" '
                                         r'data-card="f-sample-gen-gen-g\d-js">', gen)), 3)
         self.assertIn('id="f-sample-gen-gen-g3-js"', gen)  # the largest file always leads
@@ -1225,7 +1225,7 @@ class DigestBuildTest(unittest.TestCase):
         rest = card("everything-else")
         self.assertIn('<span class="kind">everything else</span>', rest)
         self.assertIn("<li><code>misc.cfg</code>: Bumps the setting.</li>", rest)
-        self.assertIn("Sample: the largest file, at a random change drawn at build time (seed 5).", rest)
+        self.assertIn("Sample: the largest file, at a random change. Samples drawn with seed 5, set by hand.", rest)
         deleted = card("deleted")
         self.assertIn('<span class="meta">1 file</span>', deleted)
         self.assertIn("<code>old.txt</code> · 2 lines removed", deleted)
@@ -1332,6 +1332,42 @@ class DigestBuildTest(unittest.TestCase):
         self.assertEqual(len(first), 3)
         self.assertEqual(samples(11)[1], first)
         self.assertTrue(any(samples(s)[1] != first for s in range(12, 20)))
+
+    def sampling_spec(self) -> dict:
+        for i in range(12):
+            write(self.repo, f"gen/f{i:02}.txt", "".join(f"v{i} {n}\n" for n in range(1, 9)))
+        spec = valid_spec(self.base, "worktree")
+        spec["groups"] = [{"id": "gen", "title": "Generated", "files": ["gen/*"], "kind": "generated",
+                           "why": "Written by the generator."}]
+        return spec
+
+    def test_default_seed_comes_from_the_change(self) -> None:
+        spec = self.sampling_spec()
+        seen = []
+        for _ in range(3):
+            r = self.build(spec)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            d = json.loads(self.stats.read_text(encoding="utf-8"))["digest"]
+            self.assertEqual(d["seedSource"], "commit")
+            seen.append((d["seed"], [g["samples"] for g in d["groups"] if g["id"] == "gen"][0]))
+            self.assertIn("Samples drawn from this commit.", self.out.read_text(encoding="utf-8"))
+        self.assertEqual(seen[0], seen[1])
+        self.assertEqual(seen[0], seen[2])
+
+    def test_default_seed_of_a_commit_is_its_sha(self) -> None:
+        r = self.build(valid_spec(self.base, self.head))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        d = json.loads(self.stats.read_text(encoding="utf-8"))["digest"]
+        full = git(self.repo, "rev-parse", self.head).strip()
+        self.assertEqual((d["seed"], d["seedSource"]), (int(full[:8], 16), "commit"))
+
+    def test_manual_seed_is_labelled(self) -> None:
+        spec = self.sampling_spec()
+        r = self.build(spec, seed=11)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        d = json.loads(self.stats.read_text(encoding="utf-8"))["digest"]
+        self.assertEqual((d["seed"], d["seedSource"]), (11, "manual"))
+        self.assertIn("Samples drawn with seed 11, set by hand.", self.out.read_text(encoding="utf-8"))
 
     def test_chapters_number_in_reading_order(self) -> None:
         spec = SheetTest.sheet_spec(self)

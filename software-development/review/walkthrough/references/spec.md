@@ -121,7 +121,8 @@ Every changed file gets one tier:
 | `word` | an agent's-word group, `everythingElse`, `deleted`, `binary` | On the agent's word, one closed card per group |
 
 A substitution file is flagged when it is new, deleted, a copy, binary, or changed type or file
-mode, or when the replay does not give the new file. A flag never fails the build. The page
+mode, or when the replay does not give the new file. The replay must give the exact text, so a
+rename plus a CRLF conversion or a changed final newline is flagged too. A flag never fails the build. The page
 still shows a substitution group whose files were all flagged, so the reader sees the rule.
 
 ### Samples
@@ -129,21 +130,16 @@ still shows a substitution group whose files were all flagged, so the reader see
 Each agent's-word group with changed lines shows spot-check samples: the largest file, plus
 files drawn at random up to 3 in all, or 10% of the group when that is more, at most 8. Only
 files with changed text lines count. Each sample sits at a random run of changed lines, padded by
-two lines, at most 40 lines. Deleted and binary groups show no sample. `--seed N` fixes the draw;
-without it the build picks a random seed. The seed shows in each sample line on the page and in
-`--data-out`.
+two lines, at most 40 lines. Deleted and binary groups show no sample. `--seed N` fixes the draw
+for tests. Without it the seed comes from the change: the first 8 hex digits of the head commit
+sha, or of the working-tree fingerprint for `worktree`, so rebuilding draws the same samples.
+The page says "Samples drawn from this commit." or "Samples drawn with seed N, set by hand.",
+and `--data-out` holds `seed` and `seedSource` (`commit` or `manual`).
 
 ### `everythingElse` cap
 
 `everythingElse` holds at most `min(20, max(3, files // 10))` files, where `files` is the number
 of changed files. Past that the build fails and asks for groups or chapters.
-
-### Known limits
-
-- The replay compares lines after the split, so a change only to the final newline or to CRLF
-  line endings counts as matched.
-- The agent runs the build, so it could rebuild until a sample draw suits it. The page names
-  the seed and how the samples were drawn.
 
 ## `sheet` (optional)
 
@@ -267,7 +263,7 @@ build leaves the previous page in place (a build with a `sheet` writes a BUILD F
   `linesShown` over `linesChanged`. `linesUnshownInOpenedFiles` counts unshown changed lines in
   files that have at least one hunk on the page; `linesUnshownInUnopenedFiles` counts the rest, in
   files that are never opened (no hunk in any chapter, or listed in `everythingElse`). `flagged`
-  counts flagged files. `digest` holds `seed`, `counts` (files per tier), `lines` (changed lines:
+  counts flagged files. `digest` holds `seed`, `seedSource`, `counts` (files per tier), `lines` (changed lines:
   `total`, `read` for flagged, read, and skim files, `matched`, `word`, and `sampled`, the changed
   lines the samples show), `tiers` (every path to its tier), `groups` (`id`, `kind`, `tier`,
   `files`, and `samples` as `path`, `side`, `start`, `end`), and `flags` (`path`, `group`,
