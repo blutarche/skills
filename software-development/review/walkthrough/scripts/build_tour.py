@@ -8,7 +8,7 @@ from the spec's prose plus the shell in templates/tour-shell.html.
 Usage:
     build_tour.py --spec review-tour.json --repo-root . --out tour.html
                   [--fragment tour.fragment.html] [--data-out stats.json]
-                  [--template path/to/tour-shell.html]
+                  [--template path/to/tour-shell.html] [--seed N]
     build_tour.py --repo-root . --print-worktree-hash <base>
 
 Exit status 1 with a message naming the defect on any validation failure; no output file is
@@ -24,9 +24,10 @@ import json
 import keyword
 import math
 import re
+import secrets
 import subprocess
 import sys
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from decimal import Decimal
 from datetime import datetime
 from pathlib import Path
@@ -41,7 +42,8 @@ LIB_STYLE, LIB_SCRIPT = "<!-- LIB:STYLE -->", "<!-- LIB:SCRIPT -->"
 SHEET_STYLE, SHEET_SCRIPT = "<!-- SHEET:STYLE -->", "<!-- SHEET:SCRIPT -->"
 
 sys.path.insert(0, str(LIB_DIR))
-import dock  # noqa: E402  (needs sys.path set up above)
+import digest  # noqa: E402  (needs sys.path set up above)
+import dock  # noqa: E402
 import gitfacts  # noqa: E402
 import pagelib  # noqa: E402
 import sheet  # noqa: E402
@@ -53,6 +55,7 @@ slug = pagelib.slug
 sanitize_prose = pagelib.sanitize_prose
 
 RISK_LABEL = {"attention": "read closely", "medium": "read once", "safe": "skim"}
+READ_RISKS = ("attention", "medium")
 SIDES = ("new", "old")
 STATUS_LABEL = {"A": "added", "M": "modified", "D": "deleted", "R": "renamed", "C": "copied", "T": "type change"}
 PR_LENS_SCHEMA = "0.2.0"
@@ -881,6 +884,7 @@ def check_spec(spec: dict) -> None:
                     fail(f"{f['path']}: a hunk needs integer start and end")
                 if start > end:
                     fail(f"{f['path']} {side} {start}-{end}: start is after end")
+    digest.check_groups(spec, seen_ids)
 
     verify = spec.get("verify") or {}
     for i, r in enumerate(verify.get("ran", [])):
@@ -899,12 +903,17 @@ def check_coverage(spec: dict, files: dict[str, FileDiff]) -> tuple[dict[str, li
         if f["path"] in placed:
             fail(f"{f['path']} is in everythingElse and in chapter {placed[f['path']][0]}; keep it in one place")
         placed.setdefault(f["path"], []).append("everythingElse")
-    missing = sorted(set(files) - set(placed))
+    # a changed file with no place fails in digest.classify, which also knows groups and derived files
     extra = sorted(set(placed) - set(files))
-    if missing:
-        fail("changed files no chapter claims: " + ", ".join(missing))
     if extra:
         fail("placed files that are not in the diff: " + ", ".join(extra))
+    ee = spec.get("everythingElse", [])
+    cap = min(20, max(3, len(files) // 10))
+    if len(ee) > cap:
+        fail(
+            f"everythingElse holds {len(ee)} files; the limit for this diff is {cap}. "
+            "Declare groups or chapters for the rest"
+        )
 
     shown: dict[tuple[str, str, int], str] = {}
     shown_changed: set[tuple[str, str, int]] = set()
@@ -1117,6 +1126,11 @@ def result_label(summary: object) -> str | None:
     return first
 
 
+def reading_order(chapters: list[dict]) -> list[dict]:
+    """Read-tier chapters, then skim chapters, each in spec order. Chapter numbers follow it."""
+    return [ch for ch in chapters if ch["risk"] in READ_RISKS] + [ch for ch in chapters if ch["risk"] not in READ_RISKS]
+
+
 def build_sheet(spec: dict, root: Path, files: dict[str, FileDiff]) -> str:
     """Validate the optional `sheet` block and render it. The builder owns the checks and files
     panels, so the agent supplying either one is an error."""
@@ -1139,7 +1153,7 @@ def build_sheet(spec: dict, root: Path, files: dict[str, FileDiff]) -> str:
         rows.append(row)
     auto = [{"role": "checks", "type": "checks", "rows": rows}, {"role": "files", "type": "files"}]
     tree = {"repo": str(root), "base": spec["base"], "head": spec["head"]}
-    targets = {ch["id"]: (n, ch["title"]) for n, ch in enumerate(spec["chapters"], start=1)}
+    targets = {ch["id"]: (n, ch["title"]) for n, ch in enumerate(reading_order(spec["chapters"]), start=1)}
     norm = sheet.check_sheet(block | {"tree": tree}, kind="execute", title=spec["title"], auto_panels=auto,
                              targets=targets)
     return sheet.render_sheet(norm)
@@ -1150,13 +1164,14 @@ def project_branch(root: Path) -> tuple[str, str | None]:
     return gitfacts.project_name(root) or root.name, gitfacts.branch_name(root)
 
 
-def build_body(spec: dict, root: Path, pr_lens_views: list[PrLensView]) -> tuple[str, dict]:
+def build_body(spec: dict, root: Path, pr_lens_views: list[PrLensView], seed: int) -> tuple[str, dict]:
     base, head = spec["base"], spec["head"]
     check_spec(spec)
     git_bytes(root, "rev-parse", "--verify", f"{base}^{{commit}}")
     if head != WORKTREE:
         git_bytes(root, "rev-parse", "--verify", f"{head}^{{commit}}")
     files = load_changed_files(root, base, head)
+    dg = digest.classify(spec, files, root, base, head, seed)
     placed, lines_shown, unshown_opened, unshown_unopened = check_coverage(spec, files)
 
     head_label = "working tree" if head == WORKTREE else head[:8]
@@ -1182,11 +1197,23 @@ def build_body(spec: dict, root: Path, pr_lens_views: list[PrLensView]) -> tuple
         "attentionChapters": sum(1 for ch in chapters if ch["risk"] == "attention"),
         "prLensViews": len(pr_lens_views),
         "hasContextRow": False,
+        "flagged": len(dg.flags),
+        "digest": {
+            "seed": dg.seed,
+            "counts": dg.counts,
+            "lines": dg.lines,
+            "tiers": dict(sorted(dg.tiers.items())),
+            "groups": [
+                {"id": g.id, "kind": g.kind, "tier": g.tier, "files": g.files, "samples": [asdict(s) for s in g.samples]}
+                for g in dg.groups
+            ],
+            "flags": [{"path": f.path, "group": f.group, "reason": f.reason} for f in dg.flags],
+        },
     }
 
     # chapters render first: the overview strip reports the hunk count this pass derives
     tour: list[str] = []
-    for idx, ch in enumerate(chapters, start=1):
+    for idx, ch in enumerate(reading_order(chapters), start=1):
         risk = ch["risk"]
         tour.append(
             f'<details class="chapter" id="ch-{esc(ch["id"])}" data-chapter="{esc(ch["id"])}" data-risk="{esc(risk)}">'
@@ -1426,6 +1453,7 @@ def main() -> None:
     ap.add_argument("--fragment", default=None, help="same content without the document wrappers")
     ap.add_argument("--data-out", default=None, help="write the derived stats as JSON here")
     ap.add_argument("--template", default=str(DEFAULT_TEMPLATE))
+    ap.add_argument("--seed", type=int, default=None, help="seed for the spot-check samples (default: random)")
     ap.add_argument("--print-worktree-hash", metavar="BASE", help="print the tracked and untracked tree fingerprint")
     args = ap.parse_args()
 
@@ -1458,10 +1486,11 @@ def main() -> None:
         shell = shell.replace(marker, "\n".join(parts) + "\n" + extra.rstrip("\n"))
 
     has_sheet = isinstance(spec, dict) and "sheet" in spec
+    seed = args.seed if args.seed is not None else secrets.randbits(32)
     try:
         page_shell = splice_sheet_assets(shell, template, has_sheet)
         pr_lens_views = load_pr_lens(spec, spec_path.parent, root)
-        body, stats = build_body(spec, root, pr_lens_views)
+        body, stats = build_body(spec, root, pr_lens_views, seed)
         title = esc(" · ".join(p for p in (*project_branch(root), spec["title"]) if p))
         document, fragment = pagelib.assemble(page_shell, title, body)
     except pagelib.BuildFailed as e:
@@ -1480,11 +1509,20 @@ def main() -> None:
         Path(args.fragment).write_text(fragment, encoding="utf-8")
     if args.data_out:
         Path(args.data_out).write_text(json.dumps(stats, indent=2) + "\n", encoding="utf-8")
+    flags = stats["digest"]["flags"]
+    if flags:
+        listed = ", ".join(f"{f['path']} ({f['group']})" for f in flags)
+        print(
+            f"build_tour: warning: {len(flags)} file{'s' if len(flags) != 1 else ''} broke a rule: {listed}",
+            file=sys.stderr,
+        )
+    counts = stats["digest"]["counts"]
     print(
         f"build_tour: ok files={stats['filesChanged']} placed={stats['filesPlaced']} "
         f"else={stats['everythingElse']} hunks={stats['hunksShown']} chapters={stats['chapters']} "
         f"pr-lens={stats['prLensViews']} "
-        f"lines shown {stats['linesShown']} / changed {stats['linesChanged']} ({stats['coveragePercent']}%)"
+        f"lines shown {stats['linesShown']} / changed {stats['linesChanged']} ({stats['coveragePercent']}%) "
+        "tiers " + " ".join(f"{t}={counts[t]}" for t in digest.TIERS)
     )
 
 

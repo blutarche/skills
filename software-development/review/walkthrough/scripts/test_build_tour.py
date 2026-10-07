@@ -460,15 +460,6 @@ class BuildTourTest(unittest.TestCase):
         self.assertIn("lines shown 7 / changed 12 (58%)", r.stdout)
         self.assertNotIn("This tour shows", page)
 
-    # ---------------------------------------------------------------- 2
-    def test_changed_file_placed_nowhere(self) -> None:
-        spec = valid_spec(self.base, self.head)
-        spec["everythingElse"] = []
-        r = self.build(spec)
-        self.assertEqual(r.returncode, 1)
-        self.assertIn("keep.txt", r.stderr)
-        self.assertIn("no chapter claims", r.stderr)
-
     # ---------------------------------------------------------------- 3
     def test_placed_file_not_in_diff(self) -> None:
         spec = valid_spec(self.base, self.head)
@@ -893,6 +884,167 @@ class SheetTest(unittest.TestCase):
     def test_tour_feedback_puts_the_answer_block_first(self) -> None:
         page = self.page(self.sheet_spec())
         self.assertIn("sheetAnswers().text", page)
+
+
+RENAME_BASE = 'import {{ fetchUser }} from "./api";\n\nexport const v{i} = fetchUser({i});\n'
+
+
+class DigestBuildTest(unittest.TestCase):
+    """Reading tiers, groups, and the everythingElse cap, end to end through the build."""
+
+    setUp = BuildTourTest.setUp
+    add_pr_lens = BuildTourTest.add_pr_lens
+    build = BuildTourTest.build
+
+    def group_fixture(self, flagged: bool = True) -> tuple[str, str]:
+        """Four files renamed fetchUser -> loadUser on top of the feature commit; with flagged,
+        the last one also adds a call the rule does not explain. Returns (base, head)."""
+        for i in range(4):
+            write(self.repo, f"src/m{i}.ts", RENAME_BASE.format(i=i))
+        git(self.repo, "add", "-A")
+        git(self.repo, "commit", "-q", "--no-verify", "-m", "rename base")
+        base = git(self.repo, "rev-parse", "HEAD")
+        for i in range(4):
+            write(self.repo, f"src/m{i}.ts", RENAME_BASE.format(i=i).replace("fetchUser", "loadUser"))
+        if flagged:
+            write(self.repo, "src/m3.ts", RENAME_BASE.format(i=3).replace("fetchUser", "loadUser") + "deleteAll();\n")
+        write(self.repo, "alpha.py", ALPHA_HEAD.replace("return 42", "return 7"))
+        git(self.repo, "add", "-A")
+        git(self.repo, "commit", "-q", "--no-verify", "-m", "rename head")
+        return base, git(self.repo, "rev-parse", "HEAD")
+
+    def group_spec(self, base: str, head: str) -> dict:
+        return {
+            "title": "Rename the user reader",
+            "base": base,
+            "head": head,
+            "overview": "<p>One rename and one value.</p>",
+            "chapters": [
+                {
+                    "id": "core",
+                    "title": "Alpha returns 7",
+                    "risk": "attention",
+                    "overview": "<p>The value moves.</p>",
+                    "files": [{"path": "alpha.py", "hunks": [{"side": "new", "start": 2, "end": 2}]}],
+                }
+            ],
+            "groups": [
+                {"id": "rename", "title": "fetchUser becomes loadUser", "files": ["src/*.ts"],
+                 "from": "fetchUser", "to": "loadUser"}
+            ],
+        }
+
+    def test_unplaced_deletion_lands_in_the_deleted_group(self) -> None:
+        spec = valid_spec(self.base, self.head)
+        spec["everythingElse"] = []
+        r = self.build(spec)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        d = json.loads(self.stats.read_text(encoding="utf-8"))["digest"]
+        self.assertEqual(d["tiers"]["keep.txt"], "word")
+        self.assertEqual([(g["id"], g["files"]) for g in d["groups"]], [("deleted", ["keep.txt"])])
+
+    def test_unplaced_changed_file_fails_with_the_digest_message(self) -> None:
+        write(self.repo, "gamma.txt", "fresh and untracked\n")
+        r = self.build(valid_spec(self.base, "worktree"))
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("changed files no chapter or group claims: gamma.txt", r.stderr)
+
+    def test_everything_else_cap(self) -> None:
+        for name in ("e1", "e2", "e3", "e4"):
+            write(self.repo, f"{name}.txt", f"{name}\n")
+        spec = valid_spec(self.base, "worktree")
+        spec["everythingElse"] += [{"path": f"{n}.txt"} for n in ("e1", "e2", "e3", "e4")]
+        r = self.build(spec)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("everythingElse holds 5 files; the limit for this diff is 3", r.stderr)
+        self.assertIn("groups or chapters", r.stderr)
+        spec["everythingElse"] = spec["everythingElse"][:3]
+        spec["chapters"][1]["files"] += [{"path": "e3.txt"}, {"path": "e4.txt"}]
+        r = self.build(spec)
+        self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_bad_group_fails_in_check_spec(self) -> None:
+        spec = valid_spec(self.base, self.head)
+        spec["groups"] = [{"id": "bad", "title": "Bad", "files": ["*.py"], "from": "(", "to": "", "regex": True}]
+        r = self.build(spec)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("group bad: from is not a valid regex", r.stderr)
+
+    def test_flagged_file_warns_and_the_data_out_carries_the_digest(self) -> None:
+        base, head = self.group_fixture()
+        r = self.build(self.group_spec(base, head))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("build_tour: warning: 1 file broke a rule: src/m3.ts (rename)", r.stderr)
+        self.assertIn(" tiers flagged=1 read=1 skim=0 matched=3 word=0", r.stdout)
+        stats = json.loads(self.stats.read_text(encoding="utf-8"))
+        self.assertEqual(stats["flagged"], 1)
+        d = stats["digest"]
+        self.assertIsInstance(d["seed"], int)
+        self.assertEqual(d["counts"], {"flagged": 1, "read": 1, "skim": 0, "matched": 3, "word": 0})
+        self.assertEqual(set(d["lines"]), {"total", "read", "matched", "word", "sampled"})
+        self.assertEqual(
+            d["tiers"],
+            {"alpha.py": "read", "src/m0.ts": "matched", "src/m1.ts": "matched", "src/m2.ts": "matched", "src/m3.ts": "flagged"},
+        )
+        self.assertEqual(list(d["tiers"]), sorted(d["tiers"]))
+        [g] = d["groups"]
+        self.assertEqual(
+            (g["id"], g["kind"], g["tier"], g["files"]),
+            ("rename", "substitution", "matched", ["src/m0.ts", "src/m1.ts", "src/m2.ts"]),
+        )
+        self.assertEqual(g["samples"], [{"path": "src/m0.ts", "side": "new", "start": 1, "end": 3}])
+        self.assertEqual(
+            d["flags"],
+            [{"path": "src/m3.ts", "group": "rename",
+              "reason": "Applying the rule to the old file does not give the new file."}],
+        )
+
+    def test_no_flag_means_no_warning(self) -> None:
+        base, head = self.group_fixture(flagged=False)
+        r = self.build(self.group_spec(base, head))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertNotIn("warning", r.stderr)
+        self.assertEqual(json.loads(self.stats.read_text(encoding="utf-8"))["flagged"], 0)
+
+    def test_seed_flag_fixes_the_samples(self) -> None:
+        for i in range(12):
+            write(self.repo, f"gen/f{i:02}.txt", "".join(f"v{i} {n}\n" for n in range(1, 9)))
+        spec = valid_spec(self.base, "worktree")
+        spec["groups"] = [{"id": "gen", "title": "Generated", "files": ["gen/*"], "kind": "generated",
+                           "why": "Written by the generator."}]
+
+        def samples(seed: int) -> tuple[int, list]:
+            spec_path = self.dir / "review-tour.json"
+            self.add_pr_lens(spec)
+            spec_path.write_text(json.dumps(spec), encoding="utf-8")
+            r = subprocess.run(
+                [sys.executable, str(BUILD), "--spec", str(spec_path), "--repo-root", str(self.repo),
+                 "--out", str(self.out), "--data-out", str(self.stats), "--seed", str(seed)],
+                capture_output=True, text=True,
+            )
+            self.assertEqual(r.returncode, 0, r.stderr)
+            d = json.loads(self.stats.read_text(encoding="utf-8"))["digest"]
+            return d["seed"], [g["samples"] for g in d["groups"] if g["id"] == "gen"][0]
+
+        seed, first = samples(11)
+        self.assertEqual(seed, 11)
+        self.assertEqual(len(first), 3)
+        self.assertEqual(samples(11)[1], first)
+        self.assertTrue(any(samples(s)[1] != first for s in range(12, 20)))
+
+    def test_chapters_number_in_reading_order(self) -> None:
+        spec = SheetTest.sheet_spec(self)
+        spec["chapters"].reverse()  # safe docs first, attention core second
+        spec["sheet"]["panels"][1]["more"] = "core"
+        spec["sheet"]["panels"][2]["rows"][0]["more"] = "docs"
+        r = self.build(spec)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        page = self.out.read_text(encoding="utf-8")
+        self.assertIn('id="ch-core" data-chapter="core" data-risk="attention"><summary class="chead"><span class="num">1</span>', page)
+        self.assertIn('id="ch-docs" data-chapter="docs" data-risk="safe"><summary class="chead"><span class="num">2</span>', page)
+        self.assertLess(page.index('id="ch-core"'), page.index('id="ch-docs"'))
+        self.assertIn('aria-label="Section 1: Alpha returns 42 and delta arrives"', page)
+        self.assertIn('aria-label="Section 2: Notes gain a section"', page)
 
 
 class HighlightTest(unittest.TestCase):
