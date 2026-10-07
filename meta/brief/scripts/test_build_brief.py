@@ -13,6 +13,7 @@ import hashlib
 import io
 import json
 import stat
+import subprocess
 import sys
 import tempfile
 import time
@@ -24,6 +25,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 import build_brief  # noqa: E402  (needs sys.path set up above)
+import layout_check  # noqa: E402  (build_brief puts lib/ on sys.path)
 
 BUILD = HERE / "build_brief.py"
 
@@ -1042,6 +1044,77 @@ class ExamplesTest(unittest.TestCase):
                 self.assertEqual(r.code, 0, r.stderr)
                 kind = json.loads(path.read_text(encoding="utf-8"))["kind"]
                 self.assertEqual(path.name, f"{kind}.example.json")
+
+
+class LayoutTest(unittest.TestCase, Harness):
+    """Browser leg: a finish sheet with every panel type it can show, and a files panel past its 12-row cap."""
+
+    def make_repo(self, root: Path) -> tuple[str, str]:
+        def git(*args: str) -> str:
+            r = subprocess.run(["git", "-c", "commit.gpgsign=false", *args], cwd=root,
+                               capture_output=True, text=True)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            return r.stdout.strip()
+
+        git("init", "-q", "-b", "main")
+        git("config", "user.name", "Brief Test")
+        git("config", "user.email", "test@example.invalid")
+        (root / "base.txt").write_text("base\n", encoding="utf-8")
+        git("add", "-A")
+        git("commit", "-q", "--no-verify", "-m", "base")
+        base = git("rev-parse", "HEAD")
+        for i in range(14):
+            (root / f"mod{i}.txt").write_text("line\n" * (i * 3 + 1), encoding="utf-8")
+        git("add", "-A")
+        git("commit", "-q", "--no-verify", "-m", "feature")
+        return base, git("rev-parse", "HEAD")
+
+    def test_layout_holds_at_every_width(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            repo = tmp_path / "repo"
+            repo.mkdir()
+            base, head = self.make_repo(repo)
+            spec = valid_spec()
+            spec["kind"] = "finish"
+            spec["tree"] = {"repo": str(repo), "base": base, "head": head}
+            spec["panels"] = [
+                {"role": "needs you", "type": "asks", "rows": [
+                    {"ask": "Land or open a PR?", "why": "Each move is a command below.",
+                     "options": [{"label": "Land it"}, {"label": "Open a PR"}], "recommended": 1,
+                     "more": "before-the-reply"}]},
+                {"role": "next move", "type": "commands", "rows": [
+                    {"cmd": "/finish land", "does": "Merge into main"},
+                    {"cmd": "/finish discard", "does": "Delete the branch", "danger": True}]},
+                {"role": "checks", "type": "checks", "rows": [
+                    {"cmd": "npm test", "cwd": ".", "exit": 0, "result": "31 pass"},
+                    {"cmd": "npm run e2e", "cwd": ".", "exit": None}]},
+                {"role": "diff", "type": "files"},
+                {"role": "tasks", "type": "tasks", "rows": [
+                    {"id": "T1", "name": "Write the outbox", "status": "done"},
+                    {"id": "T2", "name": "Add the drain loop", "status": "todo", "after": ["T1"]}]},
+                {"role": "review", "type": "findings", "rows": [
+                    {"id": "F1", "sev": "P1", "claim": "A crash drops the event.",
+                     "foundBy": ["scrutinize"], "default": "fix", "outcome": "fixed",
+                     "more": "the-drain-loop"}]},
+                {"role": "decisions", "type": "decisions", "rows": [
+                    {"decision": "Where the write happens", "chosen": "Inside the request",
+                     "why": "Acknowledging early is the bug."}]},
+            ]
+            r = self.build(spec, tmp_path)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            page = r.out.read_text(encoding="utf-8")
+            self.assertIn("more files", page, "files cap not hit")
+            browser = layout_check.find_browser()
+            if not browser:
+                self.skipTest("no Chrome found; set LAYOUT_CHROME")
+            fails = []
+            try:
+                for width in layout_check.DEFAULT_WIDTHS:
+                    fails += layout_check.check(layout_check.probe(r.out, width, browser), width)
+            except layout_check.BrowserError as e:
+                self.skipTest(f"browser unavailable: {e}")
+            self.assertEqual(fails, [])
 
 
 if __name__ == "__main__":
