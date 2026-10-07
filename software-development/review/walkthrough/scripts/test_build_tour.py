@@ -459,7 +459,7 @@ class BuildTourTest(unittest.TestCase):
         self.assertEqual(stats["linesChanged"], 12)
         self.assertEqual(stats["coveragePercent"], 58)
         self.assertIn("lines shown 7 / changed 12 (58%)", r.stdout)
-        self.assertIn("Changed lines: <b>12</b>. In files you read: <b>10</b> (83%), hunks show <b>7</b>.", page)
+        self.assertIn("Of <b>12</b> changed lines, you read <b>10</b> (83%)", page)
 
     # ---------------------------------------------------------------- 3
     def test_placed_file_not_in_diff(self) -> None:
@@ -639,7 +639,7 @@ class BuildTourTest(unittest.TestCase):
         self.assertNotIn("This tour shows", page)
         lines = stats["digest"]["lines"]
         self.assertEqual(lines["total"], stats["linesChanged"])
-        self.assertIn(f'Agent\'s word: <b>{lines["word"]}</b> ({round(100 * lines["word"] / lines["total"])}%)', page)
+        self.assertIn(f'<b>{lines["word"]}</b> ({round(100 * lines["word"] / lines["total"])}%) rest on the agent\'s word', page)
 
     # ---------------------------------------------------------------- 13
     def test_verify_row_missing_cwd_rejected(self) -> None:
@@ -1131,7 +1131,7 @@ class DigestBuildTest(unittest.TestCase):
             page,
         )
         self.assertIn('<span class="t-word" style="flex:7 1 0">7</span></div>', page)
-        fm = page[page.index('<div class="fm">'):page.index('<div class="dg-key">')]
+        fm = page[page.index('<div class="fm">'):page.index('<ul class="tiers">')]
         self.assertEqual(fm.count('<a class="sq t-'), 15)
         self.assertEqual(re.findall(r'<div class="fml"><span>([^<]+)</span><span>(\d+)</span>', fm),
                          [("(root)", "6"), ("gen", "4"), ("src", "4"), ("moved", "1")])
@@ -1148,16 +1148,28 @@ class DigestBuildTest(unittest.TestCase):
             '<a class="sq t-word" href="#g-everything-else" title="misc.cfg"',
         ):
             self.assertIn(square, fm)
-        for tier in ("flagged", "read", "skim", "matched a rule", "agent&#x27;s word"):
-            self.assertIn(f"</i>{tier}</span>", page)
+        self.assertNotIn("dg-key", page)
+        self.assertIn(
+            '<p class="dg-how">Every changed file is in one group below, by how much of your attention it needs. '
+            "Each square in the map is one file; click it to open its card.</p>",
+            page,
+        )
+        rows = re.findall(r'<li><i class="sq t-(\w+)"></i><span class="tn"><b>(\d+)</b> ([^<]+)</span>'
+                          r'<span class="tm">([^<]+)</span></li>', page)
+        self.assertEqual([(t, n) for t, n, _, _ in rows],
+                         [("flagged", "1"), ("read", "1"), ("skim", "1"), ("matched", "5"), ("word", "7")])
+        self.assertEqual([m for *_, m in rows], [build_tour.TIER_MEANING[t] for t in
+                                                 ("flagged", "read", "skim", "matched", "word")])
+        self.assertIn("Read these first.", rows[0][3])
         lines = stats["digest"]["lines"]
         total = lines["total"]
         self.assertIn(
-            f'<p class="cover">Changed lines: <b>{total}</b>. In files you read: <b>{lines["read"]}</b> '
-            f'({round(100 * lines["read"] / total)}%), hunks show <b>{stats["linesShown"]}</b>. '
-            f'Matched a rule: <b>{lines["matched"]}</b> ({round(100 * lines["matched"] / total)}%). '
-            f'Agent\'s word: <b>{lines["word"]}</b> ({round(100 * lines["word"] / total)}%), '
-            f'samples show <b>{lines["sampled"]}</b>.</p>',
+            f'<p class="cover">Of <b>{total}</b> changed lines, you read <b>{lines["read"]}</b> '
+            f'({round(100 * lines["read"] / total)}%), a rule covers <b>{lines["matched"]}</b> '
+            f'({round(100 * lines["matched"] / total)}%), and <b>{lines["word"]}</b> '
+            f'({round(100 * lines["word"] / total)}%) rest on the agent\'s word. '
+            f'The page shows <b>{stats["linesShown"]}</b> of the lines you read and <b>{lines["sampled"]}</b> '
+            "sample lines.</p>",
             page,
         )
         self.assertNotIn('<div class="fm small">', page)
@@ -1259,6 +1271,25 @@ class DigestBuildTest(unittest.TestCase):
         dg.counts["word"] = 300
         glance = build_tour.render_glance(dg, dict.fromkeys(paths[1:]), {p: "g-bulk" for p in paths}, 0, 0)
         self.assertIn('<div class="fm">', glance)
+
+    def test_empty_tier_has_no_row_and_zero_clauses_drop(self) -> None:
+        dg = build_tour.digest.Digest(
+            tiers={"a.txt": "word"}, groups=[], flags=[], seed=1,
+            counts={"flagged": 0, "read": 0, "skim": 0, "matched": 0, "word": 1},
+            lines={"total": 4, "read": 0, "matched": 0, "word": 4, "sampled": 0},
+        )
+        glance = build_tour.render_glance(dg, {"a.txt": None}, {"a.txt": "g-bulk"}, 0, 0)
+        self.assertEqual(glance.count("<li>"), 1)
+        self.assertIn('<i class="sq t-word"></i>', glance)
+        self.assertIn('<p class="cover">Of <b>4</b> changed lines, <b>4</b> (100%) rest on the agent\'s word.</p>', glance)
+        dg = build_tour.digest.Digest(
+            tiers={}, groups=[], flags=[], seed=1,
+            counts=dict.fromkeys(("flagged", "read", "skim", "matched", "word"), 0),
+            lines={"total": 0, "read": 0, "matched": 0, "word": 0, "sampled": 0},
+        )
+        glance = build_tour.render_glance(dg, {}, {}, 0, 0)
+        self.assertNotIn("<li>", glance)
+        self.assertIn("No file changed.", glance)
 
     def test_rule_every_file_broke_still_shows(self) -> None:
         base, head = self.group_fixture()

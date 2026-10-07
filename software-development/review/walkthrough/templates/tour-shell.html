@@ -135,8 +135,13 @@ footer{padding-top:20px;font-family:var(--mono);font-size:11.5px;color:var(--ink
 .sq.t-matched{border-color:var(--green)}
 .sq.t-word{border-color:var(--ink-2)}
 a.sq:hover,a.sq:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
-.dg-key{display:flex;flex-wrap:wrap;gap:4px 14px;font:11px var(--mono);color:var(--ink-2)}
-.dg-key .sq{display:inline-block;margin-right:5px;vertical-align:-1px}
+.dg-how{margin:0;font-size:14px;color:var(--ink-2);max-width:none}
+.tiers{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.tiers li{display:grid;grid-template-columns:10px minmax(130px,max-content) 1fr;gap:4px 10px;align-items:baseline;font-size:14px}
+.tiers .sq{align-self:center}
+.tiers .tn{font:12px var(--mono);color:var(--ink-2)}
+.tiers .tn b{color:var(--ink)}
+.tiers .tm{color:var(--ink)}
 .cover{margin:0;padding-top:10px;border-top:1px solid var(--line);font:12px var(--mono);color:var(--ink-2);max-width:none}
 .cover b{color:var(--ink)}
 .sect{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin:26px 0 8px;font:600 12px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
@@ -166,6 +171,8 @@ details.all>summary{cursor:pointer;padding:4px 0;font:11.5px var(--mono);color:v
   .wrap{padding:0 16px 96px}
   header.top h1{font-size:23px}
   .budget{font-size:15px}
+  .tiers li{grid-template-columns:10px 1fr}
+  .tiers .tm{grid-column:2}
   .dg{padding:12px}
   .chead{flex-wrap:wrap;row-gap:4px}
   .chead .meta{order:5;flex-basis:100%;padding-left:46px}

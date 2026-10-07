@@ -1097,6 +1097,16 @@ def render_pr_lens_view(view: PrLensView, index: int) -> str:
 # ---------------------------------------------------------------- digest page parts
 
 TIER_LABEL = {"flagged": "flagged", "read": "read", "skim": "skim", "matched": "matched a rule", "word": "agent's word"}
+TIER_MEANING = {
+    "flagged": "The agent named a rule for these files, and the build found a change the rule does not explain. "
+               "Read these first.",
+    "read": "The core of the change. Read the lines shown.",
+    "skim": "Lower-risk files. A glance is enough.",
+    "matched": "The build applied a simple rule (a rename, a move, a line-ending fix) to the old file and got the "
+               "new file exactly. Skip unless you doubt the rule.",
+    "word": "Nothing checked these, for example generated, deleted or binary files. "
+            "The page shows a few as samples to spot-check.",
+}
 KIND_LABEL = {
     "generated": "generated",
     "lockfile": "lockfile",
@@ -1154,6 +1164,10 @@ def render_glance(dg: digest.Digest, files: dict[str, FileDiff], card_of: dict[s
         f'<p class="budget">{" ".join(budget) or "No file changed."}</p>',
     ]
     if files:
+        o.append(
+            '<p class="dg-how">Every changed file is in one group below, by how much of your attention it needs. '
+            "Each square in the map is one file; click it to open its card.</p>"
+        )
         segs = [(t, c[t]) for t in digest.TIERS if c[t]]
         label = ", ".join(f"{n:,} {TIER_LABEL[t]}" for t, n in segs)
         o.append(
@@ -1179,19 +1193,34 @@ def render_glance(dg: digest.Digest, files: dict[str, FileDiff], card_of: dict[s
             )
         o.append("</div>")
         o.append(
-            '<div class="dg-key">'
-            + "".join(f'<span><i class="sq t-{t}"></i>{esc(TIER_LABEL[t])}</span>' for t in digest.TIERS)
-            + "</div>"
+            '<ul class="tiers">'
+            + "".join(
+                f'<li><i class="sq t-{t}"></i><span class="tn"><b>{n:,}</b> {esc(TIER_LABEL[t])}</span>'
+                f'<span class="tm">{esc(TIER_MEANING[t])}</span></li>'
+                for t, n in segs
+            )
+            + "</ul>"
         )
     total = lines["total"]
-    o.append(
-        f'<p class="cover">Changed lines: <b>{total:,}</b>. '
-        f'In files you read: <b>{lines["read"]:,}</b> ({pct(lines["read"], total)}%), '
-        f"hunks show <b>{lines_shown:,}</b>. "
-        f'Matched a rule: <b>{lines["matched"]:,}</b> ({pct(lines["matched"], total)}%). '
-        f'Agent\'s word: <b>{lines["word"]:,}</b> ({pct(lines["word"], total)}%), '
-        f'samples show <b>{lines["sampled"]:,}</b>.</p>'
-    )
+    seen = [
+        f"you read <b>{lines['read']:,}</b> ({pct(lines['read'], total)}%)" if lines["read"] else "",
+        f"a rule covers <b>{lines['matched']:,}</b> ({pct(lines['matched'], total)}%)" if lines["matched"] else "",
+        f"<b>{lines['word']:,}</b> ({pct(lines['word'], total)}%) rest on the agent's word" if lines["word"] else "",
+    ]
+    seen = [x for x in seen if x]
+    shown = [
+        f"<b>{lines_shown:,}</b> of the lines you read" if lines_shown else "",
+        f"<b>{lines['sampled']:,}</b> sample lines" if lines["sampled"] else "",
+    ]
+    shown = [x for x in shown if x]
+    cover = "No file changed." if not files else "No changed lines."
+    if seen:
+        cover = f"Of <b>{total:,}</b> changed lines, " + (
+            seen[0] if len(seen) == 1 else ", ".join(seen[:-1]) + ", and " + seen[-1]
+        ) + "."
+        if shown:
+            cover += " The page shows " + " and ".join(shown) + "."
+    o.append(f'<p class="cover">{cover}</p>')
     o.append("</div></section>")
     return "".join(o)
 
