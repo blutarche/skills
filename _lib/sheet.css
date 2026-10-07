@@ -271,4 +271,12 @@ tr.go.flash td{animation:go-wash 1.2s ease-out}
   .crow .cwd{display:none}
   .crow .exit{grid-row:2;grid-column:2}
   .crow .res{grid-row:2;grid-column:3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .finding{grid-template-columns:auto auto minmax(0,1fr)}
+  .finding>.fmain~.tog,.finding>.fmain~.chip{grid-column:3;justify-self:start}
+  .finding .where{overflow-wrap:anywhere}
+  .dict,.dict tbody{display:block}
+  .dict tr{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:2px 12px;padding:6px 0;border-bottom:1px solid var(--line)}
+  .sheet .dict td{padding:0;border:0}
+  .dict td:first-child,.dict td.why{grid-column:1/-1}
+  .dict td:first-child{font-weight:600}
 }
