@@ -12,6 +12,7 @@
 *~
 .idea/
 .vscode/
+.orca/
 
 # Python bytecode (skill scripts generate this)
 __pycache__/
