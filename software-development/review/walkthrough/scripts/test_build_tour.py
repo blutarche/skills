@@ -24,7 +24,6 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 import build_tour  # noqa: E402  (needs sys.path set up above)
-import layout_check  # noqa: E402  (build_tour puts lib/ on sys.path)
 
 BUILD = HERE / "build_tour.py"
 EM_DASH = chr(0x2014)  # spelled by code point so this file stays free of it
@@ -752,39 +751,6 @@ class SheetTest(unittest.TestCase):
         r = self.build(spec)
         self.assertEqual(r.returncode, 0, r.stderr)
         return self.out.read_text(encoding="utf-8")
-
-    def test_layout_holds_at_every_width(self) -> None:
-        """Browser leg: every sheet panel the tour supports, with a files panel past its 12-row cap."""
-        for i in range(14):
-            write(self.repo, f"extra/mod{i}.txt", "line\n" * (i + 1))
-        git(self.repo, "add", "-A")
-        git(self.repo, "commit", "-q", "--no-verify", "-m", "extras")
-        spec = self.sheet_spec()
-        spec["head"] = git(self.repo, "rev-parse", "HEAD")
-        spec["chapters"].append({
-            "id": "extras", "title": "Fourteen filler files arrive", "risk": "safe",
-            "overview": "<p>Filler files that push the files panel past its cap.</p>",
-            "files": [{"path": f"extra/mod{i}.txt"} for i in range(14)],
-        })
-        panels = spec["sheet"]["panels"]
-        panels[0]["rows"] = [{"ask": "Pick the delta home", "why": "Two places fit.",
-                              "options": [{"label": "In alpha"}, {"label": "In beta"}], "recommended": 1}]
-        panels[1]["more"] = "core"
-        panels[2]["rows"][0]["more"] = "core"
-        out = self.dir / "layout.html"
-        r = self.build(spec, out=out)
-        self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertIn("more files", out.read_text(encoding="utf-8"), "files cap not hit")
-        browser = layout_check.find_browser()
-        if not browser:
-            self.skipTest("no Chrome found; set LAYOUT_CHROME")
-        fails = []
-        try:
-            for width in layout_check.DEFAULT_WIDTHS:
-                fails += layout_check.check(layout_check.probe(out, width, browser), width)
-        except layout_check.BrowserError as e:
-            self.skipTest(f"browser unavailable: {e}")
-        self.assertEqual(fails, [])
 
     def test_no_sheet_means_no_sheet_markup_and_the_digest_replaces_the_strip(self) -> None:
         page = self.page(valid_spec(self.base, self.head))

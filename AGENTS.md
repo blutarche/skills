@@ -19,7 +19,6 @@ Treat both as required.
 
 Other tests: `./scripts/test-install.sh`, `./scripts/test-validate-skills.sh`, and
 `python3 -m pytest _lib meta/brief/scripts software-development/review/walkthrough/scripts`.
-`python3 _lib/layout_check.py <page.html>` needs a local Chrome and an unsandboxed shell.
 
 ## Adding a skill
 

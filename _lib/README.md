@@ -17,4 +17,3 @@ still gets a real, self-contained `lib/` directory.
 | `gitfacts.py` | Reads git: changed files, line counts, if a `path:line` or commit exists, and the project and branch names. |
 | `figures.py` | Figures the builder draws: task waves, Venn, severity strip, decision tree, risk matrix, claim stack. |
 | `sheet.py`, `sheet.css`, `sheet.js` | The report sheet: schema, required panels per kind, panel HTML, styles, the send handler. Every sheet shows its project and branch: from `tree`, or from the spec's `project` and `branch`; the copied feedback and `feedback/latest` carry both. |
-| `layout_probe.js`, `layout_check.py` | Headless layout check: the probe collects element boxes in Chrome; the checker fails on sideways scroll, panel header children short of the edge, header padding, and files columns that do not line up. Needs a local Chrome and an unsandboxed shell. |
