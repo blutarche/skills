@@ -8,6 +8,7 @@ Run from the skill directory:
 
 from __future__ import annotations
 
+import copy
 import html
 import hashlib
 import json
@@ -1005,6 +1006,58 @@ class DigestBuildTest(unittest.TestCase):
             [{"path": "src/m3.ts", "group": "rename",
               "reason": "Applying the rule to the old file does not give the new file."}],
         )
+
+    def group_sheet_spec(self, base: str, head: str) -> dict:
+        spec = self.group_spec(base, head)
+        spec["sheet"] = {
+            "state": "One rename and one value.",
+            "panels": [
+                {"role": "needs you", "type": "asks", "rows": [{"ask": "Keep the new name?", "why": "It touches callers."}]},
+                {"role": "tasks", "type": "tasks", "rows": [{"id": "T1", "name": "Rename it", "status": "done"}]},
+                {"role": "review", "type": "findings", "rows": []},
+                {"role": "decisions", "type": "decisions", "rows": []},
+            ],
+        }
+        return spec
+
+    def test_flagged_file_puts_the_sheet_on_needs_you_with_a_builder_row_first(self) -> None:
+        base, head = self.group_fixture()
+        spec = self.group_sheet_spec(base, head)
+        before = copy.deepcopy(spec["sheet"])
+        r = self.build(spec)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(spec["sheet"], before)
+        page = self.out.read_text(encoding="utf-8")
+        self.assertIn('<div class="stamp amb">NEEDS YOU</div>', page)
+        m = re.search(r'data-role="needs you">(.*?)</section>', page, re.S)
+        self.assertIsNotNone(m)
+        panel = m.group(1)
+        self.assertIn("Read the file the build flagged", panel)
+        self.assertIn("src/m3.ts broke the rule fetchUser becomes loadUser.", panel)
+        self.assertLess(panel.index("Read the file the build flagged"), panel.index("Keep the new name?"))
+
+    def test_several_flagged_files_share_one_builder_row(self) -> None:
+        base, head = self.group_fixture()
+        for i in (1, 2):
+            write(self.repo, f"src/m{i}.ts", RENAME_BASE.format(i=i).replace("fetchUser", "loadUser") + "deleteAll();\n")
+        git(self.repo, "add", "-A")
+        git(self.repo, "commit", "-q", "--no-verify", "-m", "more flagged")
+        head = git(self.repo, "rev-parse", "HEAD")
+        r = self.build(self.group_sheet_spec(base, head))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        page = self.out.read_text(encoding="utf-8")
+        self.assertIn("Read the 3 files the build flagged", page)
+        self.assertIn("3 files broke a rule. See Read first.", page)
+
+    def test_no_flag_leaves_the_sheet_stamp_alone(self) -> None:
+        base, head = self.group_fixture(flagged=False)
+        spec = self.group_sheet_spec(base, head)
+        spec["sheet"]["panels"][0]["rows"] = []
+        r = self.build(spec)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        page = self.out.read_text(encoding="utf-8")
+        self.assertIn('<div class="stamp ok">DONE</div>', page)
+        self.assertNotIn("the build flagged", page)
 
     def test_flagged_card_tops_the_reading_list(self) -> None:
         base, head = self.group_fixture()

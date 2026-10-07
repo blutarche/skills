@@ -174,6 +174,7 @@ facts and the walkthrough. Without it the page is unchanged. Write the words by 
   `tasks`, `findings`, `claims`, `commands`, or `matrix` panel. It shows a link to that chapter. An unknown id fails the build.
 - Panel letters follow the order on the page: `needs you` is A, `checks` is B, `files` is C.
 - The digest block shows under the page header whether or not a sheet is present.
+- When the build flags a file, it adds a first row to `needs you` and the stamp reads NEEDS YOU; your own asks follow it.
 - Asks can carry `options`, `recommended`, and `multi` the same way; see the brief spec.
 - One floating "Send feedback" button, bottom right, covers both: it adds the sheet answers, notes, and fix or skip
   choices to the tour notes. It is the same dock as the brief's, with the same toast and "✓ Sent" flip.

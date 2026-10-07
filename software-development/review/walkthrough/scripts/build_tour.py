@@ -1416,9 +1416,18 @@ def reading_order(chapters: list[dict]) -> list[dict]:
     return [ch for ch in chapters if ch["risk"] in READ_RISKS] + [ch for ch in chapters if ch["risk"] not in READ_RISKS]
 
 
-def build_sheet(spec: dict, root: Path, files: dict[str, FileDiff]) -> str:
+def flag_ask(flags: list, titles: dict[str, str]) -> dict:
+    """The builder's own row for panel A: a flagged file means the reader has work, whatever the agent wrote."""
+    if len(flags) == 1:
+        return {"ask": "Read the file the build flagged",
+                "why": f"{flags[0].path} broke the rule {titles[flags[0].group]}."}
+    return {"ask": f"Read the {len(flags)} files the build flagged",
+            "why": f"{len(flags)} files broke a rule. See Read first."}
+
+
+def build_sheet(spec: dict, root: Path, files: dict[str, FileDiff], flags: list, titles: dict[str, str]) -> str:
     """Validate the optional `sheet` block and render it. The builder owns the checks and files
-    panels, so the agent supplying either one is an error."""
+    panels, so the agent supplying either one is an error. Flagged files add a row at the front of panel A."""
     block = spec["sheet"]
     if not isinstance(block, dict):
         fail("sheet: must be an object")
@@ -1438,6 +1447,13 @@ def build_sheet(spec: dict, root: Path, files: dict[str, FileDiff]) -> str:
         rows.append(row)
     auto = [{"role": "checks", "type": "checks", "rows": rows}, {"role": "files", "type": "files"}]
     tree = {"repo": str(root), "base": spec["base"], "head": spec["head"]}
+    if flags:
+        panels = [dict(p) if isinstance(p, dict) else p for p in block.get("panels") or []]
+        for p in panels:
+            if isinstance(p, dict) and p.get("type") == "asks" and p.get("role") == "needs you":
+                p["rows"] = [flag_ask(flags, titles)] + list(p.get("rows") or [])
+                break
+        block = block | {"panels": panels}
     targets = {ch["id"]: (n, ch["title"]) for n, ch in enumerate(reading_order(spec["chapters"]), start=1)}
     norm = sheet.check_sheet(block | {"tree": tree}, kind="execute", title=spec["title"], auto_panels=auto,
                              targets=targets)
@@ -1535,7 +1551,7 @@ def build_body(spec: dict, root: Path, pr_lens_views: list[PrLensView], seed: in
     )
     has_sheet = "sheet" in spec
     if has_sheet:
-        o.append(build_sheet(spec, root, files))
+        o.append(build_sheet(spec, root, files, dg.flags, {g.id: g.title for g in dg.groups}))
 
     # ---- header
     built = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M %Z")
