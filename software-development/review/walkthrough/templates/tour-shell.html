@@ -21,17 +21,12 @@ h2{font-size:20px;font-weight:600;margin:0 0 6px}
 section>h2{margin:0 0 14px;padding-bottom:8px;border-bottom:2px solid var(--ink)}
 h3{font-size:16px;font-weight:600;margin:24px 0 8px}
 .lede{color:var(--ink-2);margin:0 0 16px;max-width:78ch}
-.strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);overflow:hidden;margin:18px 0 8px}
 .pr-lens-views{display:grid;gap:18px;margin:18px 0 8px}
 .pr-lens-view{margin:0;border:1px solid var(--line);background:var(--surface);overflow:hidden}
 .pr-lens-view figcaption{display:flex;align-items:center;gap:10px;padding:10px 13px;border-bottom:1px solid var(--line);background:var(--paper)}
 .pr-lens-view figcaption h3{margin:0;font-size:15px}
 .pr-lens-view picture{display:block;padding:12px;overflow-x:auto;text-align:center}
 .pr-lens-view img{display:block;width:100%;height:auto;max-width:none;margin:auto}
-.stat{background:var(--surface);padding:12px 14px}
-.stat .k{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
-.stat .v{font-size:21px;font-weight:600;margin-top:4px}
-.stat .s{font-size:12px;color:var(--ink-2);margin-top:2px}
 ul.plain{padding-left:18px;max-width:78ch}
 ul.plain li{margin:0 0 8px}
 ol.focus{padding-left:0;list-style:none;margin:14px 0 8px;display:grid;gap:10px;counter-reset:fc}
@@ -112,12 +107,68 @@ td.col-command{width:auto}
 .notes textarea{width:100%;min-height:72px;font:inherit;font-size:14px;padding:9px 11px;border:1px solid var(--line);background:var(--surface);color:var(--ink);resize:vertical}
 .notes .global textarea{min-height:110px}
 .notes pre{max-height:280px;overflow:auto;font-size:12px;background:var(--surface);border:1px solid var(--line);padding:10px 12px;white-space:pre-wrap}
-.count{font-family:var(--mono);font-size:12px;color:var(--ink-2);margin:4px 0 0}
 footer{padding-top:20px;font-family:var(--mono);font-size:11.5px;color:var(--ink-2);border-top:1px solid var(--line)}
 .sr{position:absolute;left:-9999px}
+.digest{padding:0;margin:24px 0 0;border:1px solid var(--ink);background:var(--surface)}
+.digest>h2{display:flex;align-items:stretch;min-height:34px;margin:0;padding:0;font-size:14px;border-bottom:1px solid var(--ink)}
+.digest>h2 .ltr{display:grid;place-items:center;width:34px;flex:none;background:var(--ink);color:var(--surface);font:700 13px var(--mono)}
+.digest>h2 .tt{display:flex;align-items:center;padding:0 10px}
+.dg{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;padding:14px 16px}
+.budget{margin:0;font-size:17px;line-height:1.45}
+.tierbar{display:flex;height:30px;border:1px solid var(--ink);font:600 11px var(--mono)}
+.tierbar span{display:flex;align-items:center;justify-content:center;min-width:28px;overflow:hidden;white-space:nowrap;border-right:1px solid var(--ink)}
+.tierbar span:last-child{border-right:0}
+.t-flagged{color:var(--del-ink);background:var(--del-bg)}
+.t-read{color:var(--amber);background:var(--amber-bg)}
+.t-skim{color:var(--accent);background:var(--wash)}
+.t-matched{color:var(--green);background:var(--green-bg)}
+.t-word{color:var(--ink-2);background:repeating-linear-gradient(45deg,var(--surface) 0 3px,var(--line) 3px 6px)}
+.fm{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(250px,100%),1fr));gap:10px 18px}
+.fmg{min-width:0}
+.fml{display:flex;justify-content:space-between;gap:8px;margin-bottom:4px;font:11px var(--mono);color:var(--ink-2)}
+.fmq{display:flex;flex-wrap:wrap;gap:2px}
+.sq{display:block;width:10px;height:10px;padding:0;border:1px solid var(--line)}
+.fm.small .sq{width:8px;height:8px}
+.sq.t-flagged{background:var(--del-ink);border-color:var(--del-ink)}
+.sq.t-read{background:var(--amber);border-color:var(--amber)}
+.sq.t-skim{background:var(--accent);border-color:var(--accent)}
+.sq.t-matched{border-color:var(--green)}
+.sq.t-word{border-color:var(--ink-2)}
+a.sq:hover,a.sq:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
+.dg-key{display:flex;flex-wrap:wrap;gap:4px 14px;font:11px var(--mono);color:var(--ink-2)}
+.dg-key .sq{display:inline-block;margin-right:5px;vertical-align:-1px}
+.cover{margin:0;padding-top:10px;border-top:1px solid var(--line);font:12px var(--mono);color:var(--ink-2);max-width:none}
+.cover b{color:var(--ink)}
+.sect{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin:26px 0 8px;font:600 12px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.sect b{color:var(--ink)}
+.tier{flex:none;padding:2px 6px;border:1px solid;font:700 10px var(--mono);letter-spacing:.06em;white-space:nowrap}
+.tier.t-word{background:var(--paper)}
+.chead .kind{flex:none;font:11px var(--mono);color:var(--ink-2)}
+.chead .ttl.path{min-width:0;font:600 14px var(--mono);overflow-wrap:anywhere}
+.chapter.flag{border:2px solid var(--del-ink)}
+.chapter.flag .num{background:var(--del-ink)}
+.hunk .row.rl{font:11px var(--mono);color:var(--ink-2);background:var(--paper)}
+.proof{margin:0 0 10px;padding:8px 10px;border:1px solid var(--green);background:var(--green-bg);font-size:13.5px;max-width:none}
+.proof.broke{border-color:var(--del-ink);background:var(--del-bg)}
+.wordnote{margin:8px 0;padding:8px 10px;border:1px solid var(--line);background:var(--paper);font-size:13.5px;max-width:none}
+.method{margin:8px 0;font-size:13px;color:var(--ink-2)}
+.chapter.group .why{margin:0 0 10px}
+ul.whys{margin:0 0 10px;padding-left:18px;font-size:13.5px;color:var(--ink-2)}
+ul.flist{list-style:none;margin:8px 0 0;padding:0;font:12px var(--mono);columns:2 260px;column-gap:24px}
+ul.flist li{padding:2px 0;break-inside:avoid}
+ul.flist .fst{display:inline-block;width:16px;color:var(--ink-2)}
+ul.flist code,ul.whys code{border:0;background:none;padding:0}
+ul.flist .plus{color:var(--add-ink)}
+ul.flist .minus{color:var(--del-ink)}
+details.all{margin:10px 0 0}
+details.all>summary{cursor:pointer;padding:4px 0;font:11.5px var(--mono);color:var(--ink-2)}
 @media (max-width:760px){
   .wrap{padding:0 16px 96px}
   header.top h1{font-size:23px}
+  .budget{font-size:15px}
+  .dg{padding:12px}
+  .chead{flex-wrap:wrap;row-gap:4px}
+  .chead .meta{order:5;flex-basis:100%;padding-left:46px}
 }
 <!-- SHEET:STYLE -->
 </style>
@@ -139,7 +190,7 @@ footer{padding-top:20px;font-family:var(--mono);font-size:11.5px;color:var(--ink
 <!-- LIB:SCRIPT -->
 
   var cards = $$(".file[data-card]");
-  var chapters = $$("details.chapter");
+  var tourChapters = $$("details.chapter[data-chapter]");
   function cardId(el) { return el.getAttribute("data-card"); }
   function isRead(el) { return !!state.read[cardId(el)]; }
 
@@ -152,10 +203,10 @@ footer{padding-top:20px;font-family:var(--mono);font-size:11.5px;color:var(--ink
     });
     var done = cards.filter(isRead).length;
     var prog = $("[data-progress]");
-    if (prog) prog.textContent = done + " of " + cards.length + " file cards read";
+    if (prog) prog.textContent = done + " of " + cards.length + " cards read";
     var bar = $("[data-bar]");
     if (bar) bar.style.width = (cards.length ? Math.round(done * 100 / cards.length) : 0) + "%";
-    chapters.forEach(function (ch) {
+    tourChapters.forEach(function (ch) {
       var cs = $$(".file[data-card]", ch);
       var p = $("[data-chapter-progress]", ch);
       if (p) p.textContent = cs.length ? cs.filter(isRead).length + " of " + cs.length + " read" : "";
@@ -230,7 +281,7 @@ footer{padding-top:20px;font-family:var(--mono);font-size:11.5px;color:var(--ink
     var out = ["# Walkthrough feedback: " + DOC_TITLE, "", "Revision: " + HEAD, ""];
     var general = (state.notes["general"] || "").trim();
     if (general) out.push("## General", "", general, "");
-    chapters.forEach(function (ch) {
+    tourChapters.forEach(function (ch) {
       var id = ch.getAttribute("data-chapter");
       var note = (state.notes[id] || "").trim();
       if (!note) return;
@@ -241,6 +292,8 @@ footer{padding-top:20px;font-family:var(--mono);font-size:11.5px;color:var(--ink
       out.push(note, "");
     });
     if (out.length === 4) out.push("(no notes written)", "");
+    var flagged = $$("details.flag[data-flag]").map(function (d) { return d.getAttribute("data-flag"); });
+    if (flagged.length) out.push("Flagged by the build: " + flagged.join(", "), "");
     out.push("Read: " + cards.filter(isRead).length + " of " + cards.length + " file cards.");
     return out.join("\n");
   }

@@ -562,6 +562,16 @@ def highlight(text: str, lang: str) -> str:
 # ---------------------------------------------------------------- render helpers (continued)
 
 
+ROW_SIGN = {"add": "+", "del": "-", "ctx": " "}
+
+
+def code_row(kind: str, num: str, text: str, lang: str) -> str:
+    return (
+        f'<span class="row {kind}"><span class="ln">{esc(num)}</span>'
+        f'<span class="sg">{ROW_SIGN[kind]}</span><span class="tx">{highlight(text, lang)}</span></span>'
+    )
+
+
 def render_range(fd: FileDiff, side: str, start: int, end: int) -> tuple[str, str]:
     """Rendered rows and the plain text of the same range."""
     rows: list[str] = []
@@ -570,12 +580,8 @@ def render_range(fd: FileDiff, side: str, start: int, end: int) -> tuple[str, st
     lang = detect_lang(fd.path, src[0] if src else "")
 
     def row(kind: str, num: str, text: str) -> None:
-        sign = {"add": "+", "del": "-", "ctx": " "}[kind]
-        rows.append(
-            f'<span class="row {kind}"><span class="ln">{esc(num)}</span>'
-            f'<span class="sg">{sign}</span><span class="tx">{highlight(text, lang)}</span></span>'
-        )
-        plain.append(f"{sign} {text}")
+        rows.append(code_row(kind, num, text, lang))
+        plain.append(f"{ROW_SIGN[kind]} {text}")
 
     if side == "new":
         for n in range(start, end + 1):
@@ -1088,6 +1094,285 @@ def render_pr_lens_view(view: PrLensView, index: int) -> str:
     )
 
 
+# ---------------------------------------------------------------- digest page parts
+
+TIER_LABEL = {"flagged": "flagged", "read": "read", "skim": "skim", "matched": "matched a rule", "word": "agent's word"}
+KIND_LABEL = {
+    "generated": "generated",
+    "lockfile": "lockfile",
+    "bulk": "bulk",
+    "everything-else": "everything else",
+    "deleted": "deleted",
+    "binary": "binary",
+}
+
+
+def plural(n: int, one: str, many: str) -> str:
+    return one if n == 1 else many
+
+
+def pct(part: int, total: int) -> int:
+    return round(100 * part / total) if total else 0
+
+
+def blob_size(root: Path, head: str, path: str) -> int:
+    if head == WORKTREE:
+        disk = root / path
+        return disk.stat().st_size if disk.is_file() else 0
+    return int(git(root, "cat-file", "-s", f"{head}:{path}").strip())
+
+
+def render_glance(dg: digest.Digest, files: dict[str, FileDiff], card_of: dict[str, str], read_hunks: int,
+                  lines_shown: int) -> str:
+    """The reading budget, the tier bar, the file map, and the changed-lines partition."""
+    c, lines = dg.counts, dg.lines
+    rules = sum(1 for g in dg.groups if g.tier == "matched" and g.files)
+    sampled = sum(len(g.samples) for g in dg.groups if g.tier == "word")
+    budget: list[str] = []
+    if c["read"]:
+        budget.append(
+            f"Read <b>{read_hunks:,}</b> {plural(read_hunks, 'hunk', 'hunks')} "
+            f"in <b>{c['read']:,}</b> {plural(c['read'], 'file', 'files')}."
+        )
+    if c["flagged"]:
+        budget.append(f"Check <b>{c['flagged']:,}</b> {plural(c['flagged'], 'file', 'files')} the build flagged.")
+    if c["skim"]:
+        budget.append(f"Skim <b>{c['skim']:,}</b> {plural(c['skim'], 'file', 'files')}.")
+    if c["matched"]:
+        budget.append(
+            f"The build matched <b>{c['matched']:,}</b> {plural(c['matched'], 'file', 'files')} "
+            f"to <b>{rules:,}</b> {plural(rules, 'rule', 'rules')}."
+        )
+    if c["word"]:
+        clause = f"<b>{c['word']:,}</b> {plural(c['word'], 'file rests', 'files rest')} on the agent's word"
+        if sampled:
+            clause += f"; <b>{sampled:,}</b> {plural(sampled, 'is', 'are')} sampled for you"
+        budget.append(clause + ".")
+    o = [
+        '<section class="digest" id="digest"><h2><span class="ltr">≡</span>'
+        '<span class="tt">Where your time goes</span></h2><div class="dg">',
+        f'<p class="budget">{" ".join(budget) or "No file changed."}</p>',
+    ]
+    if files:
+        segs = [(t, c[t]) for t in digest.TIERS if c[t]]
+        label = ", ".join(f"{n:,} {TIER_LABEL[t]}" for t, n in segs)
+        o.append(
+            f'<div class="tierbar" role="img" aria-label="{len(files):,} changed '
+            f'{plural(len(files), "file", "files")}: {esc(label)}">'
+            + "".join(f'<span class="t-{t}" style="flex:{n} 1 0">{n:,}</span>' for t, n in segs)
+            + "</div>"
+        )
+        folders: dict[str, list[str]] = {}
+        for p in files:
+            folders.setdefault(p.split("/", 1)[0] if "/" in p else "(root)", []).append(p)
+        rank = {t: i for i, t in enumerate(digest.TIERS)}
+        o.append(f'<div class="fm{" small" if len(files) > 300 else ""}">')
+        for name, paths in sorted(folders.items(), key=lambda kv: (-len(kv[1]), kv[0])):
+            squares = "".join(
+                f'<a class="sq t-{dg.tiers[p]}" href="#{esc(card_of[p])}" title="{esc(p)}" '
+                f'aria-label="{esc(p)}: {esc(TIER_LABEL[dg.tiers[p]])}"></a>'
+                for p in sorted(paths, key=lambda p: (rank[dg.tiers[p]], p))
+            )
+            o.append(
+                f'<div class="fmg"><div class="fml"><span>{esc(name)}</span><span>{len(paths):,}</span></div>'
+                f'<div class="fmq">{squares}</div></div>'
+            )
+        o.append("</div>")
+        o.append(
+            '<div class="dg-key">'
+            + "".join(f'<span><i class="sq t-{t}"></i>{esc(TIER_LABEL[t])}</span>' for t in digest.TIERS)
+            + "</div>"
+        )
+    total = lines["total"]
+    o.append(
+        f'<p class="cover">Changed lines: <b>{total:,}</b>. '
+        f'In files you read: <b>{lines["read"]:,}</b> ({pct(lines["read"], total)}%), '
+        f"hunks show <b>{lines_shown:,}</b>. "
+        f'Matched a rule: <b>{lines["matched"]:,}</b> ({pct(lines["matched"], total)}%). '
+        f'Agent\'s word: <b>{lines["word"]:,}</b> ({pct(lines["word"], total)}%), '
+        f'samples show <b>{lines["sampled"]:,}</b>.</p>'
+    )
+    o.append("</div></section>")
+    return "".join(o)
+
+
+def sect(name: str, note: str) -> str:
+    return f'<h3 class="sect"><b>{name}</b><span>{note}</span></h3>'
+
+
+def label_row(text: str) -> str:
+    return f'<span class="row rl"><span class="ln"></span><span class="sg"></span><span class="tx">{esc(text)}</span></span>'
+
+
+def read_head(card: str, fd: FileDiff) -> str:
+    return (
+        f'<div class="file-head"><label class="read-box"><input type="checkbox" class="read" data-card="{card}"> read</label>'
+        f'<span class="status st-{fd.status}" title="{STATUS_LABEL.get(fd.status, fd.status)}">{fd.status}</span>'
+        f'<code class="path">{esc(fd.path)}</code>{card_stats(fd)}</div>'
+    )
+
+
+def flag_card(fl: digest.Flag, fd: FileDiff, rule_title: str) -> str:
+    """A file a substitution group claimed but its rule does not explain, with the lines that differ."""
+    fid = "flag-" + slug(fl.path)
+    card = "f-" + fid
+    lang = detect_lang(fd.path, fd.new_lines[0] if fd.new_lines else "")
+    o = [
+        f'<details class="chapter flag" id="{fid}" data-flag="{esc(fl.path)}" open>'
+        '<summary class="chead"><span class="num">!</span><span class="tier t-flagged">FLAGGED</span>'
+        f'<h3 class="ttl path">{esc(fl.path)}</h3><span class="meta">rule: {esc(rule_title)}</span>'
+        '<span class="chev" aria-hidden="true">▸</span></summary><div class="dbody">',
+        f'<div class="file" data-file="{esc(fl.path)}" data-card="{card}">{read_head(card, fd)}',
+        f'<p class="why">{esc(fl.reason)}</p>',
+    ]
+    for start, expected, actual in fl.blocks:
+        rows = [label_row("the rule gives")]
+        rows += [code_row("del", "", t, lang) for t in expected] or [label_row("(no lines)")]
+        rows.append(label_row("the file has"))
+        rows += [code_row("add", str(start + i), t, lang) for i, t in enumerate(actual)] or [label_row("(no lines)")]
+        where = f"{fl.path}:{start}" + (f"-{start + len(actual) - 1}" if len(actual) > 1 else "")
+        o.append(
+            f'<figure class="hunk"><figcaption><span class="loc">{esc(where)}</span></figcaption>'
+            f'<pre class="code"><code>{"".join(rows)}</code></pre></figure>'
+        )
+    o.append("</div></div></details>")
+    return "".join(o)
+
+
+def sample_figure(fd: FileDiff, s: digest.Sample, stats: dict) -> str:
+    rows, _ = render_range(fd, s.side, s.start, s.end)
+    if 'class="row ctx"' in rows:
+        stats["hasContextRow"] = True
+    side = " (old side)" if s.side == "old" else ""
+    return (
+        f'<figure class="hunk"><figcaption><span class="loc">sample · {esc(s.path)}:{s.start}-{s.end}{side}</span>'
+        f'</figcaption><pre class="code"><code>{rows}</code></pre></figure>'
+    )
+
+
+def group_head(g: digest.Group, badge: str, chip: str, kind: str, meta: str) -> str:
+    kind_html = f'<span class="kind">{esc(kind)}</span>' if kind else ""
+    return (
+        f'<details class="chapter group" id="g-{esc(g.id)}"><summary class="chead"><span class="num">{badge}</span>'
+        f'<span class="tier t-{g.tier}">{chip}</span>{kind_html}<h3 class="ttl">{esc(g.title)}</h3>'
+        f'<span class="meta">{meta}</span><span class="chev" aria-hidden="true">▸</span></summary><div class="dbody">'
+    )
+
+
+def file_item(fd: FileDiff, extra: str) -> str:
+    return f'<li><span class="fst st-{fd.status}">{fd.status}</span><code>{esc(fd.path)}</code>{extra}</li>'
+
+
+def line_counts(fd: FileDiff) -> str:
+    if fd.binary:
+        return ' <span class="nohunk">binary</span>'
+    return f' <span class="plus">+{len(fd.added)}</span> <span class="minus">-{len(fd.removed)}</span>'
+
+
+def all_files(items: list[str]) -> str:
+    n = len(items)
+    return (
+        f'<details class="all"><summary>All {n:,} {plural(n, "file", "files")}</summary>'
+        f'<ul class="flist">{"".join(items)}</ul></details>'
+    )
+
+
+def matched_card(g: digest.Group, files: dict[str, FileDiff], stats: dict) -> str:
+    n = len(g.files)
+    lines = sum(len(files[p].added) + len(files[p].removed) for p in g.files)
+    o = [group_head(g, "✓", "MATCHED", "", f"{n:,} {plural(n, 'file', 'files')} · {lines:,} {plural(lines, 'line', 'lines')}")]
+    if g.kind == "substitution":
+        assert g.rule is not None
+        rule = (
+            f"<code>{esc(g.rule['from'])}</code> → "
+            + (f"<code>{esc(g.rule['to'])}</code>" if g.rule["to"] else "nothing")
+            + f" ({'regular expression' if g.rule['regex'] else 'plain text'})"
+        )
+        if g.files:
+            o.append(
+                f'<p class="proof">The build applied {rule} to the old version of each file and got the new version '
+                "exactly. This shows the change is mechanical, not that the rule is right.</p>"
+            )
+        else:
+            o.append(
+                f'<p class="proof broke">The build applied {rule} to the old version of each file this group claimed. '
+                "Every file it claimed broke the rule, so each one is under Read first.</p>"
+            )
+        if g.why:
+            o.append(f'<div class="why">{sanitize_prose(g.why)}</div>')
+    elif g.kind == "moved":
+        o.append('<p class="proof">Same content and same file mode at a new path. Copies and links never count here.</p>')
+    else:
+        o.append(
+            '<p class="proof">Only spaces at line ends or line-ending style changed. '
+            "Indentation changes never count here.</p>"
+        )
+    o.extend(sample_figure(files[s.path], s, stats) for s in g.samples)
+    if g.files:
+        if g.kind == "moved":
+            items = [
+                f'<li><code>{esc(files[p].old_path or p)}</code> → <code>{esc(p)}</code></li>' for p in g.files
+            ]
+        else:
+            items = [file_item(files[p], line_counts(files[p])) for p in g.files]
+        o.append(all_files(items))
+    o.append("</div></details>")
+    return "".join(o)
+
+
+def word_card(g: digest.Group, files: dict[str, FileDiff], ee_why: dict[str, str], seed: int, root: Path,
+              head: str, stats: dict) -> str:
+    n, k = len(g.files), len(g.samples)
+    meta = f"{n:,} {plural(n, 'file', 'files')}" + ("" if g.kind in ("deleted", "binary") else f" · {k:,} sampled")
+    o = [group_head(g, "≈", "AGENT'S WORD", KIND_LABEL[g.kind], meta)]
+    if g.kind == "deleted":
+        items = [
+            file_item(
+                files[p],
+                " · binary" if files[p].binary else f" · {len(files[p].removed):,} {plural(len(files[p].removed), 'line', 'lines')} removed",
+            )
+            for p in g.files
+        ]
+        o.append(f'<ul class="flist">{"".join(items)}</ul>')
+        o.append(
+            '<p class="wordnote">The build shows these files are gone. '
+            "Whether anything still needs them rests on the agent.</p>"
+        )
+    elif g.kind == "binary":
+        items = []
+        for p in g.files:
+            size = blob_size(root, head, p)
+            status = STATUS_LABEL.get(files[p].status, files[p].status)
+            items.append(file_item(files[p], f" · {status} · {size:,} {plural(size, 'byte', 'bytes')}"))
+        o.append(f'<ul class="flist">{"".join(items)}</ul>')
+    else:
+        if g.why:
+            o.append(f'<div class="why">{sanitize_prose(g.why)}</div>')
+        if g.kind == "everything-else":
+            whys = [f"<li><code>{esc(p)}</code>: {sanitize_prose(ee_why[p])}</li>" for p in g.files if ee_why.get(p)]
+            if whys:
+                o.append(f'<ul class="whys">{"".join(whys)}</ul>')
+        if k > 1:
+            method = (
+                f"Samples: the largest file plus {k - 1} drawn at random at build time (seed {seed}), "
+                "each at a random change."
+            )
+        elif k == 1:
+            method = f"Sample: the largest file, at a random change drawn at build time (seed {seed})."
+        else:
+            method = "No file here has a changed line to sample."
+        o.append(f'<p class="method">{method}</p>')
+        for s in g.samples:
+            card = f"f-sample-{slug(g.id)}-{slug(s.path)}"
+            o.append(
+                f'<div class="file" id="{card}" data-file="{esc(s.path)}" data-card="{card}">'
+                f"{read_head(card, files[s.path])}{sample_figure(files[s.path], s, stats)}</div>"
+            )
+        o.append(all_files([file_item(files[p], line_counts(files[p])) for p in g.files]))
+    o.append("</div></details>")
+    return "".join(o)
+
+
 # Runs after the tour's dock wiring and before sheet.js. The dock sends the tour's feedback text;
 # this adds the sheet answers, notes, and fix/skip choices to it.
 SHEET_GLUE = """
@@ -1211,10 +1496,13 @@ def build_body(spec: dict, root: Path, pr_lens_views: list[PrLensView], seed: in
         },
     }
 
-    # chapters render first: the overview strip reports the hunk count this pass derives
-    tour: list[str] = []
+    # chapters and samples render first: the header's toggle depends on the context rows they hold
+    read_tour: list[str] = []
+    skim_tour: list[str] = []
+    card_of: dict[str, str] = {}
     for idx, ch in enumerate(reading_order(chapters), start=1):
         risk = ch["risk"]
+        tour = read_tour if risk in READ_RISKS else skim_tour
         tour.append(
             f'<details class="chapter" id="ch-{esc(ch["id"])}" data-chapter="{esc(ch["id"])}" data-risk="{esc(risk)}">'
             f'<summary class="chead"><span class="num">{idx}</span>'
@@ -1226,7 +1514,19 @@ def build_body(spec: dict, root: Path, pr_lens_views: list[PrLensView], seed: in
         tour.append(f'<div class="overview">{sanitize_prose(ch["overview"])}</div>')
         for f in ch.get("files", []):
             tour.append(file_card(spec, files, ch["id"], ch["title"], f, risk, stats, head_label))
+            card_of.setdefault(f["path"], "f-" + slug(ch["id"]) + "-" + slug(f["path"]))
         tour.append("</div></details>")
+    titles = {g.id: g.title for g in dg.groups}
+    flag_cards = [flag_card(fl, files[fl.path], titles[fl.group]) for fl in dg.flags]
+    card_of.update((fl.path, "flag-" + slug(fl.path)) for fl in dg.flags)
+    for g in dg.groups:
+        card_of.update((p, "g-" + g.id) for p in g.files)
+    ee_why = {f["path"]: f["why"] for f in spec.get("everythingElse", []) if f.get("why")}
+    matched_groups = [g for g in dg.groups if g.tier == "matched"]
+    word_groups = [g for g in dg.groups if g.tier == "word"]
+    matched_cards = [matched_card(g, files, stats) for g in matched_groups]
+    word_cards = [word_card(g, files, ee_why, dg.seed, root, head, stats) for g in word_groups]
+    read_hunks = sum(len(f.get("hunks", [])) for ch in chapters if ch["risk"] in READ_RISKS for f in ch.get("files", []))
 
     o: list[str] = []
     o.append(
@@ -1261,42 +1561,11 @@ def build_body(spec: dict, root: Path, pr_lens_views: list[PrLensView], seed: in
     o.append('<button type="button" class="btn" data-reset>Reset progress</button>')
     o.append('<div class="bar"><i data-bar></i></div>')
     o.append("</div></header>")
+    o.append(render_glance(dg, files, card_of, read_hunks, lines_shown))
 
     # ---- overview
     o.append('<section id="overview"><h2>Overview</h2>')
     o.append(sanitize_prose(spec["overview"]))
-    if not has_sheet:
-        o.append('<div class="strip">')
-        o.append(
-            f'<div class="stat"><div class="k">Revision</div><div class="v mono">{esc(head_label)}</div>'
-            f'<div class="s">base {esc(base[:8])}</div></div>'
-        )
-        o.append(
-            f'<div class="stat"><div class="k">Files changed</div><div class="v">{stats["filesChanged"]}</div>'
-            f'<div class="s">{stats["linesAdded"]} added, {stats["linesRemoved"]} removed</div></div>'
-        )
-        o.append(
-            f'<div class="stat"><div class="k">Chapters</div><div class="v">{stats["chapters"]}</div>'
-            f'<div class="s">{stats["attentionChapters"]} to read closely</div></div>'
-        )
-        o.append(
-            f'<div class="stat"><div class="k">Hunks shown</div><div class="v">{stats["hunksShown"]}</div>'
-            f'<div class="s">{stats["everythingElse"]} files in everything else</div></div>'
-        )
-        coverage_line = (
-            f'lines shown {stats["linesShown"]} / changed {stats["linesChanged"]} ({stats["coveragePercent"]}%)'
-        )
-        o.append(
-            f'<div class="stat"><div class="k">Coverage</div><div class="v">{stats["coveragePercent"]}%</div>'
-            f'<div class="s">{coverage_line}</div></div>'
-        )
-        o.append("</div>")
-    if stats["coveragePercent"] < 30:
-        o.append(
-            f'<p class="lede">This tour shows {stats["coveragePercent"]}% of changed lines: '
-            f'{stats["linesUnshownInOpenedFiles"]} lines not shown sit in files that are opened above, '
-            f'{stats["linesUnshownInUnopenedFiles"]} in files listed by name only.</p>'
-        )
     o.append("</section>")
 
     # ---- architecture and data flow
@@ -1336,34 +1605,30 @@ def build_body(spec: dict, root: Path, pr_lens_views: list[PrLensView], seed: in
         "makes a claim about; the other files in it appear as a card with the names they add. Mark a card read to "
         "track where you are.</p>"
     )
-    o.extend(tour)
-    o.append("</section>")
-
-    # ---- everything else
-    ee = spec.get("everythingElse", [])
-    o.append('<section id="everything-else"><h2>Everything else</h2>')
-    if ee:
-        o.append('<p class="lede">Changed files no chapter claims. Listed so the coverage count stays honest.</p>')
-        for f in ee:
-            fd = files[f["path"]]
-            eid = "f-everything-else-" + slug(f["path"])
-            o.append(f'<div class="file" id="{eid}" data-file="{esc(f["path"])}" data-card="{eid}"><div class="file-head">')
-            o.append(f'<label class="read-box"><input type="checkbox" class="read" data-card="{eid}"> read</label>')
-            o.append(f'<span class="status st-{fd.status}">{fd.status}</span><code class="path">{esc(f["path"])}</code>')
-            o.append(card_stats(fd))
-            o.append("</div>")
-            if f.get("why"):
-                o.append(f'<p class="why">{sanitize_prose(f["why"])}</p>')
-            entities = derive_entities(fd)
-            if entities:
-                o.append("<ul class=\"entities\">" + "".join(f"<li>{esc(e)}</li>" for e in entities[:12]) + "</ul>")
-            o.append("</div>")
-    else:
-        o.append('<p class="lede">Empty on purpose: every changed file is claimed by a chapter above.</p>')
-    o.append(
-        f'<p class="count">{stats["filesPlaced"]} of {stats["filesChanged"]} changed files placed across '
-        f'{stats["chapters"]} chapters; {stats["everythingElse"]} here.</p>'
-    )
+    n_read = sum(1 for ch in chapters if ch["risk"] in READ_RISKS)
+    if flag_cards or read_tour:
+        note = [f"{len(flag_cards)} flagged"] if flag_cards else []
+        if n_read:
+            note.append(f"{n_read} {plural(n_read, 'chapter', 'chapters')}")
+        o.append(sect("Read first", " · ".join(note)))
+        o.extend(flag_cards)
+        o.extend(read_tour)
+    if skim_tour:
+        n_skim = len(chapters) - n_read
+        o.append(sect("Skim", f"{n_skim} {plural(n_skim, 'chapter', 'chapters')}"))
+        o.extend(skim_tour)
+    c = dg.counts
+    if matched_cards:
+        o.append(sect(
+            "Matched by the build",
+            f"{c['matched']:,} {plural(c['matched'], 'file', 'files')} · "
+            f"{len(matched_cards)} {plural(len(matched_cards), 'rule', 'rules')}",
+        ))
+        o.extend(matched_cards)
+    if word_cards:
+        sampled = sum(len(g.samples) for g in word_groups)
+        o.append(sect("On the agent's word", f"{c['word']:,} {plural(c['word'], 'file', 'files')} · {sampled:,} sampled"))
+        o.extend(word_cards)
     o.append("</section>")
 
     # ---- verify
