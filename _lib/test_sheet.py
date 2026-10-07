@@ -262,6 +262,38 @@ class SheetTest(unittest.TestCase):
         s = check(spec, spec_dir=self.root.parent)
         self.assertIn("src/a.txt", sheet.render_sheet(s))
 
+    def files_html(self, rows):
+        html, sub = sheet._files({"rows": rows})
+        return html, sub
+
+    def test_files_panel_cap(self):
+        mk = lambda i, a, d=0: {"status": "M", "path": f"f{i:02}", "added": a, "removed": d, "old_path": None}
+        rows = [mk(i, 1) for i in range(13)]
+        rows[5] = mk(5, 0, 0)
+        html, sub = self.files_html(rows)
+        self.assertEqual(html.count('class="frow st-'), 12)
+        self.assertIn('<div class="frow more">… 1 more files · +0 −0</div>', html)
+        self.assertNotIn(">f05<", html)
+        self.assertEqual(sub, "13 files · +12 −0")
+        self.assertLess(html.index(">f00<"), html.index(">f12<"))
+        html, sub = self.files_html(rows[:12])
+        self.assertNotIn("more", html)
+        self.assertEqual(html.count('class="frow st-'), 12)
+
+    def test_files_panel_cap_sums_hidden(self):
+        rows = [{"status": "M", "path": f"f{i:02}", "added": 10, "removed": 1, "old_path": None} for i in range(12)]
+        rows += [{"status": "A", "path": "x1", "added": 2, "removed": 0, "old_path": None},
+                 {"status": "D", "path": "x2", "added": 0, "removed": 3, "old_path": None}]
+        html, sub = self.files_html(rows)
+        self.assertIn("… 2 more files · +2 −3</div>", html)
+        self.assertEqual(sub, "14 files · +122 −15")
+
+    def test_files_panel_rename_row(self):
+        row = {"status": "R", "path": "n.py", "added": 0, "removed": 0, "old_path": "o<.py"}
+        html, _ = self.files_html([row])
+        self.assertIn('class="frow st-R"', html)
+        self.assertIn('title="renamed from o&lt;.py"', html)
+
     def test_auto_panels_after_a(self):
         auto = [{"role": "checks", "type": "checks", "rows": [{"cmd": "x", "cwd": ".", "exit": 0}]}]
         s = check(vet_spec(), auto_panels=auto)

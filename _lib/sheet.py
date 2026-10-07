@@ -277,7 +277,8 @@ def _normalize_panel(ctx: _Ctx, p, letter: str, tree) -> dict:
         if tree is None:
             pagelib.fail(f"{where}: files panel needs tree")
         root, base, head = tree
-        out["rows"] = [{"status": r.status, "path": r.path, "added": r.added, "removed": r.removed}
+        out["rows"] = [{"status": r.status, "path": r.path, "added": r.added, "removed": r.removed,
+                        "old_path": r.old_path}
                        for r in gitfacts.diff_rows(root, base, head)]
     else:
         rows = p.get("rows", [])
@@ -508,21 +509,34 @@ def _checks(p: dict) -> tuple[str, str]:
     return f'<div class="checks">{"".join(out)}</div>', sub
 
 
+FILES_SHOWN = 12
+
+
 def _files(p: dict) -> tuple[str, str]:
     rows = p["rows"]
     if not rows:
         return '<p class="empty">No file changes</p>', "0 files"
-    top = max(((r["added"] or 0) + (r["removed"] or 0)) for r in rows) or 1
+    size = lambda r: (r["added"] or 0) + (r["removed"] or 0)
+    shown, hidden = rows, []
+    if len(rows) > FILES_SHOWN:
+        keep = {r["path"] for r in sorted(rows, key=lambda r: (-size(r), r["path"]))[:FILES_SHOWN]}
+        shown = sorted((r for r in rows if r["path"] in keep), key=lambda r: r["path"])
+        hidden = [r for r in rows if r["path"] not in keep]
+    top = max(size(r) for r in shown) or 1
     out = []
-    for r in rows:
+    for r in shown:
         if r["added"] is None:
             bar, nums = '<span class="bin">binary</span>', ""
         else:
             a, d = r["added"] * 100 // top, r["removed"] * 100 // top
             bar = f'<span class="bar"><i class="add" style="width:{a}%"></i><i class="del" style="width:{d}%"></i></span>'
             nums = f'<span class="n add">+{r["added"]}</span><span class="n del">−{r["removed"]}</span>'
+        title = f' title="renamed from {pagelib.esc(r["old_path"])}"' if r["status"] == "R" and r.get("old_path") else ""
         out.append(f'<div class="frow st-{r["status"]}"><span class="st">{r["status"]}</span>'
-                   f'<code>{pagelib.esc(r["path"])}</code>{bar}{nums}</div>')
+                   f'<code{title}>{pagelib.esc(r["path"])}</code>{bar}{nums}</div>')
+    if hidden:
+        out.append(f'<div class="frow more">… {len(hidden)} more files · '
+                   f'+{sum(r["added"] or 0 for r in hidden)} −{sum(r["removed"] or 0 for r in hidden)}</div>')
     add = sum(r["added"] or 0 for r in rows)
     dele = sum(r["removed"] or 0 for r in rows)
     return f'<div class="files">{"".join(out)}</div>', f"{len(rows)} files · +{add} −{dele}"

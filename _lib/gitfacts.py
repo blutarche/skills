@@ -22,6 +22,7 @@ class FileRow:
     path: str
     added: int | None
     removed: int | None
+    old_path: str | None = None
 
 
 def _git(root: Path, *args: str) -> subprocess.CompletedProcess:
@@ -41,20 +42,36 @@ def _split(raw: bytes) -> list[str]:
 
 def diff_rows(root: Path, base: str, head: str) -> list[FileRow]:
     rev = [base] if head == "worktree" else [f"{base}..{head}"]
-    parts = _split(_must(root, "diff", "--name-status", "-z", "--no-renames", *rev))
-    status = {parts[i + 1]: parts[i] for i in range(0, len(parts) - 1, 2)}
+    parts = _split(_must(root, "diff", "--name-status", "-z", "-M", *rev))
+    entries: list[tuple[str, str, str | None]] = []  # status, path, old path
+    i = 0
+    while i < len(parts):
+        code = parts[i][0]
+        if code in "RC":
+            entries.append(("R" if code == "R" else "A", parts[i + 2], parts[i + 1] if code == "R" else None))
+            i += 3
+        else:
+            entries.append((code if code in "AMD" else "M", parts[i + 1], None))
+            i += 2
 
     counts: dict[str, tuple[int | None, int | None]] = {}
-    for rec in _must(root, "diff", "--numstat", "-z", "--no-renames", *rev).split(b"\0"):
-        if not rec:
+    toks = _must(root, "diff", "--numstat", "-z", "-M", *rev).split(b"\0")
+    i = 0
+    while i < len(toks):
+        if not toks[i]:
+            i += 1
             continue
-        added, removed, path = rec.decode("utf-8", "replace").split("\t", 2)
+        added, removed, path = toks[i].decode("utf-8", "replace").split("\t", 2)
+        i += 1
+        if not path:  # rename or copy: `added\tremoved\t\0old\0new\0`
+            path = toks[i + 1].decode("utf-8", "replace")
+            i += 2
         counts[path] = (None, None) if added == "-" else (int(added), int(removed))
 
     rows = []
-    for path, st in status.items():
+    for st, path, old in entries:
         added, removed = counts.get(path, (None, None))
-        rows.append(FileRow(st if st in ("A", "M", "D") else "M", path, added, removed))
+        rows.append(FileRow(st, path, added, removed, old))
 
     if head == "worktree":
         for path in sorted(_split(_must(root, "ls-files", "--others", "--exclude-standard", "-z"))):

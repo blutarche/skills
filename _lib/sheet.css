@@ -113,7 +113,8 @@ textarea.note[hidden]{display:none}
 .frow{display:grid;grid-template-columns:14px minmax(0,1fr) 90px auto auto;gap:8px;align-items:center;font:12px var(--mono)}
 .frow code{background:none;border:0;padding:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .frow .st{font-weight:600;text-align:center}
-.st-A .st{color:var(--add)}.st-M .st{color:var(--blu)}.st-D .st{color:var(--del)}
+.frow.more{display:block;color:var(--gry)}
+.st-A .st{color:var(--add)}.st-M .st,.st-R .st{color:var(--blu)}.st-D .st{color:var(--del)}
 .bar{display:flex;height:8px;background:var(--paper);gap:1px}
 .bar i{display:block;height:100%}
 .bar .add,.frow i.add{background:var(--add)}.bar .del,.frow i.del{background:var(--del)}

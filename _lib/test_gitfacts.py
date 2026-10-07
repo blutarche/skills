@@ -67,6 +67,37 @@ class DiffRowsTest(unittest.TestCase):
         row = next(r for r in rows if r.path == "bin.dat")
         self.assertEqual((row.status, row.added, row.removed), ("A", None, None))
 
+    def test_rename_is_one_row_with_old_path(self):
+        (self.root / "dir one").mkdir()
+        (self.root / "dir one" / "old name.txt").write_text("a\nb\nc\nd\n")
+        commit(self.root, "add spaced")
+        base = git(self.root, "rev-parse", "HEAD").strip()
+        (self.root / "dir one" / "old name.txt").rename(self.root / "new name.txt")
+        (self.root / "new name.txt").write_text("a\nb\nc\nd\ne\n")
+        commit(self.root, "rename")
+        rows = [r for r in gitfacts.diff_rows(self.root, base, "HEAD") if r.status == "R"]
+        self.assertEqual(
+            [(r.path, r.old_path, r.added, r.removed) for r in rows],
+            [("new name.txt", "dir one/old name.txt", 1, 0)],
+        )
+        self.assertFalse([r for r in gitfacts.diff_rows(self.root, base, "HEAD") if r.status == "D" and "old" in r.path])
+
+    def test_pure_rename_counts_zero(self):
+        base = git(self.root, "rev-parse", "HEAD").strip()
+        (self.root / "a.txt").write_text("1\n2\n3\n")
+        (self.root / "a.txt").rename(self.root / "b.txt")
+        commit(self.root, "mv")
+        rows = {r.path: r for r in gitfacts.diff_rows(self.root, base, "HEAD")}
+        self.assertEqual((rows["b.txt"].status, rows["b.txt"].old_path, rows["b.txt"].added), ("R", "a.txt", 0))
+
+    def test_copy_is_an_added_row(self):
+        base = git(self.root, "rev-parse", "HEAD").strip()
+        (self.root / "copy.txt").write_text("1\n2\n3\n")
+        (self.root / "a.txt").write_text("1\n2\n3\nfour\n")
+        commit(self.root, "copy")
+        rows = {r.path: r for r in gitfacts.diff_rows(self.root, base, "HEAD")}
+        self.assertEqual((rows["copy.txt"].status, rows["copy.txt"].old_path), ("A", None))
+
     def test_line_exists_worktree(self):
         self.assertTrue(gitfacts.line_exists(self.root, "worktree", "a.txt:4"))
         self.assertFalse(gitfacts.line_exists(self.root, "worktree", "a.txt:9"))
