@@ -129,7 +129,7 @@ comes back through the page: Notes, then the floating "Send feedback" button, th
 
 **On top of that, only when the user explicitly asks to publish or share the tour online:** on
 Claude Code, publish `tour.fragment.html` as an artifact (title = the spec title, `icon` = one
-generic word such as `compass`), and give the user the link. Feedback comes back as comment threads on the artifact;
+generic word such as `compass`), and give the user the link. Also pass `capabilities: {db: {}}` so Send feedback can save notes for the agent. Feedback comes back as comment threads on the artifact;
 read them with the ArtifactComments tool when the user says they have commented. If there is
 no Artifact tool, say the tour was not published and point back to the local path already given.
 
