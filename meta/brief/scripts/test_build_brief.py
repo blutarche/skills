@@ -209,6 +209,13 @@ class BuildBriefTest(unittest.TestCase, Harness):
         self.assertNotIn("data-toggle-all>", page)
         self.assertNotIn("<details", page)
 
+    def test_shared_report_files_are_spliced(self) -> None:
+        page = self.build(valid_spec(), self.dir).out.read_text(encoding="utf-8")
+        self.assertIn(".rhead{display:flex", page)
+        self.assertIn(".chapter[open]>.chead .chev", page)
+        self.assertIn('$("[data-toggle-all]")', page)
+        self.assertEqual(page.count('$("[data-toggle-all]")'), 1)
+
     def test_one_floating_back_button_replaces_section_links(self) -> None:
         spec = valid_spec()
         spec["panels"][1]["rows"][0]["more"] = "the-drain-loop"

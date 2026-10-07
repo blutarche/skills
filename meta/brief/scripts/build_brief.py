@@ -425,8 +425,12 @@ def load_shell(template: Path) -> str:
             fail(f"{template}: missing {marker} marker")
     sheet_css, sheet_js = sheet.assets()
     dock_css, dock_js = dock.assets()
-    for marker, path, extra in ((LIB_STYLE, LIB_DIR / "page.css", dock_css), (LIB_SCRIPT, LIB_DIR / "notes.js", dock_js)):
-        shell = shell.replace(marker, path.read_text(encoding="utf-8").rstrip("\n") + "\n" + extra.rstrip("\n"))
+    for marker, paths, extra in (
+        (LIB_STYLE, ("page.css", "report.css"), dock_css),
+        (LIB_SCRIPT, ("notes.js", "report.js"), dock_js),
+    ):
+        parts = [(LIB_DIR / name).read_text(encoding="utf-8").rstrip("\n") for name in paths]
+        shell = shell.replace(marker, "\n".join(parts) + "\n" + extra.rstrip("\n"))
     shell = shell.replace(SHEET_STYLE, sheet_css.rstrip("\n"))
     return shell.replace(SHEET_SCRIPT, sheet_js.rstrip("\n"))
 

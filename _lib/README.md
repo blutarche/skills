@@ -10,6 +10,7 @@ still gets a real, self-contained `lib/` directory.
 | File | What it does |
 | --- | --- |
 | `pagelib.py`, `page.css`, `notes.js` | Page shell helpers, base styles, notes kept in the browser. |
+| `report.css`, `report.js` | The report chrome the brief and the walkthrough share: the Walkthrough head, chapter cards, and the Open all button. |
 | `voice.py`, `voice-words.json`, `voice.md` | Simple English lint. A build fails on a hard word or a long sentence. |
 | `svg.py` | Allowlist for SVG figures that an agent draws. |
 | `dock.py`, `dock.css`, `dock.js` | The floating Send feedback dock that the brief and the walkthrough share: markup, styles, script. It needs no sheet. |

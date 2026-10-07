@@ -1447,8 +1447,12 @@ def main() -> None:
     # rstrip: the marker carries no trailing newline of its own, and the lib files each end
     # with one, so keeping it would insert a blank line the original template never had
     dock_css, dock_js = dock.assets()
-    shell = shell.replace(LIB_STYLE, (LIB_DIR / "page.css").read_text(encoding="utf-8").rstrip("\n") + "\n" + dock_css.rstrip("\n"))
-    shell = shell.replace(LIB_SCRIPT, (LIB_DIR / "notes.js").read_text(encoding="utf-8").rstrip("\n") + "\n" + dock_js.rstrip("\n"))
+    for marker, names, extra in (
+        (LIB_STYLE, ("page.css", "report.css"), dock_css),
+        (LIB_SCRIPT, ("notes.js", "report.js"), dock_js),
+    ):
+        parts = [(LIB_DIR / name).read_text(encoding="utf-8").rstrip("\n") for name in names]
+        shell = shell.replace(marker, "\n".join(parts) + "\n" + extra.rstrip("\n"))
 
     has_sheet = isinstance(spec, dict) and "sheet" in spec
     try:
