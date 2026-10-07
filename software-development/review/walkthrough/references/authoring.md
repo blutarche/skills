@@ -6,9 +6,10 @@ say it plainly in the chapter overview as a thing to check, or hand it to a revi
 
 ## Page order
 
-Header with the revision banner, Overview, Where to focus, Intuition, Background, the
-walkthrough chapters, Everything else, Verify, Notes. One page, readable top to bottom, and
-readable with JavaScript off.
+Header with the revision banner, the digest, Overview, Where to focus, Intuition, Background,
+then the walkthrough: Read first (flagged files, then `attention` and `medium` chapters), Skim
+(`safe` chapters), Matched by the build, and On the agent's word. Then Verify and Notes. One page,
+readable top to bottom, and readable with JavaScript off.
 
 ## Title and overview
 
@@ -16,7 +17,7 @@ readable with JavaScript off.
   update".
 - `overview`: first sentence says what changed and why. 100 to 250 words. State the alternative
   you rejected and why, in one sentence, without the words "deliberately" or "left out". Counts
-  belong in the strip the build renders, never in prose. An overview claims something the reader
+  belong in the digest the build renders, never in prose. An overview claims something the reader
   can check.
 - `focus`: three to five items, each naming a chapter with `<a href="#ch-id">` and saying what to
   check there. This is where a reader who has ten minutes should spend them. Use "Check that" at
@@ -32,12 +33,13 @@ readable with JavaScript off.
 - One file may appear in several chapters when it holds several concepts. The heart of a change
   usually does.
 - A chapter title states its claim. A chapter that exists only for completeness is not a chapter;
-  its files belong in a glue chapter or in `everythingElse`.
+  its files belong in a glue chapter, a group, or `everythingElse`.
 - The overview is two to six sentences: what changed here, why, and what to check. Say what you
   would say out loud before the reader looks at the code.
 - `risk`: `attention` when the chapter carries behaviour the reader must reason about, `medium`
   for contract surface and tests, `safe` for glue. The build expands hunks for attention and
-  medium, and collapses them for safe.
+  medium, and collapses them for safe. Attention and medium chapters go under Read first, safe
+  ones under Skim, and chapter numbers follow that order.
 
 ## Files and hunks
 
@@ -53,6 +55,26 @@ readable with JavaScript off.
 - Never type a line number from memory. Write the range, run the build, and let it reject the
   range that no longer holds a changed line.
 
+## Groups
+
+A big diff often holds many files with one mechanical change. Put them in a group, not a
+chapter, so the reader's time goes to the files that need it.
+
+- Use a substitution group when one `from` and `to` explains every change in those files: a
+  rename, an import path, a version string. The build replays the rule and proves it. A file the
+  rule does not explain goes to the top of the reading list, so do not widen a glob to sweep up
+  files you have not checked.
+- Use a chapter when the change needs a claim the reader must check, even when it looks
+  mechanical. A rule shows the change is mechanical, not that it is right. If the rename itself
+  is the risk, say so in a chapter.
+- Use `generated` or `lockfile` for files a tool wrote, and say which tool and command in `why`.
+  When a lockfile group rests on your word, put the manifest that drives it (for example
+  `package.json`) in a chapter, so the reader sees what you asked for.
+- Never put a behaviour change in a `bulk` group. A bulk group is for files the reader may skip,
+  such as fixtures or snapshots. The build samples a few of them; that is a spot check, not a
+  review.
+- Let the build find moves, line-ending changes, deletions, and binary files. Do not list them.
+
 ## Verify
 
 - `verify.ran` lists the commands that actually ran this session, with their real exit codes and
@@ -64,8 +86,8 @@ readable with JavaScript off.
 ## Coverage
 
 Coverage is derived, not claimed. The build refuses a changed file with no home and a placed file
-that is not in the diff. `everythingElse` exists so the count stays honest; an empty one says so
-on the page.
+that is not in the diff. `everythingElse` is for a few small leftovers, each with its own `why`.
+It has a cap; past it the build fails and asks for groups or chapters.
 
 ## Voice
 
@@ -75,7 +97,8 @@ change.
 
 ## Anti-patterns
 
-- Counting files or lines in prose. The strip does that, from the diff.
+- Counting files or lines in prose. The digest does that, from the diff.
+- A substitution group or a `bulk` group that hides a behaviour change.
 - A chapter per commit or per folder.
 - Showing every hunk for completeness.
 - Line numbers typed by hand instead of validated by the build.

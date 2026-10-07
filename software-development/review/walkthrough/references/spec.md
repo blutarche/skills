@@ -10,8 +10,8 @@ as HTML (`<p>`, `<code>`, `<a>`, `<b>`). Everything else is plain text and is es
 
 Ranges, counts, and coverage are validated against `git`; the agent cannot fake a line number or
 a file that is not in the diff. Prose (`overview`, `intuition`, `background`, `focus` items,
-chapter `overview`, file `why` in both chapters and `everythingElse`, hunk `why`, `verify.ran`
-summaries, and `verify.manual` items) is the agent's own words, and every one of these fields is
+chapter `overview`, file `why` in both chapters and `everythingElse`, hunk `why`, group `why`,
+`verify.ran` summaries, and `verify.manual` items) is the agent's own words, and every one of these fields is
 passed through an allowlist sanitizer before it reaches the page. Only `<p> <br> <b> <strong> <i>
 <em> <code> <pre> <a> <ul> <ol> <li> <span>` survive; on `<a>`, only `href` survives, and only
 when it is a `#` fragment, an absolute `http://` or `https://` URL, or a scheme-less relative
@@ -54,7 +54,13 @@ executing.
       ]
     }
   ],
-  "everythingElse": [{ "path": "changed file no chapter claims", "why": "HTML (optional)" }],
+  "groups": [
+    { "id": "rename", "title": "fetchUser becomes loadUser", "files": ["src/*.ts"],
+      "from": "fetchUser", "to": "loadUser", "regex": false, "why": "HTML (optional)" },
+    { "id": "lock", "title": "Lockfile follows package.json", "files": ["package-lock.json"],
+      "kind": "generated | lockfile | bulk", "why": "HTML. Required: what wrote these files." }
+  ],
+  "everythingElse": [{ "path": "small leftover no chapter or group claims", "why": "HTML (optional)" }],
   "verify": {
     "ran": [
       { "cmd": "npm test", "cwd": ".", "exit": 0, "ok": true, "summary": "219 passed", "tree": "head" }
@@ -66,6 +72,78 @@ executing.
 
 Required: `title`, `base`, `head`, `prLens`, `overview`, `chapters`. Everything else is optional.
 `repo` only enables GitHub blob links; leave it out and the page carries no external link.
+
+## `groups` (optional)
+
+A group places many files with one entry. It has an `id`, a `title`, and `files`, a non-empty list
+of globs. The `id` must be unique across chapters and groups, and must not be `moved`,
+`line-ends`, `everything-else`, `deleted`, or `binary`. It becomes the `#g-<id>` anchor, so use
+kebab-case. A group has one of two shapes:
+
+- **Substitution:** `from`, `to`, and optional `regex` (default `false`) and `why`. The build
+  proves this one. It joins the old file's lines with newlines, replaces every match of `from`
+  with `to`, and needs the result to equal the new file exactly. With `regex: true`, `from` is a
+  Python regular expression and `to` is a `re.sub` replacement, so `\1` and `\g<name>` work. A
+  renamed file replays its old path. A file passes or fails as a whole.
+- **Agent's word:** `kind` (`generated`, `lockfile`, or `bulk`) and a required `why`. The build
+  checks only that the globs match changed files. It takes no `from`, `to`, or `regex`.
+
+Globs use Python `fnmatch.fnmatchcase` on the repo-relative path. Matching is case-sensitive, and
+`*` also crosses `/`, so `src/*.ts` matches `src/a/b.ts`. There is no `**` rule; `src/**/*.ts` works
+only because `*` already crosses `/`, and it needs at least one folder under `src/`.
+
+### Where a changed file lands
+
+The build places each changed file once, in this order:
+
+1. A chapter. A chapter file never joins a group, even when a glob matches it.
+2. A group whose glob matches it. A file two groups match fails. A file a group matches that is
+   also in `everythingElse` fails.
+3. `everythingElse`.
+4. A derived group, with no spec entry: `moved` (a rename with the same content and the same
+   file mode; never a copy or a symlink), then `line-ends` (only line endings or trailing spaces
+   changed; indentation never counts, and Markdown never counts), then `deleted`, then `binary`.
+5. Nowhere: the build fails and names the file.
+
+A glob that matches no changed file fails. A group whose matched files all sit in chapters
+fails.
+
+### Tiers
+
+Every changed file gets one tier:
+
+| Tier | Files | On the page |
+|---|---|---|
+| `flagged` | a substitution group claimed it, but its rule does not explain the file | an open card under Read first, with the reason and any lines that broke the rule |
+| `read` | in at least one `attention` or `medium` chapter | Read first |
+| `skim` | only in `safe` chapters | Skim |
+| `matched` | a substitution group, `moved`, `line-ends` | Matched by the build, one closed card per rule |
+| `word` | an agent's-word group, `everythingElse`, `deleted`, `binary` | On the agent's word, one closed card per group |
+
+A substitution file is flagged when it is new, deleted, a copy, binary, or changed type or file
+mode, or when the replay does not give the new file. A flag never fails the build. The page
+still shows a substitution group whose files were all flagged, so the reader sees the rule.
+
+### Samples
+
+Each agent's-word group with changed lines shows spot-check samples: the largest file, plus
+files drawn at random up to 3 in all, or 10% of the group when that is more, at most 8. Only
+files with changed text lines count. Each sample sits at a random run of changed lines, padded by
+two lines, at most 40 lines. Deleted and binary groups show no sample. `--seed N` fixes the draw;
+without it the build picks a random seed. The seed shows in each sample line on the page and in
+`--data-out`.
+
+### `everythingElse` cap
+
+`everythingElse` holds at most `min(20, max(3, files // 10))` files, where `files` is the number
+of changed files. Past that the build fails and asks for groups or chapters.
+
+### Known limits
+
+- The replay compares lines after the split, so a change only to the final newline or to CRLF
+  line endings counts as matched.
+- The agent runs the build, so it could rebuild until a sample draw suits it. The page names
+  the seed and how the samples were drawn.
 
 ## `sheet` (optional)
 
@@ -95,7 +173,7 @@ facts and the walkthrough. Without it the page is unchanged. Write the words by 
 - A panel may carry `more`: a chapter `id` from this tour. So may a row in an `asks`, `checks`, `decisions`,
   `tasks`, `findings`, `claims`, `commands`, or `matrix` panel. It shows a link to that chapter. An unknown id fails the build.
 - Panel letters follow the order on the page: `needs you` is A, `checks` is B, `files` is C.
-- The stats strip in Overview is hidden when a sheet is present.
+- The digest block shows under the page header whether or not a sheet is present.
 - Asks can carry `options`, `recommended`, and `multi` the same way; see the brief spec.
 - One floating "Send feedback" button, bottom right, covers both: it adds the sheet answers, notes, and fix or skip
   choices to the tour notes. It is the same dock as the brief's, with the same toast and "✓ Sent" flip.
@@ -149,8 +227,9 @@ the output remains one self-contained HTML file with light/dark theme selection.
 
 ## What the build checks
 
-- Every file in the diff appears in at least one chapter or in `everythingElse`. A placed path
-  that is not in the diff fails. A path in both a chapter and `everythingElse` fails.
+- Every file in the diff lands somewhere; see Where a changed file lands. A placed path that is
+  not in the diff fails. A path in both a chapter and `everythingElse` fails.
+- `everythingElse` stays under its cap, and every group is valid; see `groups`.
 - A file may sit in several chapters when it carries several concepts. No changed line may be
   shown twice across the whole page.
 - A hunk range lies inside the file on its side (`new` reads the head or worktree file, `old`
@@ -186,9 +265,14 @@ build leaves the previous page in place (a build with a `sheet` writes a BUILD F
   counts distinct changed lines actually rendered by a hunk, on either side; `coveragePercent` is
   `linesShown` over `linesChanged`. `linesUnshownInOpenedFiles` counts unshown changed lines in
   files that have at least one hunk on the page; `linesUnshownInUnopenedFiles` counts the rest, in
-  files that are never opened (no hunk in any chapter, or listed in `everythingElse`). Below 30%
-  the page adds a one-line notice under the stats strip naming both counts. `--data-out` writes
-  the stats as JSON.
+  files that are never opened (no hunk in any chapter, or listed in `everythingElse`). `flagged`
+  counts flagged files. `digest` holds `seed`, `counts` (files per tier), `lines` (changed lines:
+  `total`, `read` for flagged, read, and skim files, `matched`, `word`, and `sampled`, the changed
+  lines the samples show), `tiers` (every path to its tier), `groups` (`id`, `kind`, `tier`,
+  `files`, and `samples` as `path`, `side`, `start`, `end`), and `flags` (`path`, `group`,
+  `reason`). `--data-out` writes the stats as JSON.
+- The digest block under the page header: a budget line, a bar of files per tier, a map with one
+  square per file that links to its card, and a line that splits the changed lines by tier.
 - The "Changed lines only" toggle is hidden when no rendered hunk holds a context row, since
   there is nothing for it to hide.
 - Hunk rows are syntax-highlighted at build time by file extension (python, js/ts, go, rust, shell, json, css, html, markdown, yaml, toml, sql, make); unknown types render plain.
@@ -197,7 +281,9 @@ build leaves the previous page in place (a build with a `sheet` writes a BUILD F
 
 - Chapter: `#ch-<id>`. File card: `#f-<chapter id>-<slug of path>`.
 - Hunk: `#f-<chapter id>-<slug of path>-<side>-<start>`.
-- Everything else card: `#f-everything-else-<slug of path>`.
+- Digest block: `#digest`. Flagged card: `#flag-<slug of path>`. Group card: `#g-<group id>`,
+  derived groups included. Sample card: `#f-sample-<group id>-<slug of path>`.
+- A link to a card inside a closed card opens every card around it.
 
 ## Outputs
 
@@ -206,5 +292,9 @@ build leaves the previous page in place (a build with a `sheet` writes a BUILD F
   then `<script>`. That is what the Claude Code Artifact tool wants, since it supplies the
   document itself.
 - Both are self-contained. No fonts, scripts, or images are fetched.
+- On success stdout prints `build_tour: ok files=... placed=... else=... hunks=... chapters=...
+  pr-lens=... lines shown ... tiers flagged=.. read=.. skim=.. matched=.. word=..`. When files are
+  flagged, stderr also prints `build_tour: warning: <n> files broke a rule: <path> (<group id>),
+  ...` and the exit code stays 0.
 - Every PR Lens logical view is embedded before the prose tour, in graph order. Light and dark
   assets become one `<picture>` when both exist.

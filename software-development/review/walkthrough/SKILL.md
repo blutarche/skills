@@ -19,6 +19,12 @@ diff, not a formatting problem.
 
 This skill is read-only with respect to the repository. It writes only under the temp directory.
 
+The page opens with a reading budget, because an agent's diff can touch hundreds of files. The
+build puts every changed file in one of five tiers. **Flagged**: a rule claimed the file but does
+not explain it. **Read** and **skim**: chapters, by risk. **Matched**: the build proved a rule
+explains every change. **Agent's word**: the rest, with random samples to spot-check. A file the
+reader may skip is either matched by the build or labeled as the agent's word.
+
 ## Steps
 
 ### 1. Fix the revision
@@ -79,7 +85,9 @@ Set `prLens.graph` to `pr-lens/.pr-lens/drawn.graph.json` and `prLens.manifest` 
   choose those concepts, after reconciling each against the diff.
 - The hunk rule: a hunk appears only when the prose claims something about it. Every other file
   in the chapter is a card.
-- Every changed file lands in a chapter or in `everythingElse`.
+- Every changed file lands in a chapter, a group, or `everythingElse`. Use a substitution group
+  for a mechanical change across many files, and keep `everythingElse` to a few leftovers. The
+  build finds moves, line-ending changes, deletions, and binary files itself.
 - `focus` names chapters by their `#ch-<id>` anchor.
 - `verify.ran` lists the commands you actually ran this session with their real exit codes. A
   command you did not run is written out as not run, with `exit: null`.
@@ -99,9 +107,11 @@ python3 <skill-dir>/scripts/build_tour.py \
   --fragment "$DIR/tour.fragment.html"
 ```
 
-A failure names the defect: a range with no changed line, a file placed nowhere, a line shown
-twice, a missing PR Lens view, stale asset bytes, or unsafe SVG content. Fix the source artifact
-or spec, never the page, and build again.
+A failure names the defect: a range with no changed line, a file placed nowhere, a group glob
+that matches nothing, a full `everythingElse`, a line shown twice, a missing PR Lens view, stale
+asset bytes, or unsafe SVG content. A file that breaks its group's rule does not fail the build:
+it prints a warning and goes to the top of the page. Read the warning before you deliver. Fix
+the source artifact or spec, never the page, and build again.
 
 Once the build prints `ok`, open the page and look before delivering it: render a screenshot of
 `tour.html` with a headless browser if one is available; at minimum, Read `tour.html` and confirm
@@ -109,8 +119,8 @@ every PR Lens view, the focus list, every chapter title, and the verify table ea
 order.
 
 Done when: the build prints
-`build_tour: ok files=... placed=... else=... hunks=... chapters=... pr-lens=...`, those
-numbers match what you expected, and you have looked at the page as described above.
+`build_tour: ok files=... placed=... else=... hunks=... chapters=... pr-lens=... ... tiers ...`,
+those numbers match what you expected, and you have looked at the page as described above.
 
 ### 5. Deliver
 
@@ -140,7 +150,9 @@ tree changes, rebuild; never patch a line number by hand.
 ## Files
 
 - `scripts/build_tour.py`: validator and renderer, stdlib only, Python 3.10 or newer.
-  `--data-out` writes the derived stats as JSON.
+  `--data-out` writes the derived stats as JSON. `--seed N` fixes the spot-check samples.
+- `scripts/digest.py`: sorts changed files into tiers, proves substitution groups, and draws
+  samples. `build_tour.py` imports it.
 - `scripts/test_build_tour.py`: `python3 -m unittest scripts/test_build_tour.py` from this
   directory. Run it after touching the build.
 - `templates/tour-shell.html`: the page shell with the CSS, the JavaScript, and the markers the

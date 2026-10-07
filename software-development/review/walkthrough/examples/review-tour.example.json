@@ -134,12 +134,28 @@
       "overview": "<p>The tick interval and the attempt cap are configuration, not constants. One counter per outcome feeds the existing dashboard. The runbook gains the query an operator runs to see parked rows.</p>",
       "files": [
         { "path": "src/config.ts", "hunks": [{ "side": "new", "start": 77, "end": 82 }] },
-        { "path": "docs/runbook.md" }
+        { "path": "docs/runbook.md" },
+        { "path": "package.json", "why": "Adds the worker entry point and the <code>p-limit</code> dependency the drain loop uses." }
       ]
     }
   ],
+  "groups": [
+    {
+      "id": "logger-path",
+      "title": "Handlers import the logger from its new folder",
+      "files": ["src/handlers/*.ts"],
+      "from": "from \"../log\"",
+      "to": "from \"../observability/log\""
+    },
+    {
+      "id": "lockfile",
+      "title": "The lockfile follows package.json",
+      "files": ["package-lock.json"],
+      "kind": "lockfile",
+      "why": "<p><code>npm install</code> wrote this after <code>package.json</code> gained <code>p-limit</code>.</p>"
+    }
+  ],
   "everythingElse": [
-    { "path": "package.json", "why": "Adds the worker entry point to the scripts block." },
     { "path": "src/webhooks/types.ts", "why": "The outbox row type, re-exported for the worker." }
   ],
   "verify": {
