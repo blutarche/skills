@@ -212,6 +212,23 @@ class SubstitutionTest(DigestCase):
         [flag] = d.flags
         self.assertEqual(flag.blocks, [(4, ["  const user = loadUser(id);"], ["  const user = fetchUser(id);"])])
 
+    def test_rename_plus_crlf_is_flagged_for_line_endings(self) -> None:
+        crlf = renamed(A_TS).replace("\n", "\r\n").encode()
+        self.make({"src/a.ts": A_TS}, {"src/a.ts": crlf})
+        d = self.classify(make_spec([sub_group("rename", ["src/*.ts"], "fetchUser", "loadUser")]))
+        self.assertEqual(d.tiers, {"src/a.ts": "flagged"})
+        [flag] = d.flags
+        self.assertEqual(flag.reason, digest.ENDINGS_REASON)
+        self.assertEqual(flag.blocks, [])
+
+    def test_rename_plus_final_newline_change_is_flagged(self) -> None:
+        for base, head in ((A_TS, renamed(A_TS).rstrip("\n")), (A_TS.rstrip("\n"), renamed(A_TS))):
+            with self.subTest(head_ends_with_newline=head.endswith("\n")):
+                self.make({"src/a.ts": base}, {"src/a.ts": head})
+                d = self.classify(make_spec([sub_group("rename", ["src/*.ts"], "fetchUser", "loadUser")]))
+                self.assertEqual(d.tiers, {"src/a.ts": "flagged"})
+                self.assertEqual(d.flags[0].reason, digest.ENDINGS_REASON)
+
     def test_regex_backreference_matches(self) -> None:
         self.make(
             {"api.py": "a = getUserId(x)\nb = getOrderId(y)\n"},

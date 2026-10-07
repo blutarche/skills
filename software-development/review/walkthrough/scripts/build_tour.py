@@ -102,6 +102,9 @@ class FileDiff:
     removed_blocks: dict[tuple[int, str], list[str]] = field(default_factory=dict)
     new_lines: list[str] = field(default_factory=list)
     old_lines: list[str] = field(default_factory=list)
+    # decoded blobs with line endings and the final newline kept, for exact comparison
+    new_text: str = ""
+    old_text: str = ""
 
 
 @dataclass
@@ -159,6 +162,8 @@ def load_changed_files(root: Path, base: str, head: str) -> dict[str, FileDiff]:
             continue
         fd.old_lines = lines_of(old_blob) if fd.status != "A" else []
         fd.new_lines = lines_of(new_blob) if fd.status != "D" else []
+        fd.old_text = old_blob.decode("utf-8", "surrogateescape")
+        fd.new_text = new_blob.decode("utf-8", "surrogateescape")
         if fd.path in untracked:
             fd.added = set(range(1, len(fd.new_lines) + 1))
             continue

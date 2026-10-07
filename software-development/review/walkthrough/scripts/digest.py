@@ -49,6 +49,7 @@ STATUS_REASON = {
 }
 BINARY_REASON = "This file is binary, so a rule cannot explain it."
 MISMATCH_REASON = "Applying the rule to the old file does not give the new file."
+ENDINGS_REASON = "Applying the rule gives the new lines, but the line endings or the final newline differ."
 MAX_BLOCKS = 5
 SAMPLE_PAD, SAMPLE_MAX = 2, 40
 SYMLINK_MODE = "120000"
@@ -207,9 +208,13 @@ def check_rule(fd: Any, entry: RawEntry | None, rule: dict, gid: str) -> Flag | 
     else:
         to = rule["to"]
         pattern, repl = re.compile(re.escape(rule["from"])), (lambda _m: to)
+    # exact text, not lines: a CRLF conversion or a changed final newline is a change the rule did not make
+    expected_text = pattern.sub(repl, fd.old_text)
+    if expected_text == fd.new_text:
+        return None
     expected = pattern.sub(repl, "\n".join(fd.old_lines))
     if expected == "\n".join(fd.new_lines):
-        return None
+        return Flag(fd.path, gid, ENDINGS_REASON, [])
     # replay, not a line multiset: a guard moved below the write it guarded must not pass
     expected_lines = expected.split("\n") if expected else []
     ops = difflib.SequenceMatcher(None, expected_lines, fd.new_lines, autojunk=False).get_opcodes()
