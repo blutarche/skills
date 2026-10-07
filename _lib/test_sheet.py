@@ -567,6 +567,20 @@ class SheetTest(unittest.TestCase):
         self.assertEqual(card.count("data-go"), 2)
         self.assertTrue(plain.startswith('<li class="go" data-go="ch-x"'))
 
+    def test_32_tasks_draw_the_waves_svg_only_across_two_waves(self):
+        one = [{"id": "T1", "name": "Store", "status": "done"}]
+        body, _ = sheet._tasks({"rows": one})
+        self.assertNotIn("<svg", body)
+        self.assertIn('class="tasks"', body)
+        two = one + [{"id": "T2", "name": "Wire", "status": "todo", "after": ["T1"]}]
+        body, _ = sheet._tasks({"rows": two})
+        self.assertIn("<svg", body)
+
+    def test_33_findings_without_rows_show_the_empty_line_only(self):
+        body, count = sheet._findings({"rows": []})
+        self.assertEqual(body, '<p class="empty">No findings</p>')
+        self.assertEqual(count, "0")
+
 
 if __name__ == "__main__":
     unittest.main()

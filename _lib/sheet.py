@@ -584,12 +584,15 @@ def _tasks(p: dict) -> tuple[str, str]:
                    f'{_tag("st-" + r["status"], figures.STATUS_WORDS.get(r["status"], r["status"]))}{commit}'
                    f'{a}</div>')
     done = sum(1 for r in rows if r["status"] == "done")
-    body = f'<div class="fig">{figures.task_waves_svg(rows)}</div><div class="tasks">{"".join(out)}</div>'
+    fig = f'<div class="fig">{figures.task_waves_svg(rows)}</div>' if len(set(figures.waves(rows).values())) > 1 else ""
+    body = f'{fig}<div class="tasks">{"".join(out)}</div>'
     return body, f"{done} of {len(rows)} done"
 
 
 def _findings(p: dict) -> tuple[str, str]:
     rows = p["rows"]
+    if not rows:
+        return '<p class="empty">No findings</p>', "0"
     names = figures.venn_counts(rows)[0]
     out = []
     for r in rows:

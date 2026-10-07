@@ -39,9 +39,9 @@
 .grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr))}
 .panel{padding:0;margin:0;scroll-margin-top:0;border-right:1px solid var(--ink);border-bottom:1px solid var(--ink);min-width:0;display:flex;flex-direction:column}
 .c3{grid-column:span 3}.c4{grid-column:span 4}.c6{grid-column:span 6}.c8{grid-column:span 8}.c12{grid-column:span 12}
-.panel h2{display:flex;flex-wrap:wrap;white-space:nowrap;align-items:stretch;gap:0;margin:0;min-height:34px;font-size:14px;font-weight:600;border-bottom:1px solid var(--ink)}
+.panel h2{display:flex;flex-wrap:nowrap;white-space:nowrap;align-items:stretch;gap:0;margin:0;min-height:34px;font-size:14px;font-weight:600;border-bottom:1px solid var(--ink)}
 .panel h2 .ltr{background:var(--ink);color:var(--surface);font:600 14px var(--mono);width:34px;display:grid;place-items:center;flex:none;margin-right:10px}
-.panel h2 .sub{font:11px var(--mono);font-weight:400;color:var(--ink-2);margin:auto 10px auto auto;white-space:nowrap}
+.panel h2 .sub{font:11px var(--mono);font-weight:400;color:var(--ink-2);margin:0 10px 0 auto;padding:4px 0;flex:1 1 auto;min-width:0;text-align:right;white-space:normal}
 .panel h2 .sub:first-of-type{margin-left:auto}
 .panel h2:not(:has(.sub),:has(.go-a)) .note-btn{margin-left:auto}
 .panel h2{align-items:center;flex:none;align-content:stretch}
@@ -58,7 +58,7 @@ textarea.note[hidden]{display:none}
 .needs.has{box-shadow:inset 0 3px 0 var(--amb)}
 .empty{color:var(--gry);font:12px var(--mono);margin:0}
 
-.sheet table{border-collapse:collapse;width:100%;font-size:13px}
+.sheet table{min-width:0;border-collapse:collapse;width:100%;font-size:13px}
 .sheet th{font:11px var(--mono);color:var(--ink-2);text-align:left;font-weight:400;padding:4px 6px;border-bottom:1px solid var(--line)}
 .sheet td{padding:6px;border-bottom:1px solid var(--line);vertical-align:top}
 .sheet tr:last-child td{border-bottom:0}
@@ -102,17 +102,18 @@ textarea.note[hidden]{display:none}
 .sheet .btn.primary{border-color:var(--blu);background:var(--blu);color:var(--surface);font-weight:600;min-height:34px;padding:6px 16px}
 .ask-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
 
-.checks{display:grid;grid-template-columns:18px minmax(0,2fr) auto max-content minmax(0,1fr);gap:4px 8px}
+.checks{display:grid;grid-template-columns:18px fit-content(60%) auto max-content minmax(0,1fr);gap:4px 8px}
 .crow{grid-column:1/-1;display:grid;grid-template-columns:subgrid;gap:8px;align-items:center;font:12px var(--mono);padding:3px 0}
 .crow .ico{font-weight:700}
 .crow.ok .ico{color:var(--add)}.crow.bad{background:var(--del-bg)}.crow.bad .ico{color:var(--del)}.crow.nr{color:var(--gry)}
 .crow .cwd,.crow .res{color:var(--ink-2)}
 .crow code{background:none;border:0;padding:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-.files{display:grid;gap:5px}
-.frow{display:grid;grid-template-columns:14px minmax(0,1fr) 90px auto auto;gap:8px;align-items:center;font:12px var(--mono)}
+.files{display:grid;grid-template-columns:14px minmax(0,1fr) 90px auto auto;gap:5px 8px}
+.frow{grid-column:1/-1;display:grid;grid-template-columns:subgrid;gap:8px;align-items:center;font:12px var(--mono)}
 .frow code{background:none;border:0;padding:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .frow .st{font-weight:600;text-align:center}
+.frow .n{text-align:right}
 .frow.more{display:block;color:var(--gry)}
 .st-A .st{color:var(--add)}.st-M .st,.st-R .st{color:var(--blu)}.st-D .st{color:var(--del)}
 .bar{display:flex;height:8px;background:var(--paper);gap:1px}
@@ -262,7 +263,6 @@ tr.go.flash td{animation:go-wash 1.2s ease-out}
   .venn{position:static}
   .venn svg{margin:0 auto}
   .panel h2 .note-btn{margin-left:auto}
-  .panel h2 .sub{order:3;flex-basis:100%;margin:0 10px 6px 44px}
   .checks{grid-template-columns:18px auto minmax(0,1fr)}
   .crow>span:empty{display:none}
   .crow .ico{grid-row:1;grid-column:1}
