@@ -1176,6 +1176,37 @@ class DigestBuildTest(unittest.TestCase):
         self.assertIn('$$("details.chapter[data-chapter]")', page)
         self.assertIn('window.addEventListener("hashchange", openToHash)', page)
 
+    def test_group_prose_is_sanitized_and_titles_escaped(self) -> None:
+        spec = self.page_fixture()
+        hostile = '<script>alert(1)</script><a href="javascript:x">go</a>'
+        spec["groups"][0]["why"] = "<p>Rename. " + hostile + "</p>"
+        spec["groups"][0]["title"] = "<b>rename</b>"
+        spec["groups"][1]["why"] = "<p>Gen. " + hostile + "</p>"
+        spec["everythingElse"][0]["why"] = "Bump. " + hostile
+        r = self.build(spec, seed=5)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        page = self.out.read_text(encoding="utf-8")
+        self.assertNotIn("<script>alert", page)
+        self.assertNotIn("javascript:", page)
+        self.assertEqual(page.count("alert(1)"), 3)  # the text survives as inert prose
+        self.assertIn('<h3 class="ttl">&lt;b&gt;rename&lt;/b&gt;</h3>', page)
+        self.assertIn('<span class="meta">rule: &lt;b&gt;rename&lt;/b&gt;</span>', page)
+
+    def test_squares_shrink_past_300_files(self) -> None:
+        paths = [f"d/f{i:03}.txt" for i in range(301)]
+        dg = build_tour.digest.Digest(
+            tiers={p: "word" for p in paths}, groups=[], flags=[], seed=1,
+            counts={"flagged": 0, "read": 0, "skim": 0, "matched": 0, "word": 301},
+            lines={"total": 301, "read": 0, "matched": 0, "word": 301, "sampled": 0},
+        )
+        glance = build_tour.render_glance(dg, dict.fromkeys(paths), {p: "g-bulk" for p in paths}, 0, 0)
+        self.assertIn('<div class="fm small">', glance)
+        self.assertEqual(glance.count('<a class="sq t-word"'), 301)
+        dg.tiers.pop(paths[0])
+        dg.counts["word"] = 300
+        glance = build_tour.render_glance(dg, dict.fromkeys(paths[1:]), {p: "g-bulk" for p in paths}, 0, 0)
+        self.assertIn('<div class="fm">', glance)
+
     def test_rule_every_file_broke_still_shows(self) -> None:
         base, head = self.group_fixture()
         spec = self.group_spec(base, head)
