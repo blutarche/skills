@@ -253,6 +253,7 @@ tr.go.flash td{animation:go-wash 1.2s ease-out}
 }
 
 @media (max-width:760px){
+  .files{grid-template-columns:14px minmax(0,1fr) 40px auto auto}
   .grid>.panel{grid-column:span 12}
   .band{grid-template-columns:1fr}
   .stamp{border-left:0;border-top:1px solid var(--ink);min-width:0;padding:10px}
