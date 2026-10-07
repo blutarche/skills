@@ -1189,18 +1189,17 @@ def build_body(spec: dict, root: Path, pr_lens_views: list[PrLensView]) -> tuple
     for idx, ch in enumerate(chapters, start=1):
         risk = ch["risk"]
         tour.append(
-            f'<article class="chapter" id="ch-{esc(ch["id"])}" data-chapter="{esc(ch["id"])}" data-risk="{esc(risk)}">'
-        )
-        tour.append(
-            f'<header class="chapter-head"><span class="num">{idx}</span><div class="chapter-title">'
-            f'<h3>{esc(ch["title"])}</h3><div class="chapter-meta">'
+            f'<details class="chapter" id="ch-{esc(ch["id"])}" data-chapter="{esc(ch["id"])}" data-risk="{esc(risk)}">'
+            f'<summary class="chead"><span class="num">{idx}</span>'
             f'<span class="chip risk-{esc(risk)}">{RISK_LABEL[risk]}</span>'
-            f'<span class="progress" data-chapter-progress></span></div></div></header>'
+            f'<h3 class="ttl">{esc(ch["title"])}</h3>'
+            f'<span class="meta" data-chapter-progress></span>'
+            f'<span class="chev" aria-hidden="true">▸</span></summary><div class="dbody">'
         )
         tour.append(f'<div class="overview">{sanitize_prose(ch["overview"])}</div>')
         for f in ch.get("files", []):
             tour.append(file_card(spec, files, ch["id"], ch["title"], f, risk, stats, head_label))
-        tour.append("</article>")
+        tour.append("</div></details>")
 
     o: list[str] = []
     o.append(
@@ -1300,7 +1299,11 @@ def build_body(spec: dict, root: Path, pr_lens_views: list[PrLensView]) -> tuple
         o.append("</section>")
 
     # ---- tour
-    o.append('<section id="tour"><h2>Walkthrough</h2>')
+    o.append(
+        '<section id="tour"><div class="rhead"><h2>Walkthrough</h2>'
+        f'{pagelib.at_row(project, branch, True)}'
+        '<button type="button" class="btn" data-toggle-all>Open all</button></div>'
+    )
     o.append(
         '<p class="lede">Chapters are cut by concept in reading order. Each one shows only the hunks its prose '
         "makes a claim about; the other files in it appear as a card with the names they add. Mark a card read to "

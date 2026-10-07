@@ -822,6 +822,33 @@ class SheetTest(unittest.TestCase):
         page = self.out.read_text(encoding="utf-8")
         self.assertIn("BUILD FAILED", page)
 
+    def test_chapters_are_closed_cards_with_one_open_all_button(self) -> None:
+        for spec in (valid_spec(self.base, self.head), self.sheet_spec()):
+            page = self.page(spec)
+            self.assertNotIn("<article", page)
+            self.assertEqual(page.count('<details class="chapter"'), len(spec["chapters"]))
+            self.assertEqual(page.count('<summary class="chead">'), len(spec["chapters"]))
+            for n, ch in enumerate(spec["chapters"], 1):
+                self.assertIn(
+                    f'<details class="chapter" id="ch-{ch["id"]}" data-chapter="{ch["id"]}" data-risk="{ch["risk"]}">'
+                    f'<summary class="chead"><span class="num">{n}</span>'
+                    f'<span class="chip risk-{ch["risk"]}">',
+                    page,
+                )
+            self.assertNotRegex(page, r'<details class="chapter"[^>]* open')
+            self.assertIn('<span class="meta" data-chapter-progress></span><span class="chev"', page)
+            self.assertEqual(page.count("data-toggle-all>"), 1)
+            self.assertIn('<div class="rhead"><h2>Walkthrough</h2><div class="atrow', page)
+
+    def test_report_files_are_spliced_and_shell_has_no_radius(self) -> None:
+        for spec in (valid_spec(self.base, self.head), self.sheet_spec()):
+            page = self.page(spec)
+            self.assertIn(".rhead{display:flex", page)
+            self.assertIn(".chapter[open]>.chead .chev", page)
+            self.assertEqual(page.count('$("[data-toggle-all]")'), 1)
+        shell = (HERE.parent / "templates" / "tour-shell.html").read_text(encoding="utf-8")
+        self.assertNotIn("border-radius", shell)
+
     def test_one_dock_with_and_without_a_sheet(self) -> None:
         for spec, back in ((valid_spec(self.base, self.head), 0), (self.sheet_spec(), 1)):
             page = self.page(spec)
@@ -845,7 +872,7 @@ class SheetTest(unittest.TestCase):
         top = page[page.index('<header class="top">'):page.index("<h1>")]
         self.assertIn('<div class="atrow"><span class="pchip"', top)
         self.assertIn(f"</svg>{branch}</span>", top)
-        self.assertNotIn("atrow sm", page)
+        self.assertNotIn("atrow sm", top)
         with_sheet = self.page(self.sheet_spec())
         start = with_sheet.index('<header class="top">')
         top = with_sheet[start:with_sheet.index("<h1>", start)]
