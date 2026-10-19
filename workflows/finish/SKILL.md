@@ -2,7 +2,7 @@
 name: finish
 disable-model-invocation: true
 description: "Get a finished branch ready for review (sync base, verify, one review, hand over the diff), then land, PR, or discard it on request."
-argument-hint: "[land|pr|discard]"
+argument-hint: "[land [--cleanup]|pr|discard]"
 license: MIT
 ---
 
@@ -13,7 +13,8 @@ Two phases, selected by the argument. The user reviews the diff between them.
 | Invocation | Phase |
 |---|---|
 | `/finish` | **Ready** — commit, sync with base, verify, one review, hand over the diff. Then stop. |
-| `/finish land` | Merge into the base branch locally, then clean up. |
+| `/finish land` | Merge into the base branch locally. The workspace and branch stay. |
+| `/finish land --cleanup` | Same, then clean up the workspace and branch. |
 | `/finish pr` | Push and open a pull request. |
 | `/finish discard` | Delete the work (typed confirmation), then clean up. |
 
@@ -176,7 +177,7 @@ On success:
 1. **Post-merge step.** If the repo documents one (AGENTS.md / README / CONTRIBUTING mentions an install, post-merge, or bootstrap command), name it. Run it if it is local and non-destructive. Otherwise skip it. Run it in a real base checkout. If you merged in a temporary worktree, don't run it there, because it is about to be deleted. Name the command and tell the user to run it once base is checked out.
 2. **Push base only if the user asked:** `git -C "$BASE_WT" push`.
 3. **Remove the temporary worktree**, if you made one: `[ -z "$TMP_WT" ] || git worktree remove "$TMP_WT"`.
-4. **Clean up** the feature workspace and branch (below).
+4. **Leave the feature workspace and branch in place.** A merge is not a request to close the user's workspace. Its terminals, gitignored files (`.env.local`, build output) and untracked notes live there. Say the worktree remains and that `/finish land --cleanup` removes it. Run Clean up (below) only on `--cleanup` or when the user asks for it in their own words.
 
 ## PR (`/finish pr`)
 
@@ -224,7 +225,7 @@ Wait for the exact word `discard`. Anything else aborts. If confirmed, **git ref
 - **Normal repo (no worktree):** the branch is checked out here, and git refuses to delete a checked-out branch. Don't switch the checkout's branch to get around that: tell the user to switch off it and run `git branch -D <feature-branch>`.
 - **Detached HEAD:** no branch to delete and the workspace isn't ours. Just abandon the commits (unreachable; git gc reclaims them). Clean up is a no-op.
 
-## Clean up (after `land` and `discard`)
+## Clean up (after `discard`, and `land --cleanup`)
 
 Run from the main root, **never from inside the worktree being removed**: `cd "$MAIN_ROOT"`. Use the `WT` path captured in Detect. By now you have `cd`'d away, and removal must target `WT`, not the current directory. A normal repo (`GIT_DIR == GIT_COMMON`) has no worktree to remove; an externally-managed workspace (detached HEAD) is left in place.
 
@@ -235,6 +236,8 @@ cd "$MAIN_ROOT"
 orca worktree rm --worktree path:"$WT"            # discard: add --force (it never forces the branch delete)
 git -C "$MAIN_ROOT" show-ref --verify --quiet refs/heads/<feature-branch> && git -C "$MAIN_ROOT" branch -d <feature-branch>
 ```
+
+`--force` is for `discard` only. On `land --cleanup`, a removal refused over untracked or modified files means stop and list them. Don't force it, and don't recommend deleting them.
 
 `orca worktree rm` removes the worktree from Orca and git and attempts the local branch delete, but retains branches it can't prove merged. After `land` the fallback `git branch -d` finishes the job. Never `-D` except on `discard` after the typed confirmation.
 
@@ -253,6 +256,6 @@ git -C "$MAIN_ROOT" branch -d <feature-branch>   # discard: -D, after confirmati
 | Phase | Commit + sync + verify | Cross-model review | Merge | Push | Clean up | Delete branch |
 |---|---|---|---|---|---|---|
 | `/finish` (ready) | yes | once, if not already reviewed | – | – | – | – |
-| `land` | re-check; redo if base moved | only if base conflicts hit the branch's own changes | yes | only if asked | yes | yes (`-d`) |
+| `land` | re-check; redo if base moved | only if base conflicts hit the branch's own changes | yes | only if asked | only with `--cleanup` | only with `--cleanup` (`-d`) |
 | `pr` | re-check; redo if base moved | same as `land` | – | yes | only if asked | – |
 | `discard` | – | – | – | – | yes (force) | yes (`-D`) |
