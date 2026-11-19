@@ -76,8 +76,9 @@ Write `review-tour.json` in `${TMPDIR:-/tmp}/walkthrough/<repo-name>-<branch-slu
 `references/spec.md`. Rules: `references/authoring.md`. Shape to copy:
 `examples/review-tour.example.json`.
 
-Set `prLens.graph` to `pr-lens/.pr-lens/drawn.graph.json` and `prLens.manifest` to
-`pr-lens/.pr-lens/manifest.json`. Both paths are relative to `review-tour.json`. When the head is
+The render writes into its own folder, `pr-lens/.pr-lens/<drawing>/`, and prints that path. Set
+`prLens.graph` to `pr-lens/.pr-lens/<drawing>/drawn.graph.json` and `prLens.manifest` to
+`pr-lens/.pr-lens/<drawing>/manifest.json`. Both paths are relative to `review-tour.json`. When the head is
 `worktree`, also set `prLens.worktreeHash` to `$WORKTREE_HASH`.
 
 - Chapters cut by concept in reading order: contract, then the heart, then consequences, then

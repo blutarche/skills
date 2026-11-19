@@ -28,8 +28,8 @@ executing.
   "base": "<full sha of the merge-base>",
   "head": "<sha> or worktree",
   "prLens": {
-    "graph": "pr-lens/.pr-lens/drawn.graph.json",
-    "manifest": "pr-lens/.pr-lens/manifest.json",
+    "graph": "pr-lens/.pr-lens/<drawing>/drawn.graph.json",
+    "manifest": "pr-lens/.pr-lens/<drawing>/manifest.json",
     "worktreeHash": "required only when head is worktree"
   },
   "overview": "<p>HTML. What changed and why, 100 to 250 words.</p>",
