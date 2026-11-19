@@ -35,7 +35,7 @@ A worktree is an isolated checkout of the same repo on its own branch, so an age
    Detect the project's setup and run it — for example:
    - JS/TS: the lockfile-appropriate install (`npm ci` / `pnpm install` / `yarn`).
    - Python: create/sync the venv (`uv sync`, `poetry install`, `pip install -e .`).
-   - copy any gitignored env the project relies on (`.env`, local config) from the main tree `$MAIN` (captured in step 1) if present — **only when the worktree is for the host's own agent/subagents; the caller states whether it is for an external executor** (`delegate-coding` says so explicitly). Never copy secrets into a worktree an external executor (`delegate-coding`) will run in: that tree stays secret-free, and env-dependent checks run post-merge (Tier 2).
+   - copy any gitignored env the project relies on (`.env`, local config) from the main tree `$MAIN` (captured in step 1) if present — **only when the worktree is for the host's own agent/subagents; the caller states whether it is for an external executor** (`delegate-coding` says so explicitly). Never copy secrets into a worktree an external executor (`delegate-coding`) will run in: that tree stays secret-free, and env-dependent checks run post-merge in the main tree.
 
    **If the setup can't be determined** — no recognisable manifest, or an env file you can't safely reproduce — **STOP and surface it**: `set up the env at <path> before autonomous runs` (name what's missing). **Never run tests in a half-built tree** and call the result a failure; an unbootstrapped tree is a setup gap, not a code defect.
 

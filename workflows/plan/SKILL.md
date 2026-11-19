@@ -15,12 +15,12 @@ For just one stage, invoke that skill directly. To shape a design, use `brainsto
 Run in order. Finish each stage's gate before moving to the next. If a later stage exposes a flaw, return to the relevant earlier skill and re-run from there.
 
 1. **Design: invoke `brainstorming`**
-   Run `brainstorming` to its normal terminus: an approved, committed design doc. It owns the design dialogue; don't truncate it.
+   Run `brainstorming` to its normal terminus: an approved design doc, saved (committed only if its path is tracked). It owns the design dialogue; don't truncate it.
    *Gate:* `brainstorming`'s approved design doc exists.
 
 2. **Council the approach: invoke `council`**
    Before building on the design, cross-examine its chosen approach. A flawed architecture is cheapest to catch now, before planning and before code. `council` decision mode needs **2–4 concrete options**. So present the design's approach **plus the leading alternatives it was weighed against** (reconstruct them from the design's rationale). Be as neutral as you can. You can't fully un-bake an approved lean, but you can lay the alternatives out fairly. Let it argue the strongest case against each and name the angle missed. Fold surviving objections back into the design before planning.
-   *Gate:* the approach is cross-examined; surviving objections are resolved or recorded in the design, and the updated design doc is re-committed.
+   *Gate:* the approach is cross-examined, and surviving objections are resolved or recorded in the design. The updated design doc is saved again (committed only if its path is tracked).
 
 3. **Plan: invoke `writing-plans`**
    Use the approved design doc as the spec; produce a bite-sized, TDD-shaped implementation plan.

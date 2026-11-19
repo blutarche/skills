@@ -14,7 +14,7 @@ Take an approved, self-contained implementation spec and drive it to verified co
 - **This skill (an external headless CLI: cursor-agent, codex, or `claude -p`)** is for an **explicit request** ("have cursor do it") or **bulk mechanical work with no open decisions**. An open decision is one whose wrong guess forces a redo or review escalation (interface shape, data handling, user-visible behavior); repo conventions don't count. Close a single open decision in the spec first; with more than one, use the implementer subagent instead. Prefer a *different family* (cursor/codex) over the cheaper-claude executor when you want cross-family diversity, not just cost.
 - **Too hard to delegate to an external CLI** → **keep it in-host**, for one of two distinct reasons:
   - (a) the task genuinely needs implementation-time judgment a cheaper model lacks (subtle architecture, security-sensitive, deeply ambiguous) → **never an external CLI**: it goes to the host's implementer subagent on the strongest model (judgment-heavy or security-sensitive work is high blast radius), and you own the spec and the verification; with no implementer subagent in the host, you code it directly;
-  - (b) your *plan* isn't thorough enough to keep a dumber model on rails → **notice that** and harden the plan first (`plan` / `writing-plans`). Shipping a thin spec to a weak model is exactly how it goes off the rails — the failure looks like the delegate's fault but it's an under-planning fault.
+  - (b) your *plan* isn't thorough enough to keep a dumber model on rails → **notice that** and harden the plan first (`plan` / `writing-plans`). Shipping a thin spec to a weak model is exactly how it goes off the rails — the failure looks like the delegate's fault but it's an under-planning fault. Delegation executes a spec; it doesn't author one, so with no plan yet, shape it first (`plan`, `writing-plans`) and come back.
 
 The tell for (b): if you catch yourself hand-waving a step, that step is the brain's job. Fix the plan or do that part inline; don't outsource the hand-wave.
 
@@ -27,10 +27,6 @@ The per-tool invocation (preflight, headless flags, worktree, resume, output par
 | `agent` (Cursor CLI) | [`references/cursor-agent.md`](references/cursor-agent.md) | via the `git-worktree` skill (`--workspace`) | Cursor's headless CLI (`agent`; legacy alias `cursor-agent`); default = latest Cursor-subsidized model (see reference). |
 | `codex` | [`references/codex.md`](references/codex.md) | via the `git-worktree` skill | OpenAI Codex CLI (`codex exec`). |
 | `claude` | [`references/claude.md`](references/claude.md) | via the `git-worktree` skill | An option, not the default: headless `claude -p` on a cheaper model (Haiku/Sonnet). For in-process subagent orchestration with cross-model review, use `execute` instead. |
-
-## Operational guardrails
-
-- **No plan yet?** Don't delegate raw input — shape it first (`plan`, `writing-plans`), then come back. Delegation executes a spec; it doesn't author one.
 
 ## The core idea: a clean division of labor
 
@@ -81,6 +77,7 @@ Every spec handed to an executor or implementer subagent carries these, verbatim
 - In `git commit`, put `-m` before any `--`.
 - One plain command per Bash call: no chaining (`&&`, `;`, pipes into other commands). A call blocked on a permission prompt can't be unblocked. (Binds the executor's/subagent's own calls; the orchestrator's recipes in this skill may chain.)
 - Don't install dependencies or run docker: the orchestrator installs deps before dispatch (Codex has no network).
+- Never print the environment or secrets: no `env`, `printenv`, `set`, or bare `export`. (A delegate once leaked tokens this way.)
 
 *Gate:* the prompt is self-contained — someone with no other context could act on it.
 
