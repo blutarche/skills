@@ -13,8 +13,8 @@ Two phases, selected by the argument. The user reviews the diff between them.
 | Invocation | Phase |
 |---|---|
 | `/finish` | **Ready** — commit, sync with base, verify, one review, hand over the diff. Then stop. |
-| `/finish land` | Merge into the base branch locally. The workspace and branch stay. |
-| `/finish land --cleanup` | Same, then clean up the workspace and branch. |
+| `/finish land` | Get the work into the real base branch: merge its open PR, else merge locally. Keeps the worktree and branch. |
+| `/finish land --cleanup` | Same, then remove the worktree and branch. |
 | `/finish pr` | Push and open a pull request. |
 | `/finish discard` | Delete the work (typed confirmation), then clean up. |
 
@@ -109,10 +109,7 @@ Then exercise the change as a user would. If the repo has a project-local verifi
 
 Skip this step if this branch's current diff vs base already had a cross-model review in this session or run (e.g. `vet` or `execute` reviewed it) or the user says it did.
 
-Otherwise run **one** review of the whole diff (`<BASE>...HEAD`). Pick the reviewer, in order:
-
-- **`/codex:review`** if available in this session. It only *reports*; you adjudicate.
-- **otherwise** run `vet`'s stage-2 review directly: `scrutinize` ∥ `council` over `<BASE>...HEAD` (plus `blast-radius` when vet's condition for it holds), with `council` adjudicating. `council` carries the degrade ladder when Codex is unreachable, disclosing the rung. (`vet` is user-invoked, so don't invoke it; the fix handling below replaces its fix loop.)
+Otherwise run **one** review of the whole diff (`<BASE>...HEAD`). Use `vet`'s stage-2 review, run directly: `scrutinize` ∥ `council` (plus `blast-radius` when vet's condition for it holds), with `council` adjudicating. `council` carries the degrade ladder when Codex is unreachable, disclosing the rung. (`vet` and `/codex:review` are user-invoked, so don't invoke them; the user can run `/codex:review` themselves. The fix handling below replaces vet's fix loop.)
 
 Adjudicate disbelieve-it-back: every finding is a claim to verify against the code, not an order; reject wrong ones out loud. Fix accepted findings (`receiving-code-review`, then `/simplify` or `slop-cleanup` as warranted, then `git-commit`) and re-run Step 4 yourself.
 
@@ -141,9 +138,26 @@ git merge-base --is-ancestor "$BASE" HEAD && echo in-sync
 
 If the tree is dirty or base has moved since Ready, redo Ready steps 2–4 (commit, sync, verify). Don't redo the review. The user's choosing `land`/`pr` after reading the hand-over counts as the review. But if the base merge brought conflicts in the branch's own changes, run Ready step 5 on the new diff.
 
-## Land (`/finish land`)
+## Land (`/finish land [--cleanup]`)
 
 Not available on detached HEAD (no branch to merge). Offer `pr` instead.
+
+`land` means the work reaches the real base branch. A branch with an open PR lands by merging that PR; a local-only merge is for a branch with no PR. Cleanup happens only with `--cleanup`.
+
+### With a PR
+
+When `gh` and a remote exist, check for a PR:
+
+```bash
+git remote get-url origin >/dev/null 2>&1 && command -v gh >/dev/null 2>&1 && gh pr view <feature-branch> --json state,number
+```
+
+- **`OPEN`:** confirm the PR holds the work (`gh pr view <number> --json headRefOid` equals `git rev-parse <feature-branch>`; if not, surface it, don't merge a PR that lacks the work). Merge with `gh pr merge <number>` in the repo's merge method (the one `gh repo view --json mergeCommitAllowed,squashMergeAllowed,rebaseMergeAllowed` allows; if several, follow the base branch's history and say which). Don't pass `--delete-branch`: cleanup is `--cleanup`'s job. Then sync local base: in the worktree that has it checked out, `git pull --ff-only` (a temporary worktree works as below). Re-run the tests there, and continue at "On success".
+- **`MERGED`:** only sync local base and continue at "On success".
+- **`CLOSED` unmerged:** surface it and ask. Don't merge locally around it.
+- **No PR, no `gh`, or no remote:** merge locally, below.
+
+### Local merge (no PR)
 
 Don't switch any existing checkout's branch to merge. Merge in the worktree where the base branch is already checked out (the main root counts). If it is checked out nowhere, merge in a temporary worktree of your own.
 
@@ -239,7 +253,7 @@ git -C "$MAIN_ROOT" show-ref --verify --quiet refs/heads/<feature-branch> && git
 
 `--force` is for `discard` only. On `land --cleanup`, a removal refused over untracked or modified files means stop and list them. Don't force it, and don't recommend deleting them.
 
-`orca worktree rm` removes the worktree from Orca and git and attempts the local branch delete, but retains branches it can't prove merged. After `land` the fallback `git branch -d` finishes the job. Never `-D` except on `discard` after the typed confirmation.
+`orca worktree rm` removes the worktree from Orca and git and attempts the local branch delete, but retains branches it can't prove merged. After `land --cleanup` the fallback `git branch -d` finishes the job. Never `-D` except on `discard` after the typed confirmation.
 
 **Not Orca:** delegate teardown to the **`git-worktree`** skill (teardown), passing `WT` explicitly. Don't re-implement its provenance check or removal here. Use `--force` removal only on `discard`. Then delete the branch from the main root:
 
@@ -247,7 +261,7 @@ git -C "$MAIN_ROOT" show-ref --verify --quiet refs/heads/<feature-branch> && git
 git -C "$MAIN_ROOT" branch -d <feature-branch>   # discard: -D, after confirmation
 ```
 
-`-d` judges "merged" against the main root's current HEAD. If that HEAD isn't base, `-d` can refuse a branch that did land; confirm with `git merge-base --is-ancestor <feature-branch> <BASE>`, then tell the user rather than reaching for `-D`.
+`-d` judges "merged" against the main root's current HEAD. If that HEAD isn't base, `-d` can refuse a branch that did land; confirm with `git merge-base --is-ancestor <feature-branch> <BASE>`, then tell the user rather than reaching for `-D`. A squash or rebase merge of a PR trips `-d` the same way.
 
 **Normal repo without a worktree:** the feature branch is still checked out in `$MAIN_ROOT`, so git refuses the delete. Don't switch off it; tell the user the branch can be deleted once they switch.
 
@@ -256,6 +270,6 @@ git -C "$MAIN_ROOT" branch -d <feature-branch>   # discard: -D, after confirmati
 | Phase | Commit + sync + verify | Cross-model review | Merge | Push | Clean up | Delete branch |
 |---|---|---|---|---|---|---|
 | `/finish` (ready) | yes | once, if not already reviewed | – | – | – | – |
-| `land` | re-check; redo if base moved | only if base conflicts hit the branch's own changes | yes | only if asked | only with `--cleanup` | only with `--cleanup` (`-d`) |
+| `land` | re-check; redo if base moved | only if base conflicts hit the branch's own changes | open PR → `gh pr merge`, else local | only if asked (PR merge is the push) | only with `--cleanup` | only with `--cleanup` (`-d`) |
 | `pr` | re-check; redo if base moved | same as `land` | – | yes | only if asked | – |
 | `discard` | – | – | – | – | yes (force) | yes (`-D`) |
