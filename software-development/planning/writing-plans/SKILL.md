@@ -23,6 +23,10 @@ If the spec covers multiple independent subsystems, it should have been broken i
 
 Before defining tasks, map out which files will be created or modified and what each one is responsible for. Each file should have one clear responsibility; files that change together should live together — split by responsibility, not by technical layer. In existing codebases, follow established patterns; don't unilaterally restructure, though a split of a file that has grown unwieldy is reasonable to include. Each task should produce self-contained changes that make sense independently.
 
+## Task Right-Sizing
+
+A task is the smallest unit that carries its own test cycle and is worth a fresh reviewer's gate. Fold setup, configuration, scaffolding, and documentation steps into the task whose deliverable needs them. Split only where a reviewer could reject one task and approve its neighbor. Each task ends with an independently testable deliverable.
+
 ## Bite-Sized Task Granularity
 
 **Each step is one action (2-5 minutes).** For code tasks, follow the TDD cycle:
@@ -41,13 +45,23 @@ For tasks with no meaningful unit test (config, dependency, docs, or manual-veri
 ```markdown
 # [Feature Name] Implementation Plan
 
-> **For implementers:** steps use checkbox (`- [ ]`) syntax for tracking — execute them task-by-task. Hardening this plan (with a grill skill: `grill-with-docs` against an existing codebase, or `grill-me` for greenfield) and executing it are separate steps.
+> **For implementers:** steps use checkbox (`- [ ]`) syntax for tracking — execute them task-by-task. Hardening this plan (with `grill-me`, applying `domain-modeling` discipline against an existing codebase) and executing it are separate steps.
+
+**Spec:** [path to the spec/design doc this plan implements; executors read both]
 
 **Goal:** [One sentence describing what this builds]
 
 **Architecture:** [2-3 sentences about approach]
 
 **Tech Stack:** [Key technologies/libraries]
+
+## Global Constraints
+
+[The spec's project-wide requirements (version floors, dependency limits, naming and copy rules, platform requirements), one line each, exact values copied verbatim from the spec. Every task's requirements implicitly include this section.]
+
+## Review Focus
+
+[The top input classes or failure modes the spec implies but no task's tests exercise, most likely to bite a user first, one line each: the input or condition, and the behavior a reasonable person would expect. The spec's silence on an input is not permission for it to break. Write the list once, with the spec in front of you; then add the test that pins each line to the task that owns the code.]
 
 ---
 ```
@@ -63,6 +77,10 @@ The examples below use Python/pytest only for illustration — write every code 
 - Create: `exact/path/to/file.py`
 - Modify: `exact/path/to/existing.py:123-145`
 - Test: `tests/exact/path/to/test.py`
+
+**Interfaces:**
+- Consumes: [what this task uses from earlier tasks, with exact signatures]
+- Produces: [what later tasks rely on: exact function names, parameter and return types. An implementer sees only their own task; this block is how they learn the names and types neighboring tasks use.]
 
 - [ ] **Step 1: Write the failing test**
 
@@ -117,8 +135,10 @@ After writing the complete plan, check it against the spec yourself — not as a
 
 **3. Type consistency:** Do the types, method signatures, and property names you used in later tasks match what you defined in earlier tasks? A function called `clearLayers()` in Task 3 but `clearFullLayers()` in Task 7 is a bug.
 
+**4. Review Focus:** Does each input class or failure mode in the header's Review Focus have a test in the task that owns its code? An empty section means you checked and found none.
+
 Fix issues inline; no need to re-review.
 
 ## After the plan
 
-This skill's output is the saved plan file. Hardening it (`grill-with-docs` against an existing codebase's domain model, `grill-me` for greenfield) and executing it are **separate steps owned by the caller or workflow** — don't auto-invoke them from here. Never start implementation on `main`/`master` without explicit user consent.
+This skill's output is the saved plan file. Hardening it (`grill-me`, applying `domain-modeling` discipline against an existing codebase's domain model) and executing it are **separate steps owned by the caller or workflow** — don't auto-invoke them from here. Never start implementation on `main`/`master` without explicit user consent.

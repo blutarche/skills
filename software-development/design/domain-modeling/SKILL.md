@@ -1,6 +1,6 @@
 ---
 name: domain-modeling
-description: Build or sharpen a project's domain model — glossary, ubiquitous language, ADRs. Use when pinning down terminology or recording an architectural decision.
+description: Build or sharpen a project's domain model — glossary, ubiquitous language, ADRs. Use when pinning down terminology or recording an architectural decision, or when writing or editing CONTEXT.md or an ADR.
 license: MIT
 ---
 

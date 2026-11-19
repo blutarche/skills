@@ -70,6 +70,8 @@ Run the loop and watch the bug appear. Confirm:
 
 Do not proceed until you reproduce the bug.
 
+If you forced the red by mutating code or a fixture, diff against a pristine copy to prove the mutation landed.
+
 ## Phase 3 — Minimise
 
 Shrink the reproduction to the smallest input and shortest code path that still triggers the failure. Remove unrelated setup, data, and steps one at a time, re-running the loop after each removal. A minimal repro narrows the search space and often reveals the cause on its own.
@@ -130,6 +132,10 @@ A flaky test fails for one of two reasons: it races on timing, or it lies about 
 Red flag: mock setup longer than the test logic.
 
 **Confirm the fix:** run the de-flaked test many times, under load or in parallel, and in CI-like conditions — not just once locally. Then break the production logic on purpose and confirm the test goes red; if it stays green, the assertion was lying.
+
+## Redact
+
+Redact secrets in every command and artifact you show. Build loops on environment variables; never paste their values.
 
 ## Cleanup and post-mortem
 
