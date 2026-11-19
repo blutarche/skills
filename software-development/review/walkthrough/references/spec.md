@@ -117,7 +117,7 @@ Every changed file gets one tier:
 | `flagged` | a substitution group claimed it, but its rule does not explain the file | an open card under Read first, with the reason and any lines that broke the rule |
 | `read` | in at least one `attention` or `medium` chapter | Read first |
 | `skim` | only in `safe` chapters | Skim |
-| `matched` | a substitution group, `moved`, `line-ends` | Matched by the build, one closed card per rule |
+| `matched` | a substitution group, `moved`, `line-ends` | one folded box "✓ N files the build proved", one closed card per rule inside |
 | `word` | an agent's-word group, `everythingElse`, `deleted`, `binary` | On the agent's word, one closed card per group |
 
 A substitution file is flagged when it is new, deleted, a copy, binary, or changed type or file
@@ -168,8 +168,10 @@ facts and the walkthrough. Without it the page is unchanged. Write the words by 
   required. Panel fields, row fields, and the voice lint are the same as in `brief`.
 - A panel may carry `more`: a chapter `id` from this tour. So may a row in an `asks`, `checks`, `decisions`,
   `tasks`, `findings`, `claims`, `commands`, or `matrix` panel. It shows a link to that chapter. An unknown id fails the build.
-- Panel letters follow the order on the page: `needs you` is A, `checks` is B, `files` is C.
-- The digest block shows under the page header whether or not a sheet is present.
+- Panel letters key notes and anchors and never show: `needs you` is A, `checks` is B, `files` is C. The sheet
+  layout (lead, pills, open panels) is the brief's; see the brief spec.
+- The page has one header: the sheet's lead, or the same lead without a stamp when there is no sheet. The
+  digest block shows under it either way.
 - When the build flags a file, it adds a first row to `needs you` and the stamp reads NEEDS YOU; your own asks follow it.
 - Asks can carry `options`, `recommended`, and `multi` the same way; see the brief spec.
 - One floating "Send feedback" button, bottom right, covers both: it adds the sheet answers, notes, and fix or skip
@@ -177,8 +179,8 @@ facts and the walkthrough. Without it the page is unchanged. Write the words by 
   Inside a claude.ai artifact viewer it also writes the doc `feedback/latest`, with the brief's fields. Tour
   chapter notes sit in `notes` by chapter id, plus `general`. "Back to sheet" shows only when the tour has a sheet.
 - The tour header shows the project and branch as chips, read from `--repo-root` with git. The project is the
-  main repo folder, even in a worktree; a detached head reads `detached at <sha>`. The chips are larger when
-  there is no sheet. The page title reads `project · branch · title`.
+  main repo folder, even in a worktree; a detached head reads `detached at <sha>`. The page title reads
+  `project · branch · title`.
 - If a sheet build fails, the page at `--out` becomes a BUILD FAILED page that shows the error.
   A build without a sheet leaves the old page in place.
 
@@ -268,8 +270,12 @@ build leaves the previous page in place (a build with a `sheet` writes a BUILD F
   lines the samples show), `tiers` (every path to its tier), `groups` (`id`, `kind`, `tier`,
   `files`, and `samples` as `path`, `side`, `start`, `end`), and `flags` (`path`, `group`,
   `reason`). `--data-out` writes the stats as JSON.
-- The digest block under the page header: a budget line, a bar of files per tier, a map with one
-  square per file that links to its card, and a line that splits the changed lines by tier.
+- The digest block under the page header: a budget line, a bar of files per tier, and a one-line key
+  with the file count per tier (hover a tier for its meaning). The File map card below the reading list
+  holds a map with one square per file that links to its card, and a line that splits the changed
+  lines by tier.
+- "Read in this order" counts cards read ("0 of N read") beside Continue reading and Open all. Changed
+  lines only and Reset progress sit in the "About this change" head below the list.
 - The "Changed lines only" toggle is hidden when no rendered hunk holds a context row, since
   there is nothing for it to hide.
 - Hunk rows are syntax-highlighted at build time by file extension (python, js/ts, go, rust, shell, json, css, html, markdown, yaml, toml, sql, make); unknown types render plain.

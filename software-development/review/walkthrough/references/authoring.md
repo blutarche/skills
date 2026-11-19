@@ -6,10 +6,12 @@ say it plainly in the chapter overview as a thing to check, or hand it to a revi
 
 ## Page order
 
-Header with the revision banner, the digest, Overview, Where to focus, Intuition, Background,
-then the walkthrough: Read first (flagged files, then `attention` and `medium` chapters), Skim
-(`safe` chapters), Matched by the build, and On the agent's word. Then Verify and Notes. One page,
-readable top to bottom, and readable with JavaScript off.
+One header (the sheet's lead when there is a sheet), the reading budget with its tier bar, then
+Read in this order: Read first (flagged files, then `attention` and `medium` chapters), Skim
+(`safe` chapters), one folded box of the files the build proved, and On the agent's word. Then
+closed cards for Overview, Architecture and data flow, File map, and Revision, then Where to
+focus, Intuition, Background, Verify, and Notes. One page, readable top to bottom, and readable
+with JavaScript off.
 
 ## Title and overview
 

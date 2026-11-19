@@ -94,9 +94,8 @@
     $$("textarea[data-note]").forEach(function (ta) {
       var text = ta.value.trim();
       if (!text) return;
-      var sec = ta.closest("section");
-      var role = sec ? sec.getAttribute("data-role") : "";
-      out.push("## Panel " + ta.getAttribute("data-note") + ": " + role, "", text, "");
+      var sec = ta.closest("[data-role]");
+      out.push("## Panel: " + (sec ? sec.getAttribute("data-role") : ta.getAttribute("data-note")), "", text, "");
     });
     var togs = $$(".tog");
     if (togs.length) {
@@ -283,6 +282,8 @@
     } else toSheet.hidden = false;
     toSheet.addEventListener("click", function () {
       if (lastGo && document.body.contains(lastGo)) {
+        // the row may sit in a pill the reader closed since
+        for (var d = lastGo.closest("details"); d; d = d.parentElement && d.parentElement.closest("details")) d.open = true;
         lastGo.scrollIntoView({ block: "center" });
         flash(lastGo);
       } else sheetEl.scrollIntoView({ block: "start" });

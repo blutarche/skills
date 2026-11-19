@@ -29,7 +29,7 @@
 }
 *{box-sizing:border-box}
 .atrow{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;margin-bottom:6px}
-.pchip,.bchip{display:inline-flex;gap:6px;align-items:center;box-sizing:border-box;min-height:28px;padding:2px 10px;font:700 15px var(--mono);max-width:100%;overflow-wrap:anywhere}
+.pchip,.bchip{display:inline-flex;gap:6px;align-items:center;box-sizing:border-box;min-height:28px;border-radius:5px;padding:2px 10px;font:700 15px var(--mono);max-width:100%;overflow-wrap:anywhere}
 .pchip{background:hsl(var(--hue) var(--pchip-sl));color:var(--pchip-fg)}
 .bchip{border:1.5px solid var(--ink);color:var(--ink)}
 .bico{flex:none}
@@ -45,9 +45,16 @@ button{font:inherit;color:inherit}
 h1,h2,h3,h4{letter-spacing:-.01em}
 p{max-width:78ch}
 .wrap{max-width:1080px;margin:0 auto;padding:0 24px 80px;overflow-wrap:anywhere}
-header.top{padding:36px 0 18px;border-bottom:1px solid var(--line)}
-header.top .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2);margin:0 0 8px}
-header.top h1{font-size:29px;line-height:1.15;font-weight:600;margin:0 0 12px}
-.banner{display:flex;gap:12px;align-items:flex-start;margin:14px 0 0;padding:10px 14px;border:1px solid var(--line);border-left:3px solid var(--accent);background:var(--surface);border-radius:4px;font-size:13.5px}
-.banner b{font-family:var(--mono);font-weight:500;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);white-space:nowrap;padding-top:3px}
-.banner span{max-width:72ch}
+.lead .atrow{margin-bottom:8px}
+.lead .pchip,.lead .bchip{font-size:12px;min-height:22px;padding:1px 8px}
+.wrap>.lead{padding:28px 0 6px}
+.lead-row{display:flex;justify-content:space-between;gap:8px 16px;align-items:flex-start}
+.lead-t{min-width:0}
+.lead h1{font-size:22px;line-height:1.25;font-weight:600;margin:0 0 4px;text-wrap:balance}
+.lead .state{margin:0;color:var(--ink-2);font-size:15px}
+.stamp{flex:none;font:700 13px var(--mono);letter-spacing:.04em;padding:6px 12px;border-radius:6px;white-space:nowrap}
+.stamp.ok{color:var(--green);background:var(--green-bg)}
+.stamp.amb{color:var(--amber);background:var(--amber-bg)}
+.stamp.bad{color:var(--del-ink);background:var(--del-bg)}
+.btn{border-radius:6px}
+@media (max-width:560px){.lead-row{flex-direction:column}.lead h1{font-size:19px}}

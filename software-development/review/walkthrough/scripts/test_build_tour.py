@@ -9,8 +9,8 @@ Run from the skill directory:
 from __future__ import annotations
 
 import copy
-import html
 import hashlib
+import html
 import json
 import re
 import subprocess
@@ -759,21 +759,26 @@ class SheetTest(unittest.TestCase):
         self.assertNotIn('<div class="strip">', page)
         self.assertNotIn('id="everything-else"', page)
         self.assertLess(page.index("</header>"), page.index('<section class="digest" id="digest">'))
-        self.assertLess(page.index('<section class="digest" id="digest">'), page.index('<section id="overview">'))
+        self.assertLess(page.index('<section class="digest" id="digest">'), page.index('<section id="tour">'))
+        self.assertLess(page.index('<section id="tour">'), page.index('<details class="chapter tail" id="overview">'))
 
     def test_sheet_renders_with_auto_panels_and_no_stats_strip(self) -> None:
         page = self.page(self.sheet_spec())
         self.assertIn('class="sheet"', page)
         self.assertIn('data-kind="execute"', page)
         self.assertNotIn('<div class="strip">', page)
-        self.assertLess(page.index("</header>"), page.index('<section class="digest" id="digest">'))
-        self.assertLess(page.index('<section class="digest" id="digest">'), page.index('<section id="overview">'))
+        # lead, then the strip, then the budget and the reading list
+        self.assertLess(page.index("</header>"), page.index('<div class="pills">'))
+        self.assertLess(page.index('<div class="pills">'), page.index('<section class="digest" id="digest">'))
+        self.assertLess(page.index('<section class="digest" id="digest">'), page.index('<section id="tour">'))
         self.assertNotIn("SHEET:", page)
-        m = re.search(r'<section class="[^"]*" id="panel-[A-Z]" data-letter="B" data-role="checks">(.*?)</section>', page, re.S)
+        m = re.search(r'<details class="pill-panel ok" id="panel-B" data-letter="B" data-role="checks">'
+                      r'<summary class="pill"><i class="dot" aria-hidden="true"></i><span>1 check passes</span></summary>'
+                      r'(.*?)</details>', page, re.S)
         self.assertIsNotNone(m)
         self.assertIn("python3 -m unittest", m.group(1))
         self.assertIn("exit 0", m.group(1))
-        m = re.search(r'<section class="[^"]*" id="panel-[A-Z]" data-letter="C" data-role="files">(.*?)</section>', page, re.S)
+        m = re.search(r'<details class="pill-panel ok" id="panel-C" data-letter="C" data-role="files">(.*?)</details>', page, re.S)
         self.assertIsNotNone(m)
         changed = json.loads(self.stats.read_text(encoding="utf-8"))["filesChanged"]
         self.assertEqual(len(re.findall(r'class="frow', m.group(1))), changed)
@@ -834,7 +839,8 @@ class SheetTest(unittest.TestCase):
             self.assertNotRegex(page, r'<details class="chapter"[^>]* open')
             self.assertIn('<span class="meta" data-chapter-progress></span><span class="chev"', page)
             self.assertEqual(page.count("data-toggle-all>"), 1)
-            self.assertIn('<div class="rhead"><h2>Walkthrough</h2><div class="atrow', page)
+            self.assertIn('<div class="rhead"><h2>Read in this order</h2><span class="prog" data-progress></span>', page)
+            self.assertEqual(page.count('class="atrow'), 1)  # chips only in the one header
 
     def test_report_files_are_spliced_and_shell_has_no_radius(self) -> None:
         for spec in (valid_spec(self.base, self.head), self.sheet_spec()):
@@ -868,14 +874,22 @@ class SheetTest(unittest.TestCase):
         spec = valid_spec(self.base, self.head)
         page = self.page(spec)
         self.assertIn(f"<title>repo · {branch} · {spec['title']}</title>", page)
-        top = page[page.index('<header class="top">'):page.index("<h1>")]
-        self.assertIn('<div class="atrow"><span class="pchip"', top)
-        self.assertIn(f"</svg>{branch}</span>", top)
-        self.assertNotIn("atrow sm", top)
+        # one header without a sheet: chips and title in the lead style, no stamp
+        for p in (page, self.page(self.sheet_spec())):
+            self.assertEqual(p.count("<header"), 1)
+            self.assertEqual(p.count("<h1>"), 1)
+            self.assertEqual(p.count('class="pchip"'), 1)
+            self.assertNotIn("eyebrow", p)
+            self.assertNotIn("Walkthrough</p>", p)
+            top = p[p.index('<header class="lead">'):p.index("<h1>")]
+            self.assertIn('<div class="atrow"><span class="pchip"', top)
+            self.assertIn(f"</svg>{branch}</span>", top)
+        self.assertNotIn('class="stamp', page)
+        self.assertIn(f"<h1>{spec['title']}</h1></div></div></header>", page)
+        # with a sheet, the sheet's lead is the header
         with_sheet = self.page(self.sheet_spec())
-        start = with_sheet.index('<header class="top">')
-        top = with_sheet[start:with_sheet.index("<h1>", start)]
-        self.assertIn('<div class="atrow sm"><span class="pchip"', top)
+        self.assertLess(with_sheet.index('<div class="sheet"'), with_sheet.index('<header class="lead">'))
+        self.assertIn('<span class="stamp ok">DONE</span>', with_sheet)
 
     def test_no_text_link_toc_row(self) -> None:
         for spec in (valid_spec(self.base, self.head), self.sheet_spec()):
@@ -888,6 +902,33 @@ class SheetTest(unittest.TestCase):
         page = self.page(self.sheet_spec())
         self.assertIn('class="pchip"', page)
         self.assertIn("data-project=", page)
+
+    def test_tail_cards_and_tools_sit_below_the_reading_list(self) -> None:
+        spec = self.sheet_spec()
+        spec["focus"] = ["<b>alpha</b> is the core."]
+        page = self.page(spec)
+        tail = [page.index(f'<details class="chapter tail" id="{cid}">') for cid in
+                ("overview", "pr-lens", "file-map", "revision")]
+        self.assertEqual(tail, sorted(tail))
+        self.assertNotRegex(page, r'<details class="chapter tail"[^>]* open')
+        more = page.index('<section id="more" class="tail">')
+        self.assertLess(page.index('<section id="tour">'), more)
+        self.assertLess(more, tail[0])
+        self.assertLess(more, page.index("data-changed-only"))
+        self.assertLess(more, page.index("data-reset"))
+        self.assertLess(tail[-1], page.index('<section id="focus">'))
+        # Continue stays beside the counter; the progress bar is gone
+        rhead = page[page.index('<section id="tour">'):page.index("</div>", page.index('<section id="tour">'))]
+        self.assertIn("data-progress", rhead)
+        self.assertIn("data-continue", rhead)
+        self.assertNotIn("data-bar", page)
+        self.assertIn("Built against <code>", page[tail[-1]:])
+        self.assertNotIn('class="banner"', page)
+
+    def test_tour_sheet_notes_export_under_the_role_name(self) -> None:
+        page = self.page(self.sheet_spec())
+        self.assertIn('"### Panel: " + (sec ? sec.getAttribute("data-role")', page)
+        self.assertNotIn('"### Panel " + ta.getAttribute("data-note")', page)
 
     def test_tour_feedback_puts_the_answer_block_first(self) -> None:
         page = self.page(self.sheet_spec())
@@ -1028,8 +1069,8 @@ class DigestBuildTest(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(spec["sheet"], before)
         page = self.out.read_text(encoding="utf-8")
-        self.assertIn('<div class="stamp amb">NEEDS YOU</div>', page)
-        m = re.search(r'data-role="needs you">(.*?)</section>', page, re.S)
+        self.assertIn('<span class="stamp amb">NEEDS YOU</span>', page)
+        m = re.search(r'data-role="needs you">(.*?)</section>', page[:page.index("</header>")], re.S)
         self.assertIsNotNone(m)
         panel = m.group(1)
         self.assertIn("Read the file the build flagged", panel)
@@ -1056,7 +1097,7 @@ class DigestBuildTest(unittest.TestCase):
         r = self.build(spec)
         self.assertEqual(r.returncode, 0, r.stderr)
         page = self.out.read_text(encoding="utf-8")
-        self.assertIn('<div class="stamp ok">DONE</div>', page)
+        self.assertIn('<span class="stamp ok">DONE</span>', page)
         self.assertNotIn("the build flagged", page)
 
     def test_flagged_card_tops_the_reading_list(self) -> None:
@@ -1131,7 +1172,7 @@ class DigestBuildTest(unittest.TestCase):
             page,
         )
         self.assertIn('<span class="t-word" style="flex:7 1 0">7</span></div>', page)
-        fm = page[page.index('<div class="fm">'):page.index('<ul class="tiers">')]
+        fm = page[page.index('<div class="fm">'):page.index('<p class="cover">')]
         self.assertEqual(fm.count('<a class="sq t-'), 15)
         self.assertEqual(re.findall(r'<div class="fml"><span>([^<]+)</span><span>(\d+)</span>', fm),
                          [("(root)", "6"), ("gen", "4"), ("src", "4"), ("moved", "1")])
@@ -1149,18 +1190,18 @@ class DigestBuildTest(unittest.TestCase):
         ):
             self.assertIn(square, fm)
         self.assertNotIn("dg-key", page)
-        self.assertIn(
-            '<p class="dg-how">Every changed file is in one group below, by how much of your attention it needs. '
-            "Each square in the map is one file; click it to open its card.</p>",
-            page,
-        )
-        rows = re.findall(r'<li><i class="sq t-(\w+)"></i><span class="tn"><b>(\d+)</b> ([^<]+)</span>'
-                          r'<span class="tm">([^<]+)</span></li>', page)
-        self.assertEqual([(t, n) for t, n, _, _ in rows],
+        self.assertNotIn("dg-how", page)
+        self.assertNotIn('<ul class="tiers">', page)
+        # the key is one line of counts; each meaning rides on the item's title
+        rows = re.findall(r'<span class="tk" title="([^"]+)"><i class="sq t-(\w+)"></i><b>(\d+)</b> ([^<]+)</span>', page)
+        self.assertEqual([(t, n) for _, t, n, _ in rows],
                          [("flagged", "1"), ("read", "1"), ("skim", "1"), ("matched", "5"), ("word", "7")])
-        self.assertEqual([m for *_, m in rows], [build_tour.TIER_MEANING[t] for t in
-                                                 ("flagged", "read", "skim", "matched", "word")])
-        self.assertIn("Read these first.", rows[0][3])
+        self.assertEqual([html.unescape(m) for m, *_ in rows], [build_tour.TIER_MEANING[t] for t in
+                                                                ("flagged", "read", "skim", "matched", "word")])
+        self.assertIn("Read these first.", rows[0][0])
+        # the file map and the line partition sit in a closed card below the reading list
+        self.assertLess(page.index('<section id="tour">'), page.index('<details class="chapter tail" id="file-map">'))
+        self.assertLess(page.index('<details class="chapter tail" id="file-map">'), page.index('<div class="fm">'))
         lines = stats["digest"]["lines"]
         total = lines["total"]
         self.assertIn(
@@ -1179,11 +1220,19 @@ class DigestBuildTest(unittest.TestCase):
         r = self.build(spec, seed=5)
         self.assertEqual(r.returncode, 0, r.stderr)
         page = self.out.read_text(encoding="utf-8")
-        heads = [page.index(f'<h3 class="sect"><b>{name}</b>') for name in
-                 ("Read first", "Skim", "Matched by the build", "On the agent's word")]
+        heads = [page.index(f'<h3 class="sect"><b>{name}</b>') for name in ("Read first", "Skim")]
+        heads.append(page.index('<details class="proven" id="proven">'))
+        heads.append(page.index('<h3 class="sect"><b>On the agent\'s word</b>'))
         self.assertEqual(heads, sorted(heads))
         self.assertIn("<b>Read first</b><span>1 flagged · 1 chapter</span>", page)
-        self.assertIn("<b>Matched by the build</b><span>5 files · 3 rules</span>", page)
+        self.assertNotIn("Matched by the build", page)
+        # build-proven groups fold into one dashed box holding today's group cards
+        self.assertIn('<details class="proven" id="proven"><summary>✓ <b>5 files</b> the build proved: '
+                      "fetchUser becomes loadUser; ", page)
+        proven = page[heads[2]:heads[3]]
+        for gid in ("rename", "moved", "line-ends"):
+            self.assertIn(f'<details class="chapter group" id="g-{gid}">', proven)
+        self.assertNotIn('id="g-gen"', proven)
         self.assertIn("<b>On the agent's word</b><span>7 files · 4 sampled</span>", page)
         self.assertLess(heads[0], page.index('id="flag-src-m3-ts"'))
         self.assertLess(page.index('id="flag-src-m3-ts"'), page.index('id="ch-core"'))
@@ -1237,7 +1286,7 @@ class DigestBuildTest(unittest.TestCase):
         # progress counts chapter cards, the flagged card, and every sample
         cards = set(re.findall(r'<div class="file"[^>]* data-card="([^"]+)"', page))
         self.assertEqual(len(cards), 2 + 1 + 4)
-        self.assertIn('" of " + cards.length + " cards read"', page)
+        self.assertIn('" of " + cards.length + " read"', page)
         self.assertIn('$$("details.chapter[data-chapter]")', page)
         self.assertIn('window.addEventListener("hashchange", openToHash)', page)
 
@@ -1264,13 +1313,13 @@ class DigestBuildTest(unittest.TestCase):
             counts={"flagged": 0, "read": 0, "skim": 0, "matched": 0, "word": 301},
             lines={"total": 301, "read": 0, "matched": 0, "word": 301, "sampled": 0},
         )
-        glance = build_tour.render_glance(dg, dict.fromkeys(paths), {p: "g-bulk" for p in paths}, 0, 0)
-        self.assertIn('<div class="fm small">', glance)
-        self.assertEqual(glance.count('<a class="sq t-word"'), 301)
+        fmap = build_tour.render_filemap(dg, dict.fromkeys(paths), {p: "g-bulk" for p in paths}, 0)
+        self.assertIn('<div class="fm small">', fmap)
+        self.assertEqual(fmap.count('<a class="sq t-word"'), 301)
         dg.tiers.pop(paths[0])
         dg.counts["word"] = 300
-        glance = build_tour.render_glance(dg, dict.fromkeys(paths[1:]), {p: "g-bulk" for p in paths}, 0, 0)
-        self.assertIn('<div class="fm">', glance)
+        fmap = build_tour.render_filemap(dg, dict.fromkeys(paths[1:]), {p: "g-bulk" for p in paths}, 0)
+        self.assertIn('<div class="fm">', fmap)
 
     def test_empty_tier_has_no_row_and_zero_clauses_drop(self) -> None:
         dg = build_tour.digest.Digest(
@@ -1278,18 +1327,20 @@ class DigestBuildTest(unittest.TestCase):
             counts={"flagged": 0, "read": 0, "skim": 0, "matched": 0, "word": 1},
             lines={"total": 4, "read": 0, "matched": 0, "word": 4, "sampled": 0},
         )
-        glance = build_tour.render_glance(dg, {"a.txt": None}, {"a.txt": "g-bulk"}, 0, 0)
-        self.assertEqual(glance.count("<li>"), 1)
+        glance = build_tour.render_glance(dg, {"a.txt": None}, 0)
+        self.assertEqual(glance.count('<span class="tk"'), 1)
         self.assertIn('<i class="sq t-word"></i>', glance)
-        self.assertIn('<p class="cover">Of <b>4</b> changed lines, <b>4</b> (100%) rest on the agent\'s word.</p>', glance)
+        fmap = build_tour.render_filemap(dg, {"a.txt": None}, {"a.txt": "g-bulk"}, 0)
+        self.assertIn('<p class="cover">Of <b>4</b> changed lines, <b>4</b> (100%) rest on the agent\'s word.</p>', fmap)
         dg = build_tour.digest.Digest(
             tiers={}, groups=[], flags=[], seed=1,
             counts=dict.fromkeys(("flagged", "read", "skim", "matched", "word"), 0),
             lines={"total": 0, "read": 0, "matched": 0, "word": 0, "sampled": 0},
         )
-        glance = build_tour.render_glance(dg, {}, {}, 0, 0)
-        self.assertNotIn("<li>", glance)
+        glance = build_tour.render_glance(dg, {}, 0)
+        self.assertNotIn('class="tk"', glance)
         self.assertIn("No file changed.", glance)
+        self.assertIn("No file changed.", build_tour.render_filemap(dg, {}, {}, 0))
 
     def test_rule_every_file_broke_still_shows(self) -> None:
         base, head = self.group_fixture()

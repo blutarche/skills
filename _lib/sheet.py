@@ -26,8 +26,6 @@ KINDS = ("plan", "execute", "vet", "finish", "research", "grill", "session")
 SPANS = (3, 4, 6, 8, 12)
 DEFAULT_SPAN = {"asks": 4, "checks": 8, "files": 8, "figure": 12, "decisions": 12, "tasks": 12,
                 "findings": 12, "claims": 8, "commands": 4, "matrix": 6, "table": 8}
-MIN_SPAN = {"asks": 4, "commands": 4, "matrix": 4, "checks": 6, "files": 6, "claims": 6, "table": 6,
-            "findings": 8, "decisions": 8, "tasks": 8, "figure": 8}
 ENUMS = {
     "status": ("done", "failed", "blocked", "skipped", "todo"),
     "sev": ("P0", "P1", "P2", "P3"),
@@ -78,8 +76,6 @@ REQUIRED = {
 }
 READY_STAMP = {"plan": "READY", "finish": "READY", "research": "ANSWERED"}
 CODE_RE = re.compile(r"`([^`]*)`")
-KEY_LANES = (("add", "added, pass, done"), ("del", "removed, fail, blocked"), ("amb", "needs you"),
-             ("blu", "changed"), ("gry", "not run, skipped"))
 
 
 def _label(text: str) -> str:
@@ -260,7 +256,7 @@ def _normalize_panel(ctx: _Ctx, p, letter: str, tree) -> dict:
     span = p.get("span", DEFAULT_SPAN[typ])
     if span not in SPANS or isinstance(span, bool):
         pagelib.fail(f"{where} span: must be one of {', '.join(map(str, SPANS))}")
-    out = {"letter": letter, "role": role, "type": typ, "span": span, "fixed": "span" in p}
+    out = {"letter": letter, "role": role, "type": typ, "span": span}
     where = f"{where} {typ}"
     if "more" in p:
         _check_value(ctx, where, "more", p["more"], "literal")
@@ -321,27 +317,6 @@ def _check_rows_extra(where: str, typ: str, rows: list[dict], tree) -> None:
         figures.decision_tree(rows)
     elif typ == "matrix":
         figures.heat_matrix(rows)
-
-
-def pack_rows(panels: list[dict]) -> None:
-    """Resize spans in place so every 12-column row is full, keeping panel order. A span the agent
-    set is fixed; otherwise a panel may shrink to its type minimum or the row's last panel widen."""
-    left, row = 12, []
-    for p in panels:
-        lo = p["span"] if p.get("fixed") else min(p["span"], MIN_SPAN[p["type"]])
-        if left == 0:
-            left, row = 12, []
-        if p["span"] <= left:
-            pass
-        elif lo <= left:
-            p["span"] = left
-        else:
-            row[-1]["span"] += left
-            left, row = 12, []
-        left -= p["span"]
-        row.append(p)
-    if row and left:
-        row[-1]["span"] += left
 
 
 def _check_where(spec: dict, tree) -> tuple[str, str | None]:
@@ -414,7 +389,6 @@ def check_sheet(spec: dict, *, kind: str, title: str, spec_dir: Path | None = No
         pagelib.fail("panels: at most 8 including builder-made panels")
 
     normalized = [_normalize_panel(ctx, p, chr(ord("A") + i), tree) for i, p in enumerate(merged)]
-    pack_rows(normalized)
     roles = [p["role"] for p in normalized]
     for r in roles:
         if roles.count(r) > 1:
@@ -506,6 +480,8 @@ def _checks(p: dict) -> tuple[str, str]:
     ok = sum(1 for r in rows if r["exit"] == 0)
     nr = sum(1 for r in rows if r["exit"] is None)
     sub = f"{ok} pass · {len(rows) - ok - nr} fail · {nr} not run · agent-reported"
+    if not rows:
+        return '<p class="empty">No check ran</p>', sub
     return f'<div class="checks">{"".join(out)}</div>', sub
 
 
@@ -537,9 +513,13 @@ def _files(p: dict) -> tuple[str, str]:
     if hidden:
         out.append(f'<div class="frow more">… {len(hidden)} more files · '
                    f'+{sum(r["added"] or 0 for r in hidden)} −{sum(r["removed"] or 0 for r in hidden)}</div>')
+    return f'<div class="files">{"".join(out)}</div>', _files_sub(rows)
+
+
+def _files_sub(rows: list[dict]) -> str:
     add = sum(r["added"] or 0 for r in rows)
     dele = sum(r["removed"] or 0 for r in rows)
-    return f'<div class="files">{"".join(out)}</div>', f"{len(rows)} files · +{add} −{dele}"
+    return f"{_plural(len(rows), 'file', 'files')} · +{add} −{dele}"
 
 
 def _figure(p: dict) -> tuple[str, str]:
@@ -584,9 +564,10 @@ def _tasks(p: dict) -> tuple[str, str]:
                    f'{_tag("st-" + r["status"], figures.STATUS_WORDS.get(r["status"], r["status"]))}{commit}'
                    f'{a}</div>')
     done = sum(1 for r in rows if r["status"] == "done")
-    fig = f'<div class="fig">{figures.task_waves_svg(rows)}</div>' if len(set(figures.waves(rows).values())) > 1 else ""
+    n_waves = len(set(figures.waves(rows).values()))
+    fig = f'<div class="fig">{figures.task_waves_svg(rows)}</div>' if n_waves > 1 else ""
     body = f'{fig}<div class="tasks">{"".join(out)}</div>'
-    return body, f"{done} of {len(rows)} done"
+    return body, f"{done}/{len(rows)} tasks" + (f" · {n_waves} waves" if n_waves > 1 else "")
 
 
 def _findings(p: dict) -> tuple[str, str]:
@@ -666,48 +647,143 @@ RENDER = {"asks": _asks, "checks": _checks, "files": _files, "figure": _figure, 
           "matrix": _matrix, "table": _table}
 
 
-def _render_panel(p: dict) -> str:
-    body, sub = RENDER[p["type"]](p)
-    letter = p["letter"]
-    cls = f'panel c{p["span"]} p-{p["type"]}'
-    if p["type"] == "asks":
-        cls += " needs" + (" has" if p["rows"] else "")
+def _plural(n: int, one: str, many: str) -> str:
+    return f"{n} {one if n == 1 else many}"
+
+
+def _head(p: dict, sub: str, title: str | None = None) -> str:
+    """Panel heading: role (or `title`), count, the chapter link, and the note button."""
     sub_html = f'<span class="sub">{pagelib.esc(sub)}</span>' if sub else ""
     go, data, a = _go(p)
     h2 = f'<h2 class="go"{data}>' if go else "<h2>"
-    return (
-        f'<section class="{cls}" id="panel-{letter}" data-letter="{letter}" data-role="{pagelib.esc(p["role"])}">'
-        f'{h2}<span class="ltr">{letter}</span>{_label(p["role"])}{sub_html}{a}'
-        f'<button type="button" class="note-btn" data-for="{letter}">note</button></h2>'
-        f'<div class="pbody">{body}</div>'
-        f'<textarea class="note" data-note="{letter}" hidden placeholder="Note on panel {letter}"></textarea>'
-        f'</section>')
+    return (f'{h2}<span class="ptitle">{title or _label(p["role"])}</span>{sub_html}{a}'
+            f'<button type="button" class="note-btn" data-for="{p["letter"]}">+ note</button></h2>')
+
+
+def _note_area(p: dict) -> str:
+    return (f'<textarea class="note" data-note="{p["letter"]}" hidden '
+            f'placeholder="Note on {pagelib.esc(p["role"])}"></textarea>')
+
+
+def _ids(p: dict) -> str:
+    return f'id="panel-{p["letter"]}" data-letter="{p["letter"]}" data-role="{pagelib.esc(p["role"])}"'
+
+
+def _section(p: dict, cls: str = "", title: str | None = None) -> str:
+    body, sub = RENDER[p["type"]](p)
+    return (f'<section class="panel p-{p["type"]}{cls}" {_ids(p)}>{_head(p, sub, title)}'
+            f'<div class="pbody">{body}</div>{_note_area(p)}</section>')
+
+
+def _pill(p: dict, tone: str, text: str) -> str:
+    """A folded panel: the summary is the pill, the body is the whole panel. Works without script."""
+    body, sub = RENDER[p["type"]](p)
+    return (f'<details class="pill-panel {tone}" {_ids(p)}>'
+            f'<summary class="pill"><i class="dot" aria-hidden="true"></i><span>{text}</span></summary>'
+            f'<div class="pill-body">{_head(p, sub)}<div class="pbody">{body}</div>{_note_area(p)}</div></details>')
+
+
+def _flat_pill(tone: str, text: str) -> str:
+    return f'<span class="pill {tone}"><i class="dot" aria-hidden="true"></i><span>{text}</span></span>'
+
+
+def _not_run(r: dict) -> str:
+    reason = f' — {_label(r["result"])}' if r.get("result") else ""
+    return f'<code>{pagelib.esc(r["cmd"])}</code> not run{reason}'
+
+
+FINDING_STATES = ("fixed", "open", "skipped", "rejected")
+
+
+def _fold(p: dict) -> tuple[str, str, list[str]] | None:
+    """How an all-clear panel folds into the strip: (tone, pill text, extra flat pills), or None
+    when the panel stays expanded. Every word comes from validated rows."""
+    typ, rows = p["type"], p.get("rows", [])
+    if typ == "checks":
+        if any(r["exit"] not in (0, None) for r in rows):
+            return None
+        if not rows:
+            return "warn", "no checks run", []
+        ok = sum(1 for r in rows if r["exit"] == 0)
+        flat = [_not_run(r) for r in rows if r["exit"] is None]
+        if ok:
+            return "ok", _plural(ok, "check passes", "checks pass"), [_flat_pill("warn", t) for t in flat]
+        return "warn", flat[0], [_flat_pill("warn", t) for t in flat[1:]]
+    if typ == "tasks":
+        if any(r["status"] in ("failed", "blocked") for r in rows):
+            return None
+        done = sum(1 for r in rows if r["status"] == "done")
+        if not rows:
+            return "gry", "no tasks", []
+        tone = "ok" if done == len(rows) else "warn" if any(r["status"] == "skipped" for r in rows) else "gry"
+        return tone, f"{done}/{len(rows)} tasks", []
+    if typ == "files":
+        if not rows:
+            return "ok", "no files changed", []
+        return "ok", pagelib.esc(_files_sub(rows)), []
+    if typ == "findings":
+        if any(r["sev"] in ("P0", "P1") and r.get("outcome") != "fixed" for r in rows):
+            return None
+        if not rows:
+            return "ok", "no findings", []
+        counts: dict[tuple[str, str], int] = {}
+        for r in rows:
+            key = (r["sev"], r.get("outcome") or "open")
+            counts[key] = counts.get(key, 0) + 1
+        order = sorted(counts, key=lambda k: (figures.SEVERITIES.index(k[0]), FINDING_STATES.index(k[1])))
+        tone = "warn" if any(k[1] == "open" for k in counts) else "ok"
+        return tone, " · ".join(f"{counts[k]} {k[0]} {k[1]}" for k in order), []
+    if typ == "decisions":
+        return "ok", _plural(len(rows), "decision", "decisions") if rows else "no decisions", []
+    return None
+
+
+def _lead(project: str, branch: str | None, title: str, state: str = "", stamp: str = "", extra: str = "") -> str:
+    state_html = f'<p class="state">{state}</p>' if state else ""
+    return (f'<header class="lead"><div class="atrow">{pagelib.where_chips(project, branch)}</div>'
+            f'<div class="lead-row"><div class="lead-t"><h1>{title}</h1>{state_html}</div>{stamp}</div>{extra}</header>')
+
+
+def render_lead(project: str, branch: str | None, title: str) -> str:
+    """The page header without a sheet: chips and title in the sheet's lead style. `title` is plain text."""
+    return _lead(project, branch, pagelib.esc(title))
 
 
 def render_sheet(sheet: dict) -> str:
-    """Band, panel grid, and the title block with the color key."""
+    """Lead (chips, title, state, stamp, asks), the strip of folded all-clear panels, then the
+    expanded panels: exceptions first, then content in spec order."""
     tone = sheet["stampTone"]
-    facts = "".join(f'<div><span class="kk">{_label(f["k"])}</span><span class="v">{pagelib.esc(f["v"])}</span></div>'
-                    for f in sheet["facts"])
     branch_attr = f' data-branch="{pagelib.esc(sheet["branch"])}"' if sheet["branch"] else ""
-    key = "".join(f'<span><i class="sw sw-{c}"></i>{pagelib.esc(t)}</span>' for c, t in KEY_LANES)
+    first, rest = sheet["panels"][0], sheet["panels"][1:]
+    asks = _section(first, " needs has lead-asks", "Answer these") if first["rows"] else ""
+    pills, exceptions, content = [], [], []
+    for p in rest:
+        fold = _fold(p) if p["type"] in ("checks", "tasks", "files", "findings", "decisions") else None
+        if fold:
+            ptone, text, extra = fold
+            pills.append(_pill(p, ptone, text))
+            pills.extend(extra)
+        elif p["type"] in ("checks", "tasks", "findings"):
+            exceptions.append(_section(p, " exc"))
+        else:
+            content.append(_section(p))
+    pills += [f'<span class="fact"><span class="kk">{_label(f["k"])}</span> {pagelib.esc(f["v"])}</span>'
+              for f in sheet["facts"]]
+    strip = f'<div class="pills">{"".join(pills)}</div>' if pills else ""
+    stamp = f'<span class="stamp {tone}">{sheet["stamp"]}</span>'
+    lead = _lead(sheet["project"], sheet["branch"], _label(sheet["title"]),
+                 pagelib.sanitize_prose(sheet["state"]), stamp, asks)
     return (
         f'<div class="sheet" id="sheet" data-kind="{sheet["kind"]}" data-project="{pagelib.esc(sheet["project"])}"{branch_attr}>'
-        f'<header class="band tone-{tone}"><div class="who"><div class="atrow">'
-        f'{pagelib.where_chips(sheet["project"], sheet["branch"])}<span class="eyebrow">/{sheet["kind"]}</span></div>'
-        f'<h1>{_label(sheet["title"])}</h1><p class="state">{pagelib.sanitize_prose(sheet["state"])}</p></div>'
-        f'<div class="stamp {tone}">{sheet["stamp"]}</div></header>'
-        f'<div class="grid">{"".join(_render_panel(p) for p in sheet["panels"])}</div>'
-        f'<footer class="tb">{facts}<div class="key">{key}</div></footer></div>')
+        f'{lead}{strip}{"".join(exceptions)}{"".join(content)}</div>')
 
 
 def render_failure(msg: str, spec_path: str) -> str:
     """Body of the BUILD FAILED page: the message and the spec path, no panels."""
     return (
-        '<div class="sheet" data-kind="failed"><header class="band tone-bad"><div class="who">'
-        '<div class="eyebrow">build</div><h1>BUILD FAILED</h1>'
-        '<p class="state">Fix the spec and build again. The first error is below.</p></div>'
-        '<div class="stamp bad">BUILD FAILED</div></header>'
+        '<div class="sheet" data-kind="failed"><header class="lead"><div class="lead-row"><div class="lead-t">'
+        '<h1>BUILD FAILED</h1><p class="state">Fix the spec and build again. The first error is below.</p></div>'
+        '<span class="stamp bad">BUILD FAILED</span></div></header>'
         f'<div class="failbody"><pre>{pagelib.esc(msg)}</pre>'
         f'<p>Spec: <code>{pagelib.esc(spec_path)}</code></p></div></div>')
 

@@ -12,6 +12,7 @@ import contextlib
 import hashlib
 import io
 import json
+import re
 import stat
 import sys
 import tempfile
@@ -151,7 +152,8 @@ class BuildBriefTest(unittest.TestCase, Harness):
         positions = [page.index(f'id="ch-{ch["id"]}"') for ch in spec["chapters"]]
         self.assertEqual(positions, sorted(positions))
         self.assertLess(page.index('class="sheet"'), positions[0])
-        self.assertLess(page.index('class="grid"'), positions[0])
+        self.assertLess(page.index('class="lead"'), positions[0])
+        self.assertNotIn('class="grid"', page)
 
     def test_stdout_summary_line(self) -> None:
         r = self.build(valid_spec(), self.dir)
@@ -192,12 +194,12 @@ class BuildBriefTest(unittest.TestCase, Harness):
         self.assertIn("<h2>Full report</h2>", page)
         self.assertNotIn('class="drawer"', page)
         self.assertNotIn('class="toc"', page)
-        self.assertEqual(page.count("<details"), len(spec["chapters"]))
+        self.assertEqual(page.count('<details class="chapter"'), len(spec["chapters"]))
         for n, ch in enumerate(spec["chapters"], 1):
             self.assertIn(f'<details class="chapter" id="ch-{ch["id"]}" data-chapter="{ch["id"]}">', page)
             self.assertIn(f'<summary class="chead"><span class="num">{n}</span>', page)
             self.assertIn(f'data-note="ch-{ch["id"]}"', page)
-        self.assertLess(page.index("</footer>"), page.index('id="report"'))
+        self.assertLess(page.rindex("data-letter="), page.index('id="report"'))
 
     def test_report_has_one_open_all_button_only_with_chapters(self) -> None:
         page = self.build(valid_spec(), self.dir).out.read_text(encoding="utf-8")
@@ -286,7 +288,7 @@ class BuildBriefTest(unittest.TestCase, Harness):
             page = self.build(spec, self.dir).out.read_text(encoding="utf-8")
             self.assertEqual(page.count('<div class="dock" data-project='), 1)
             dock = page[page.index('<div class="dock" data-project='):]
-            self.assertGreater(page.index('<div class="dock" data-project='), page.index('</footer></div>'))
+            self.assertGreater(page.index('<div class="dock" data-project='), page.rindex("data-letter="))
             self.assertIn('<div class="dock-pop" hidden>', dock)
             self.assertIn("<pre data-export-preview></pre>", dock)
             self.assertIn('class="dock-toast" role="status" aria-live="polite" data-export-status hidden', dock)
@@ -1042,6 +1044,26 @@ class ExamplesTest(unittest.TestCase):
                 self.assertEqual(r.code, 0, r.stderr)
                 kind = json.loads(path.read_text(encoding="utf-8"))["kind"]
                 self.assertEqual(path.name, f"{kind}.example.json")
+
+    def test_execute_example_reads_as_an_answer(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            r = self.build_file(HERE.parent / "examples" / "execute.example.json", Path(tmp))
+            self.assertEqual(r.code, 0, r.stderr)
+            page = (Path(tmp) / "o.html").read_text(encoding="utf-8")
+        body = page[page.index('<div class="sheet"'):page.index('<section class="report"')]
+        for role, text in (("checks", "3 checks pass"), ("review", "1 P1 fixed · 1 P3 skipped"),
+                           ("decisions", "2 decisions")):
+            self.assertRegex(body, rf'<details class="pill-panel ok" [^>]*data-role="{role}">'
+                                   rf'<summary class="pill"><i class="dot" aria-hidden="true"></i><span>{re.escape(text)}</span>')
+        self.assertIn('<span class="pill warn"><i class="dot" aria-hidden="true"></i>'
+                      "<span><code>npm run e2e</code> not run — Needs a live queue</span></span>", body)
+        # T2 failed: no retry is inferred, so tasks stay open and come before the content panel
+        self.assertIn('<section class="panel p-tasks exc" id="panel-E" data-letter="E" data-role="tasks">', body)
+        self.assertIn('<span class="sub">4/5 tasks · 4 waves</span>', body)
+        self.assertLess(body.index('data-role="tasks"'), body.index('data-role="how it works"'))
+        self.assertNotIn("lead-asks", body)
+        for gone in ('class="ltr"', 'class="key"', 'class="tb"', "eyebrow"):
+            self.assertNotIn(gone, page)
 
 
 if __name__ == "__main__":

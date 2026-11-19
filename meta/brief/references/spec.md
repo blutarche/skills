@@ -72,13 +72,31 @@ aliases. `context`, `open`, and `noVisual` are gone too.
 ## Panels
 
 A panel is `{role, type, span?, ...}`. `role` is a label of 4 words at most and is unique.
-`span` is 3, 4, 6, 8, or 12 of the 12 grid columns; the build packs each row full. Letters A, B,
-C and so on are assigned in order by the builder. Builder-made panels sit after panel A, and the
-total stays at 8 or fewer.
+`span` is 3, 4, 6, 8, or 12. It is still checked but no longer changes the layout. Letters A, B,
+C and so on are assigned in order by the builder. They key notes and anchors and never show on
+the page. Builder-made panels sit after panel A, and the total stays at 8 or fewer.
+
+The sheet reads top down:
+
+- The lead: project and branch chips, the title, the state line, and the stamp at the right of
+  the title (under it on a phone). An `asks` panel with rows sits in the lead as "Answer these".
+  One with no rows renders nothing.
+- A strip of pills. A pill opens to its panel, and works without JavaScript. Other facts show as
+  small grey tags in the strip.
+  - `checks` folds unless a check failed: "N checks pass", plus a plain pill per not-run check,
+    or "no checks run". When no check passed, the first not-run check is the pill that opens.
+  - `tasks` folds unless a row is failed or blocked: "done/all tasks". Green when all are done,
+    grey when some are todo, amber when any is skipped.
+  - `findings` folds unless a P0 or P1 is not fixed: counts by severity and outcome, or
+    "no findings".
+  - `files` and `decisions` always fold.
+- Panels that did not fold, one column. A failed `checks`, `tasks`, or `findings` panel comes
+  first, with a red edge. The rest (`claims`, `figure`, `table`, `matrix`, `commands`) follow in
+  spec order.
 
 | Type | Row fields (class) | The build derives or checks |
 |---|---|---|
-| `asks` | `ask` label, required; `why` instruction; `more`; `options`, `recommended`, `multi` (see Asks with options) | the count; amber when rows exist, else "Nothing needs you" |
+| `asks` | `ask` label, required; `why` instruction; `more`; `options`, `recommended`, `multi` (see Asks with options) | the count; shown in the lead when rows exist, else nothing |
 | `checks` | `cmd` literal, `cwd` literal, `exit` int or null, all required; `result` label; `more` | pass, fail, and not-run counts; an "agent-reported" note |
 | `files` | no rows (fails if given) | rows from git for `tree`; A/M/D letter; +/- bars; totals |
 | `figure` | Panel fields, not rows. Exactly one of `svg` or `mermaid`. `caption` label, required. `steps` `[{n: int, say: instruction}]` (svg only). | `svg` allowlist. Steps number 1..N. Each step is used by a `data-s`, and each `data-s` is a step. |
@@ -142,7 +160,7 @@ only on the button click. Other hosts use the pasted block alone.
 so the voice lint skips it. A `more` that names no chapter fails the build:
 `<where>: more 'x' is not a chapter`. The same happens when the spec has no chapters.
 
-- A panel `more` makes the whole panel title bar open the section. A `›` link sits at its right end.
+- A panel `more` makes the whole panel title open the section. A `›` link sits at its right end.
 - A row `more` makes the whole row open the section. A `›` link sits at the right end of the row.
   A task node in the task-wave figure opens its section too.
 - Both go to `#ch-<id>`, so the browser Back button returns you. The link label names the section
@@ -280,7 +298,7 @@ FAILED page, described under Outputs.
 
 ## What the build derives
 
-The stamp, the panel letters, the row spans, and every count (asks, checks, files, tasks,
+The stamp, the panel letters, which panels fold into pills, and every count (asks, checks, files, tasks,
 findings). It also draws task waves, the Venn, the severity strip, the claim stack, the
 decision tree, and the heat matrix from rows. Counts never appear in prose. `words` counts the
 words in the checked fields. `--data-out` writes `kind`, `stamp`, `panels`, `asks`, `words`,
@@ -288,7 +306,9 @@ words in the checked fields. `--data-out` writes `kind`, `stamp`, `panels`, `ask
 
 ## On the page
 
-Notes are a textarea per chapter and per panel. They live in this browser's `localStorage`, under
+Notes are a textarea per chapter and per panel. A panel's "+ note" button shows on hover or
+focus, and always on touch screens. In the copied block a panel note sits under
+`## Panel: <role>`. Notes live in this browser's `localStorage`, under
 a key from the spec's raw bytes, so a rebuilt spec starts feedback fresh. "Send feedback" builds a
 plain-text block of the notes and fix or skip choices. The page loads no web fonts.
 

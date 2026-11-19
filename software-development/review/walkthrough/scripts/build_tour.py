@@ -1136,10 +1136,9 @@ def blob_size(root: Path, head: str, path: str) -> int:
     return int(git(root, "cat-file", "-s", f"{head}:{path}").strip())
 
 
-def render_glance(dg: digest.Digest, files: dict[str, FileDiff], card_of: dict[str, str], read_hunks: int,
-                  lines_shown: int) -> str:
-    """The reading budget, the tier bar, the file map, and the changed-lines partition."""
-    c, lines = dg.counts, dg.lines
+def render_glance(dg: digest.Digest, files: dict[str, FileDiff], read_hunks: int) -> str:
+    """The reading budget, the tier bar, and a one-line key with counts; each tier's meaning rides on its title."""
+    c = dg.counts
     rules = sum(1 for g in dg.groups if g.tier == "matched" and g.files)
     sampled = sum(len(g.samples) for g in dg.groups if g.tier == "word")
     budget: list[str] = []
@@ -1162,16 +1161,8 @@ def render_glance(dg: digest.Digest, files: dict[str, FileDiff], card_of: dict[s
         if sampled:
             clause += f"; <b>{sampled:,}</b> {plural(sampled, 'is', 'are')} sampled for you"
         budget.append(clause + ".")
-    o = [
-        '<section class="digest" id="digest"><h2><span class="ltr">≡</span>'
-        '<span class="tt">Where your time goes</span></h2><div class="dg">',
-        f'<p class="budget">{" ".join(budget) or "No file changed."}</p>',
-    ]
+    o = [f'<section class="digest" id="digest"><p class="budget">{" ".join(budget) or "No file changed."}</p>']
     if files:
-        o.append(
-            '<p class="dg-how">Every changed file is in one group below, by how much of your attention it needs. '
-            "Each square in the map is one file; click it to open its card.</p>"
-        )
         segs = [(t, c[t]) for t in digest.TIERS if c[t]]
         label = ", ".join(f"{n:,} {TIER_LABEL[t]}" for t, n in segs)
         o.append(
@@ -1180,6 +1171,23 @@ def render_glance(dg: digest.Digest, files: dict[str, FileDiff], card_of: dict[s
             + "".join(f'<span class="t-{t}" style="flex:{n} 1 0">{n:,}</span>' for t, n in segs)
             + "</div>"
         )
+        o.append(
+            '<p class="tkey">'
+            + "".join(
+                f'<span class="tk" title="{esc(TIER_MEANING[t])}"><i class="sq t-{t}"></i><b>{n:,}</b> {esc(TIER_LABEL[t])}</span>'
+                for t, n in segs
+            )
+            + "</p>"
+        )
+    o.append("</section>")
+    return "".join(o)
+
+
+def render_filemap(dg: digest.Digest, files: dict[str, FileDiff], card_of: dict[str, str], lines_shown: int) -> str:
+    """The file map (one square per file, linked to its card) and the changed-lines partition."""
+    lines = dg.lines
+    o: list[str] = []
+    if files:
         folders: dict[str, list[str]] = {}
         for p in files:
             folders.setdefault(p.split("/", 1)[0] if "/" in p else "(root)", []).append(p)
@@ -1196,15 +1204,6 @@ def render_glance(dg: digest.Digest, files: dict[str, FileDiff], card_of: dict[s
                 f'<div class="fmq">{squares}</div></div>'
             )
         o.append("</div>")
-        o.append(
-            '<ul class="tiers">'
-            + "".join(
-                f'<li><i class="sq t-{t}"></i><span class="tn"><b>{n:,}</b> {esc(TIER_LABEL[t])}</span>'
-                f'<span class="tm">{esc(TIER_MEANING[t])}</span></li>'
-                for t, n in segs
-            )
-            + "</ul>"
-        )
     total = lines["total"]
     seen = [
         f"you read <b>{lines['read']:,}</b> ({pct(lines['read'], total)}%)" if lines["read"] else "",
@@ -1225,7 +1224,6 @@ def render_glance(dg: digest.Digest, files: dict[str, FileDiff], card_of: dict[s
         if shown:
             cover += " The page shows " + " and ".join(shown) + "."
     o.append(f'<p class="cover">{cover}</p>')
-    o.append("</div></section>")
     return "".join(o)
 
 
@@ -1417,8 +1415,8 @@ SHEET_GLUE = """
     $$(".sheet textarea[data-note]").forEach(function (ta) {
       var text = ta.value.trim();
       if (!text) return;
-      var sec = ta.closest("section");
-      extra.push("### Panel " + ta.getAttribute("data-note") + ": " + (sec ? sec.getAttribute("data-role") : ""), "", text, "");
+      var sec = ta.closest("[data-role]");
+      extra.push("### Panel: " + (sec ? sec.getAttribute("data-role") : ta.getAttribute("data-note")), "", text, "");
     });
     var togs = $$(".sheet .tog");
     if (togs.length) {
@@ -1553,7 +1551,7 @@ def build_body(spec: dict, root: Path, pr_lens_views: list[PrLensView], seed: in
         },
     }
 
-    # chapters and samples render first: the header's toggle depends on the context rows they hold
+    # chapters and samples render first: the Changed lines only toggle depends on the context rows they hold
     read_tour: list[str] = []
     skim_tour: list[str] = []
     card_of: dict[str, str] = {}
@@ -1591,49 +1589,81 @@ def build_body(spec: dict, root: Path, pr_lens_views: list[PrLensView], seed: in
         f'data-head-label="{esc(head_label)}" data-doc-title="{esc(spec["title"])}">'
     )
     has_sheet = "sheet" in spec
-    if has_sheet:
-        o.append(build_sheet(spec, root, files, dg.flags, {g.id: g.title for g in dg.groups}))
-
-    # ---- header
     built = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M %Z")
     project, branch = project_branch(root)
-    o.append('<header class="top">')
-    o.append(pagelib.at_row(project, branch, has_sheet))
-    o.append('<p class="eyebrow">Walkthrough</p>')
-    o.append(f"<h1>{esc(spec['title'])}</h1>")
+    # one header: the sheet's lead when there is a sheet, else the same lead without a stamp
+    if has_sheet:
+        o.append(build_sheet(spec, root, files, dg.flags, {g.id: g.title for g in dg.groups}))
+    else:
+        o.append(sheet.render_lead(project, branch, spec["title"]))
+    o.append(render_glance(dg, files, read_hunks))
+
+    # ---- the reading list: flagged cards, chapters in reading order, then the groups
     o.append(
-        f'<div class="banner"><b>Revision</b><span>Built against <code>{esc(head_label)}</code> '
-        f'from base <code>{esc(base[:8])}</code> on {esc(built)}. Every line number below was checked '
-        f"against that diff at build time. Rebuild after the branch moves.</span></div>"
+        '<section id="tour"><div class="rhead"><h2>Read in this order</h2>'
+        '<span class="prog" data-progress></span>'
+        '<button type="button" class="btn primary" data-continue>Continue reading</button>'
+        '<button type="button" class="btn" data-toggle-all>Open all</button></div>'
     )
-    o.append('<div class="controls">')
-    o.append('<span class="prog" data-progress></span>')
-    o.append('<button type="button" class="btn primary" data-continue>Continue reading</button>')
+    n_read = sum(1 for ch in chapters if ch["risk"] in READ_RISKS)
+    if flag_cards or read_tour:
+        note = [f"{len(flag_cards)} flagged"] if flag_cards else []
+        if n_read:
+            note.append(f"{n_read} {plural(n_read, 'chapter', 'chapters')}")
+        o.append(sect("Read first", " · ".join(note)))
+        o.extend(flag_cards)
+        o.extend(read_tour)
+    if skim_tour:
+        n_skim = len(chapters) - n_read
+        o.append(sect("Skim", f"{n_skim} {plural(n_skim, 'chapter', 'chapters')}"))
+        o.extend(skim_tour)
+    c = dg.counts
+    if matched_cards:
+        rules = "; ".join(esc(g.title) for g in matched_groups)
+        if c["matched"]:
+            head = f"✓ <b>{c['matched']:,} {plural(c['matched'], 'file', 'files')}</b> the build proved: {rules}"
+        else:
+            head = f"✕ The build proved no file: {rules}"
+        o.append(
+            f'<details class="proven" id="proven"><summary>{head} <span class="chev" aria-hidden="true">▸</span></summary>'
+            f'{"".join(matched_cards)}</details>'
+        )
+    if word_cards:
+        sampled = sum(len(g.samples) for g in word_groups)
+        o.append(sect("On the agent's word", f"{c['word']:,} {plural(c['word'], 'file', 'files')} · {sampled:,} sampled"))
+        o.extend(word_cards)
+    o.append("</section>")
+
+    # ---- below the list: closed cards and the progress tools
+    def tail_card(cid: str, title: str, body: str) -> str:
+        return (
+            f'<details class="chapter tail" id="{cid}"><summary class="chead"><h3 class="ttl">{title}</h3>'
+            f'<span class="chev" aria-hidden="true">▸</span></summary><div class="dbody">{body}</div></details>'
+        )
+
     # no unchanged row exists to hide, so the toggle would do nothing
     hidden_attr = "" if stats["hasContextRow"] else " hidden"
     o.append(
-        f'<button type="button" class="btn" data-changed-only aria-pressed="false"{hidden_attr}>'
-        "Changed lines only</button>"
+        '<section id="more" class="tail"><div class="rhead"><h2>About this change</h2><div class="controls">'
+        f'<button type="button" class="btn" data-changed-only aria-pressed="false"{hidden_attr}>Changed lines only</button>'
+        '<button type="button" class="btn" data-reset>Reset progress</button></div></div>'
     )
-    o.append('<button type="button" class="btn" data-reset>Reset progress</button>')
-    o.append('<div class="bar"><i data-bar></i></div>')
-    o.append("</div></header>")
-    o.append(render_glance(dg, files, card_of, read_hunks, lines_shown))
-
-    # ---- overview
-    o.append('<section id="overview"><h2>Overview</h2>')
-    o.append(sanitize_prose(spec["overview"]))
+    o.append(tail_card("overview", "Overview", sanitize_prose(spec["overview"])))
+    o.append(tail_card(
+        "pr-lens", "Architecture and data flow",
+        f'<p class="lede">PR Lens rendered {len(pr_lens_views)} view{"s" if len(pr_lens_views) != 1 else ""} '
+        'for this revision. Every view is embedded in this page.</p><div class="pr-lens-views">'
+        + "".join(render_pr_lens_view(view, index) for index, view in enumerate(pr_lens_views, start=1))
+        + "</div>",
+    ))
+    o.append(tail_card("file-map", "File map", render_filemap(dg, files, card_of, lines_shown)))
+    o.append(tail_card(
+        "revision", "Revision",
+        f'<p>Built against <code>{esc(head_label)}</code> from base <code>{esc(base[:8])}</code> on {esc(built)}. '
+        "Every line number on this page was checked against that diff at build time. "
+        "Rebuild after the branch moves.</p>",
+    ))
     o.append("</section>")
-
-    # ---- architecture and data flow
-    o.append('<section id="pr-lens"><h2>Architecture and data flow</h2>')
-    o.append(
-        f'<p class="lede">PR Lens rendered {len(pr_lens_views)} view'
-        f'{"s" if len(pr_lens_views) != 1 else ""} for this revision. Every view is embedded in this page.</p>'
-    )
-    o.append('<div class="pr-lens-views">')
-    o.extend(render_pr_lens_view(view, index) for index, view in enumerate(pr_lens_views, start=1))
-    o.append("</div></section>")
 
     # ---- focus, intuition, background
     if spec.get("focus"):
@@ -1650,43 +1680,6 @@ def build_body(spec: dict, root: Path, pr_lens_views: list[PrLensView], seed: in
         o.append('<section id="background"><h2>Background</h2>')
         o.append(sanitize_prose(spec["background"]))
         o.append("</section>")
-
-    # ---- tour
-    o.append(
-        '<section id="tour"><div class="rhead"><h2>Walkthrough</h2>'
-        f'{pagelib.at_row(project, branch, True)}'
-        '<button type="button" class="btn" data-toggle-all>Open all</button></div>'
-    )
-    o.append(
-        '<p class="lede">Chapters are cut by concept in reading order. Each one shows only the hunks its prose '
-        "makes a claim about; the other files in it appear as a card with the names they add. Mark a card read to "
-        "track where you are.</p>"
-    )
-    n_read = sum(1 for ch in chapters if ch["risk"] in READ_RISKS)
-    if flag_cards or read_tour:
-        note = [f"{len(flag_cards)} flagged"] if flag_cards else []
-        if n_read:
-            note.append(f"{n_read} {plural(n_read, 'chapter', 'chapters')}")
-        o.append(sect("Read first", " · ".join(note)))
-        o.extend(flag_cards)
-        o.extend(read_tour)
-    if skim_tour:
-        n_skim = len(chapters) - n_read
-        o.append(sect("Skim", f"{n_skim} {plural(n_skim, 'chapter', 'chapters')}"))
-        o.extend(skim_tour)
-    c = dg.counts
-    if matched_cards:
-        o.append(sect(
-            "Matched by the build",
-            f"{c['matched']:,} {plural(c['matched'], 'file', 'files')} · "
-            f"{len(matched_cards)} {plural(len(matched_cards), 'rule', 'rules')}",
-        ))
-        o.extend(matched_cards)
-    if word_cards:
-        sampled = sum(len(g.samples) for g in word_groups)
-        o.append(sect("On the agent's word", f"{c['word']:,} {plural(c['word'], 'file', 'files')} · {sampled:,} sampled"))
-        o.extend(word_cards)
-    o.append("</section>")
 
     # ---- verify
     verify = spec.get("verify") or {}

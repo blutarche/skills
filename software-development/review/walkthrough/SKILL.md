@@ -144,7 +144,7 @@ feedback inside this skill; that is the next request.
 
 ## Revision-bound
 
-The banner names the revision and reader progress is scoped to it. If the branch moves or the
+The Revision card, in "About this change" below the reading list, names the revision, and reader progress is scoped to it. If the branch moves or the
 tree changes, rebuild; never patch a line number by hand.
 
 ## Files

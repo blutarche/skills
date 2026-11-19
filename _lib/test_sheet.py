@@ -219,9 +219,12 @@ class SheetTest(unittest.TestCase):
     def test_13_render(self):
         s = check(vet_spec())
         html = sheet.render_sheet(s)
-        for needle in ['class="stamp ok"', ">DONE<", 'data-letter="A"', "✓ Nothing needs you", "sev-strip",
-                       'aria-label="scrutinize found 2, council found 2, both found 1"', "outbox-service", 'class="key"']:
+        for needle in ['class="stamp ok"', ">DONE<", 'data-letter="B"', "sev-strip",
+                       'aria-label="scrutinize found 2, council found 2, both found 1"', "outbox-service"]:
             self.assertIn(needle, html)
+        # no letter blocks, color key, facts footer, kind eyebrow, or grid
+        for gone in ('class="ltr"', 'class="key"', 'class="tb"', "eyebrow", 'class="grid"', "Nothing needs you"):
+            self.assertNotIn(gone, html)
         self.assertEqual(html.count('data-default="fix"'), 2)
         self.assertEqual(html.count('data-default="skip"'), 1)
         self.assertEqual(html.count("3 findings"), 1)
@@ -300,29 +303,6 @@ class SheetTest(unittest.TestCase):
         self.assertEqual([p["role"] for p in s["panels"]], ["needs you", "checks", "findings"])
         self.assertEqual([p["letter"] for p in s["panels"]], ["A", "B", "C"])
 
-    def spans(self, *panels, kind="session"):
-        ask = {"role": "needs you", "type": "asks", "rows": []}
-        spec = {"state": "All done.", "tree": self.tree, "panels": [ask, *panels]}
-        return [p["span"] for p in check(spec, kind)["panels"]]
-
-    def mk(self, typ, **kw):
-        base = {
-            "findings": {"rows": []}, "checks": {"rows": []}, "matrix": {"rows": []}, "tasks": {"rows": []},
-            "decisions": {"rows": []}, "figure": {"mermaid": "graph TD; A-->B", "caption": "Flow"},
-            "table": {"columns": ["Risk"], "rows": [["Low"]]},
-        }[typ]
-        return {"role": typ if typ != "findings" else "findings", "type": typ, **base, **kw}
-
-    def test_17_row_packing(self):
-        mk = self.mk
-        self.assertEqual(self.spans(mk("findings"), mk("checks"), mk("matrix")), [4, 8, 8, 4])
-        self.assertEqual(self.spans(mk("figure")), [4, 8])
-        self.assertEqual(self.spans(mk("tasks"), mk("decisions")), [4, 8, 12])
-        self.assertEqual(self.spans(mk("table", span=6)), [4, 8])
-        s = check({"project": "p", "state": "Done.", "panels": [{"role": "needs you", "type": "asks", "rows": [], "span": 12},
-                                                mk("checks")]}, "session")
-        self.assertEqual([p["span"] for p in s["panels"]], [12, 12])
-
     def where_spec(self, **extra):
         return {"state": "Done.", "panels": [{"role": "needs you", "type": "asks", "rows": []}], **extra}
 
@@ -364,7 +344,8 @@ class SheetTest(unittest.TestCase):
         self.assertIn('data-project="Acme" data-branch="feat/x"', html)
         self.assertRegex(html, r'<span class="pchip" style="--hue:\d+">Acme</span><span class="bchip"><svg[^>]*aria-hidden="true"')
         self.assertLess(html.index('class="pchip"'), html.index('class="bchip"'))
-        self.assertLess(html.index('class="bchip"'), html.index('class="eyebrow"'))
+        self.assertNotIn("eyebrow", html)
+        self.assertLess(html.index('<header class="lead">'), html.index('class="atrow"'))
         self.assertLess(html.index('class="atrow"'), html.index("<h1>"))
         nob = sheet.render_sheet(check(self.where_spec(project="Acme"), "session"))
         self.assertNotIn("data-branch", nob)
@@ -580,6 +561,116 @@ class SheetTest(unittest.TestCase):
         body, count = sheet._findings({"rows": []})
         self.assertEqual(body, '<p class="empty">No findings</p>')
         self.assertEqual(count, "0")
+
+    # ---------------------------------------------------------------- lead, strip, expanded panels
+
+    def layout(self, *panels, asks=None, kind="session", facts=None):
+        spec = {"project": "p", "state": "Done.", "tree": self.tree,
+                "panels": [{"role": "needs you", "type": "asks", "rows": asks or []}, *panels]}
+        if facts:
+            spec["facts"] = facts
+        return sheet.render_sheet(check(spec, kind))
+
+    def pill(self, html, role):
+        m = re.search(rf'<details class="pill-panel (\w+)" id="panel-[A-Z]" data-letter="[A-Z]" data-role="{role}">'
+                      r'<summary class="pill"><i class="dot" aria-hidden="true"></i><span>(.*?)</span></summary>', html)
+        return m and (m.group(1), m.group(2))
+
+    def expanded(self, html, role):
+        m = re.search(rf'<section class="panel p-\w+( exc)?" id="panel-[A-Z]" data-letter="[A-Z]" data-role="{role}">', html)
+        return m and ("exc" if m.group(1) else "content")
+
+    def test_50_checks_fold_unless_one_failed(self):
+        rows = [{"cmd": "make test", "cwd": ".", "exit": 0}, {"cmd": "make lint", "cwd": ".", "exit": 0},
+                {"cmd": "make e2e", "cwd": ".", "exit": None, "result": "Needs a live queue"}]
+        html = self.layout({"role": "checks", "type": "checks", "rows": rows})
+        self.assertEqual(self.pill(html, "checks"), ("ok", "2 checks pass"))
+        self.assertIn('<span class="pill warn"><i class="dot" aria-hidden="true"></i>'
+                      '<span><code>make e2e</code> not run — Needs a live queue</span></span>', html)
+        self.assertIsNone(self.expanded(html, "checks"))
+        self.assertEqual(html.count('data-note="B"'), 1)  # the flat pill holds no second body
+        html = self.layout({"role": "checks", "type": "checks", "rows": []})
+        self.assertEqual(self.pill(html, "checks"), ("warn", "no checks run"))
+        html = self.layout({"role": "checks", "type": "checks", "rows": [*rows, {"cmd": "make x", "cwd": ".", "exit": 2}]})
+        self.assertIsNone(self.pill(html, "checks"))
+        self.assertEqual(self.expanded(html, "checks"), "exc")
+
+    def test_51_tasks_fold_unless_one_failed_or_blocked(self):
+        def tasks(*statuses):
+            return {"role": "tasks", "type": "tasks",
+                    "rows": [{"id": f"T{i}", "name": "Do it", "status": st} for i, st in enumerate(statuses)]}
+        self.assertEqual(self.pill(self.layout(tasks("done", "done")), "tasks"), ("ok", "2/2 tasks"))
+        self.assertEqual(self.pill(self.layout(tasks("done", "todo")), "tasks"), ("gry", "1/2 tasks"))
+        self.assertEqual(self.pill(self.layout(tasks("done", "todo", "skipped")), "tasks"), ("warn", "1/3 tasks"))
+        for bad in ("failed", "blocked"):
+            with self.subTest(bad=bad):
+                # a later done task is not read as a retry: the failed row keeps the panel open
+                html = self.layout(tasks("done", bad, "done"))
+                self.assertIsNone(self.pill(html, "tasks"))
+                self.assertEqual(self.expanded(html, "tasks"), "exc")
+                self.assertIn('<span class="sub">2/3 tasks</span>', html)
+
+    def test_52_findings_fold_unless_a_p0_or_p1_is_not_fixed(self):
+        def findings(*rows):
+            return {"role": "review", "type": "findings", "rows": [
+                {"id": f"F{i}", "sev": sev, "claim": "A log line is noisy.", "foundBy": ["a"], "default": "skip",
+                 **({"outcome": out} if out else {})} for i, (sev, out) in enumerate(rows)]}
+        html = self.layout(findings(("P1", "fixed"), ("P3", "skipped")))
+        self.assertEqual(self.pill(html, "review"), ("ok", "1 P1 fixed · 1 P3 skipped"))
+        self.assertEqual(self.pill(self.layout(findings(("P2", None))), "review"), ("warn", "1 P2 open"))
+        self.assertEqual(self.pill(self.layout(findings()), "review"), ("ok", "no findings"))
+        for sev, out in (("P1", "skipped"), ("P0", None), ("P1", "open")):
+            with self.subTest(sev=sev, out=out):
+                html = self.layout(findings(("P3", "fixed"), (sev, out)))
+                self.assertIsNone(self.pill(html, "review"))
+                self.assertEqual(self.expanded(html, "review"), "exc")
+
+    def test_53_files_and_decisions_always_fold(self):
+        html = self.layout({"role": "files", "type": "files"},
+                           {"role": "decisions", "type": "decisions", "rows": []})
+        self.assertEqual(self.pill(html, "files"), ("ok", "1 file · +1 −0"))
+        self.assertEqual(self.pill(html, "decisions"), ("ok", "no decisions"))
+        two = [{"decision": "Queue", "chosen": "Outbox", "why": "It is simple."},
+               {"decision": "Lock", "chosen": "Row", "why": "It is safe."}]
+        html = self.layout({"role": "decisions", "type": "decisions", "rows": two})
+        self.assertEqual(self.pill(html, "decisions"), ("ok", "2 decisions"))
+
+    def test_54_exceptions_lead_then_content_in_spec_order(self):
+        html = self.layout(
+            {"role": "risks", "type": "table", "columns": ["Risk"], "rows": [["Low"]]},
+            {"role": "commands", "type": "commands", "rows": [{"cmd": "ls", "does": "Lists."}]},
+            {"role": "checks", "type": "checks", "rows": [{"cmd": "make", "cwd": ".", "exit": 1}]})
+        order = [html.index(f'data-role="{r}"') for r in ("checks", "risks", "commands")]
+        self.assertEqual(order, sorted(order))
+        self.assertEqual(self.expanded(html, "risks"), "content")
+        self.assertLess(html.index("</header>"), order[0])
+
+    def test_55_asks_sit_in_the_lead_and_zero_rows_render_nothing(self):
+        html = self.layout()
+        self.assertNotIn('id="panel-A"', html)
+        self.assertNotIn("lead-asks", html)
+        self.assertNotIn('class="asks"', html)
+        html = self.layout(asks=[{"ask": "Fix now?", "options": [{"label": "Yes"}, {"label": "No"}], "recommended": 1}],
+                           facts=[{"k": "waves", "v": "3"}])
+        lead = html[html.index('<header class="lead">'):html.index("</header>")]
+        self.assertIn('<section class="panel p-asks needs has lead-asks" id="panel-A" data-letter="A" data-role="needs you">', lead)
+        self.assertLess(lead.index('class="state"'), lead.index("Answer these"))
+        self.assertIn('<span class="sub">0 of 1 answered</span>', lead)
+        for hook in ('data-ask="1"', 'class="opt-other"', "data-accept", 'class="rec"'):
+            self.assertIn(hook, lead)
+        self.assertIn('<span class="fact"><span class="kk">waves</span> 3</span>', html)
+
+    def test_56_note_button_and_export_use_the_role(self):
+        html = self.layout({"role": "files", "type": "files"})
+        self.assertIn('<button type="button" class="note-btn" data-for="B">+ note</button>', html)
+        self.assertIn('<textarea class="note" data-note="B" hidden placeholder="Note on files"></textarea>', html)
+        _, js = sheet.assets()
+        self.assertIn('"## Panel: " + (sec ? sec.getAttribute("data-role")', js)
+        self.assertIn('ta.closest("[data-role]")', js)
+        self.assertNotIn('"## Panel " + ta.getAttribute("data-note")', js)
+        css, _ = sheet.assets()
+        self.assertIn("@media (hover:none){.note-btn{opacity:1}}", css)
+        self.assertIn(".pill-panel[open]{flex-basis:100%}", css)
 
 
 if __name__ == "__main__":

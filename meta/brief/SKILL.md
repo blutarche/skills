@@ -115,7 +115,8 @@ most. Then reply "sheet failed", the first error, and the path.
 
 Open the page and confirm it before handing it over. Render a screenshot of `brief.html` with a
 headless browser if one is available. At minimum, Read `brief.html` and confirm that the stamp,
-every panel role, the full report, and every chapter title appear once, in order. Check that each
+every panel role (a folded panel sits inside its pill), the full report, and every chapter title
+appear once, chapters in order. Check that each
 `more` link lands on the chapter it names, and that each chapter links back to the sheet. Every figure, mermaid or svg, needs
 to be seen rendered; an svg figure that shows nothing or clips is a spec defect, not a page bug.
 Mermaid without `mmdc` shows "Diagram loads when online" until the CDN script runs.
