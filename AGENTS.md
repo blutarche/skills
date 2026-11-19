@@ -18,7 +18,7 @@ its area README, and for voice issues in `workflows/` docs (rules in [`_lib/voic
 Treat both as required.
 
 Other tests: `./scripts/test-install.sh`, `./scripts/test-validate-skills.sh`, and
-`python3 -m pytest _lib meta/brief/scripts software-development/review/walkthrough/scripts`.
+`python3 -m pytest _lib meta/brief/scripts software-development/review/walkthrough/scripts .claude/skills/maintenance/scripts`.
 
 ## Adding a skill
 

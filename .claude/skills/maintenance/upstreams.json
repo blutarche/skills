@@ -1,0 +1,262 @@
+{
+  "skills": {
+    "animate": {
+      "mode": "vendored",
+      "repo": "emilkowalski/skills",
+      "path": "skills/animate",
+      "pin": "d16ebe6",
+      "imported": "2026-10-02"
+    },
+    "review-animations": {
+      "mode": "vendored",
+      "repo": "emilkowalski/skills",
+      "path": "skills/review-animations",
+      "pin": "d16ebe6",
+      "imported": "2026-10-02"
+    },
+    "mobile-native": {
+      "mode": "vendored",
+      "repo": "emilkowalski/skills",
+      "path": "skills/mobile-native",
+      "pin": "d16ebe6",
+      "imported": "2026-10-02"
+    },
+    "prototype": {
+      "mode": "vendored",
+      "repo": "emilkowalski/skills",
+      "path": "skills/prototype",
+      "pin": "d16ebe6",
+      "imported": "2026-10-02"
+    },
+    "find-animation-opportunities": {
+      "mode": "vendored",
+      "repo": "emilkowalski/skills",
+      "path": "skills/find-animation-opportunities",
+      "pin": "d16ebe6",
+      "imported": "2026-10-02"
+    },
+    "write-swift": {
+      "mode": "vendored",
+      "repo": "emilkowalski/skills",
+      "path": "skills/write-swift",
+      "pin": "d16ebe6",
+      "imported": "2026-10-02"
+    },
+    "diagram-design": {
+      "mode": "vendored",
+      "repo": "cathrynlavery/diagram-design",
+      "path": "skills/diagram-design",
+      "pin": "4451ead",
+      "imported": "2026-09-07"
+    },
+    "pr-lens": {
+      "mode": "adapted",
+      "repo": "coldteadotai/pr-lens",
+      "path": "packages/agent-skill",
+      "pin": "0904568",
+      "imported": "2026-09-23"
+    },
+    "technical-writing": {
+      "mode": "adapted",
+      "repo": "cursor/plugins",
+      "path": "pstack/skills/technical-writing",
+      "pin": "70b2dc8",
+      "imported": "2026-10-02"
+    },
+    "reflect": {
+      "mode": "adapted",
+      "repo": "cursor/plugins",
+      "path": "pstack/skills/reflect",
+      "pin": "12d587d",
+      "imported": "2026-10-02"
+    },
+    "blast-radius": {
+      "mode": "adapted",
+      "repo": "cursor/plugins",
+      "path": "pstack/skills/blast-radius",
+      "pin": "70b2dc8",
+      "imported": "2026-10-02"
+    },
+    "create-verification-skill": {
+      "mode": "adapted",
+      "repo": "cursor/plugins",
+      "path": "pstack/skills/create-verification-skill",
+      "pin": "4483dcd",
+      "imported": "2026-10-02"
+    },
+    "maintain-verification-skill": {
+      "mode": "adapted",
+      "repo": "cursor/plugins",
+      "path": "pstack/skills/maintain-verification-skill",
+      "pin": "6714489",
+      "imported": "2026-10-02"
+    },
+    "wat": {
+      "mode": "adapted",
+      "repo": "mattpocock/skills",
+      "upstream_name": "wait-what",
+      "path": "skills/productivity/wait-what",
+      "pin": "5c89081",
+      "imported": "2026-09-11"
+    },
+    "writing-great-skills": {
+      "mode": "adapted",
+      "repo": "mattpocock/skills",
+      "path": "skills/productivity/writing-for-agents",
+      "pin": "ee8bae4",
+      "imported": "2026-06-20",
+      "upstream_name": "writing-for-agents"
+    },
+    "grill-me": {
+      "mode": "adapted",
+      "repo": "mattpocock/skills",
+      "path": "skills/productivity/grill-me",
+      "pin": "cbf6db4",
+      "imported": "2026-06-14"
+    },
+    "grill-with-docs": {
+      "mode": "adapted",
+      "repo": "mattpocock/skills",
+      "path": "skills/engineering/grill-with-docs",
+      "pin": "658d53e",
+      "imported": "2026-06-14"
+    },
+    "domain-modeling": {
+      "mode": "adapted",
+      "repo": "mattpocock/skills",
+      "path": "skills/engineering/domain-modeling",
+      "pin": "221ffca",
+      "imported": "2026-06-14"
+    },
+    "brainstorming": {
+      "mode": "adapted",
+      "repo": "obra/superpowers",
+      "path": "skills/brainstorming",
+      "pin": "9f04f06",
+      "imported": "2026-06-14"
+    },
+    "writing-plans": {
+      "mode": "adapted",
+      "repo": "obra/superpowers",
+      "path": "skills/writing-plans",
+      "pin": "f2cbfbe",
+      "imported": "2026-06-14"
+    },
+    "receiving-code-review": {
+      "mode": "adapted",
+      "repo": "obra/superpowers",
+      "path": "skills/receiving-code-review",
+      "pin": "1455ac0",
+      "imported": "2026-06-14"
+    },
+    "slop-cleanup": {
+      "mode": "adapted",
+      "repo": null,
+      "path": null,
+      "pin": null,
+      "imported": "2026-06-14"
+    },
+    "git-commit": {
+      "mode": "adapted",
+      "repo": null,
+      "path": null,
+      "pin": null,
+      "imported": "2026-06-14"
+    },
+    "diagnose": {
+      "mode": "adapted",
+      "repo": "mattpocock/skills",
+      "path": "skills/engineering/diagnosing-bugs",
+      "pin": "221ffca",
+      "imported": "2026-06-14",
+      "upstream_name": "diagnosing-bugs"
+    },
+    "handoff": {
+      "mode": "adapted",
+      "repo": "mattpocock/skills",
+      "path": "skills/productivity/handoff",
+      "pin": "221ffca",
+      "imported": "2026-06-14"
+    },
+    "execute": {
+      "mode": "adapted",
+      "repo": null,
+      "path": null,
+      "pin": null,
+      "imported": "2026-06-14"
+    },
+    "finish": {
+      "mode": "adapted",
+      "repo": null,
+      "path": null,
+      "pin": null,
+      "imported": "2026-06-14"
+    },
+    "brief": {
+      "mode": "original"
+    },
+    "council": {
+      "mode": "original"
+    },
+    "delegate-coding": {
+      "mode": "original"
+    },
+    "git-worktree": {
+      "mode": "original"
+    },
+    "maintenance": {
+      "mode": "original"
+    },
+    "plan": {
+      "mode": "original"
+    },
+    "post-mortem": {
+      "mode": "original"
+    },
+    "research": {
+      "mode": "original"
+    },
+    "research-council": {
+      "mode": "original"
+    },
+    "scrutinize": {
+      "mode": "original"
+    },
+    "vet": {
+      "mode": "original"
+    },
+    "walkthrough": {
+      "mode": "original"
+    },
+    "evidence": {
+      "mode": "original",
+      "repo": null,
+      "path": null,
+      "pin": null,
+      "imported": null
+    },
+    "objection": {
+      "mode": "original",
+      "repo": null,
+      "path": null,
+      "pin": null,
+      "imported": null
+    },
+    "sitrep": {
+      "mode": "original",
+      "repo": null,
+      "path": null,
+      "pin": null,
+      "imported": null
+    }
+  },
+  "removed": {
+    "karpathy-guidelines": "2026-09-11 folded into ~/proj/agents/AGENTS.md",
+    "verification-before-completion": "2026-09-11 folded into ~/proj/agents/AGENTS.md",
+    "llm-cost-optimization": "2026-09-11 never used",
+    "project-skill-audit": "2026-09-11 never used",
+    "de-flaking-tests": "2026-09-11 folded into diagnose",
+    "goal-crafter": "2026-10-02 deleted in skills-tidy",
+    "skill-creator": "2026-10-02 fork deleted in skills-tidy"
+  }
+}
