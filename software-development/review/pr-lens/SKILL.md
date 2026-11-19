@@ -110,17 +110,17 @@ Treat architecture views as a C4-inspired decision tree, not a checklist; one us
 
 A walkthrough is a short guided tour of the diagrams: each step shows one diagram, points at one part of it, and says a few words about it. Only a canvas plays it, so write one only when the user asked for a canvas. The format leaves it optional, but for a canvas write one for anything that is not trivial: more than one diagram, a diagram with several changed parts, or any flow. Skip it only when the document is one small diagram whose single step would just repeat the title. The JSON shape, field limits and validator checks are in `references/graph-document.md`, "Walkthrough".
 
-Aim for three to seven steps (the format allows two to twelve).
+Aim for three to nine steps (the format allows two to twelve).
 
 A walkthrough is the fastest read of a pull request. Each step is one change: something added, changed, removed or moved, in the order a reviewer needs it. A step is never a description of the diagram.
 
-What counts as a step: a behaviour change, an API change, an architecture change, a data-flow change, or an addition. Unchanged parts appear only where a step needs them to make sense. The headline change is step one. An overview of everything touched, if there is one, is the last step.
+What counts as a step: a behaviour change, an API change, an architecture change, a data-flow change, or an addition. Unchanged parts appear only where a step needs them to make sense. The headline change is step one. The last step is the last real change, staged and focused like every other, such as the old path going away or the one thing a person now sees. Do not end on a recap of everything touched: the reader saw the whole picture when the canvas opened.
 
 - `heading`: the thing and what happened to it. Build it from change words: added, removed, replaced, now, moved, split. If a heading could have been true before the pull request, it is not a change heading.
 - `body`: one line under the heading on what the change means for behaviour: what happens now that did not before, or what stops happening, with the numbers when they matter. Not a restatement of the heading, and not a description of the code. A heading with no body reads as unfinished, so the body is required.
-- `stage`: open on the widest view with the focus left out, so the reader sees the whole thing before it narrows.
-- `focus`: focus the elements the step's change touched, so the veil lights the change. Point at two or three of them. A step that lights half the diagram has not said anything.
-- `detail`: optional. One or two sentences under the body, up to 240 characters, that use the names on the diagram. Its `cites` turn words copied letter for letter from that sentence into links to a node, flow step, view or flow. Do not cite files. Leave it off the overview step and off any step where it would only repeat the body. The JSON shape is in `references/graph-document.md`, "Walkthrough".
+- `stage`: stage each step on the smallest diagram that draws what it names, usually a child view or a flow. Scope a child view by its nodes and edges and leave `lanes` out: a lane in a scope draws every node in it.
+- `focus`: give every step a selection on the elements its change touched, so the veil lights the change. Point at two or three of them. A step that lights half the diagram has not said anything.
+- `detail`: optional. One or two sentences under the body, up to 240 characters, that use the names on the diagram. Its `cites` turn words copied letter for letter from that sentence into links to a node, flow step, view or flow. Do not cite files. Leave it off any step where it would only repeat the body. The JSON shape is in `references/graph-document.md`, "Walkthrough".
 
 Write every word for a smart twelve-year-old: short common words, one idea per line, active voice, things named as the diagram names them, numbers as digits. If a line needs a second read, rewrite it. Words like leverages, orchestrates, asynchronous pipeline and fan-out never belong in a step. This holds in whatever language the document is written in.
 

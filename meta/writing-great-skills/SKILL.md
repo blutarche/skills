@@ -51,6 +51,8 @@ Push too little down and the top bloats; push too much and you hide material the
 
 Keep each meaning in a **single source of truth**: one authoritative place, so changing the behaviour is a one-place edit.
 
+The **environment** is a source of truth too: `package.json` scripts, config files, the directory layout, `--help` output. A skill that restates it is a **cache** of a lookup, worth its load only when the lookup is expensive. Cache what the agent cannot find by looking (the unwritten convention, the reason behind a choice, the gotcha no config confesses) and leave one-file, one-command lookups to the environment, where they cannot go stale.
+
 Check every line for **relevance**: does it still bear on what the skill does?
 
 Then hunt **no-ops** sentence by sentence, not just line by line: run the no-op test on each sentence in isolation, and when one fails, delete the whole sentence rather than trim words from it. Be aggressive — most prose that fails should go, not be rewritten.
