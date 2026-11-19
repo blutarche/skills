@@ -56,6 +56,8 @@ commands; the symlinked staging directory is not a write-protection boundary, so
 edit to one of these skills can modify the repository. If Hermes is absent, the installer skips it
 without failing.
 
+Explicit-only skills (`disable-model-invocation: true`) are honored by Claude Code and, through `agents/openai.yaml`, by Codex CLI. Hermes has no explicit-only flag, so it may load them on its own.
+
 Run `./install.sh --help` for all options.
 
 `--uninstall` removes this repository's links and, when Hermes is installed, removes only this

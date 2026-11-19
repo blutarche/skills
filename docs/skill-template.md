@@ -36,7 +36,7 @@ Short paragraph: what this skill is for and when to reach for it.
   `/command`; the agent never loads it on its own). Such a skill needs no "Use when ..."
   trigger wording — the description just says what the command does.
 - Codex CLI ignores `disable-model-invocation`. To keep a skill from implicit invocation there,
-  add `agents/openai.yaml` next to `SKILL.md` with `policy: {allow_implicit_invocation: false}`.
+  add `agents/openai.yaml` next to `SKILL.md` with `policy: {allow_implicit_invocation: false}`; `scripts/validate-skills.sh` fails when it is missing.
 - **`license:`** — see [`AGENTS.md`](../AGENTS.md) for when to keep it.
 
 ## Rules

@@ -166,6 +166,21 @@ printf '%s\n' '# testdomain' '' '| [research-council](research-council/SKILL.md)
 assert_readme_warning "README entry for research-council does not cover council" 1 "$root" "council"
 assert_readme_warning "README entry for research-council still covers itself" 0 "$root" "research-council"
 
+# 5b. disable-model-invocation needs agents/openai.yaml (Codex explicit-only).
+root="$WORK/explicit-only"
+setup_fixture "$root"
+write_skill "$root/testdomain/manual/SKILL.md" '---
+name: manual
+description: user-invoked
+disable-model-invocation: true
+---
+# manual
+'
+assert_exit "disable-model-invocation without openai.yaml fails validation" 0 "$root"
+mkdir -p "$root/testdomain/manual/agents"
+printf '%s\n' 'policy: {allow_implicit_invocation: false}' > "$root/testdomain/manual/agents/openai.yaml"
+assert_exit "disable-model-invocation with openai.yaml passes validation" 1 "$root"
+
 # 6. Voice lint: warns on workflow docs, never fails.
 voice_fixture() {
   local root="$1" body="$2"

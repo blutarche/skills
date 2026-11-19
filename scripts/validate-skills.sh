@@ -7,7 +7,9 @@ set -euo pipefail
 #   2. leaf folder names are unique repo-wide (install.sh maps them into one flat dir)
 #   3. (warning only) each skill's leaf name appears in its area README.md
 #   4. (warning only) simple-English voice lint of workflow docs (scripts/lint-voice.py)
-# Exit non-zero if any hard check (1 or 2) fails.
+#   5. a skill with `disable-model-invocation: true` has a sibling agents/openai.yaml
+#      (Codex ignores the flag; the yaml makes it explicit-only there)
+# Exit non-zero if any hard check (1, 2 or 5) fails.
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONF="$REPO/install.conf"
@@ -51,6 +53,14 @@ for f in "${SKILL_MDS[@]:-}"; do
   fi
   if [ -n "$name" ] && ! printf '%s' "$name" | grep -Eq '^[a-z0-9]+(-[a-z0-9]+)*$'; then
     echo "FAIL  ${f#"$REPO"/}: name '$name' is not kebab-case" >&2; errors=$((errors+1))
+  fi
+
+  if awk '
+    /^---[[:space:]]*$/ { fm++; if (fm==2) exit; next }
+    fm==1 && /^disable-model-invocation:[[:space:]]*true[[:space:]]*$/ { found=1 }
+    END { exit !found }
+  ' "$f" && [ ! -f "$dir/agents/openai.yaml" ]; then
+    echo "FAIL  $rel: disable-model-invocation: true but no agents/openai.yaml" >&2; errors=$((errors+1))
   fi
 
   for prev in "${SEEN_NAMES[@]:-}"; do

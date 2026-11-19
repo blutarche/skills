@@ -1,6 +1,6 @@
 ---
 name: validate-skills
-description: Check this repo's skill invariants (name==folder==kebab-case, unique leaf names, every skill in its area README) and fix violations.
+description: Check this repo's skill invariants (name==folder==kebab-case, unique leaf names, openai.yaml for user-invoked skills, README rows, workflow voice) and fix violations.
 disable-model-invocation: true
 ---
 
@@ -19,8 +19,8 @@ The fast gate that proves skill changes are sound before `install.sh` would catc
    - `not kebab-case` → rename to lowercase words joined by single hyphens.
    - `duplicate leaf name` → rename one; leaf names are unique across the whole repo.
    - `no 'name:'` → add the frontmatter `name:` line.
-3. **Warnings** flag a skill with no entry in its area `README.md` — add the one-line row
-   (unless the skill was just removed, in which case delete its stale row).
+   - `disable-model-invocation: true but no agents/openai.yaml` → add `agents/openai.yaml` next to the `SKILL.md` containing `policy: {allow_implicit_invocation: false}`.
+3. **Warnings** flag a skill with no entry in its area `README.md` (add the one-line row, or delete the stale row if the skill was removed) and voice issues in `workflows/` docs (rules in `_lib/voice.md`). Fix both.
 4. Re-run until it reports `0 error(s)`. Treat that as the done-condition for skill changes.
 
 ## Notes
