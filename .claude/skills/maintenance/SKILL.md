@@ -60,8 +60,12 @@ Then share this machine's counts so a run on any machine sees all of them:
    starting with `skill-usage <host>` after the date. Found: `mempalace_update_drawer` with the new
    line. Not found: `mempalace_add_drawer(wing="skills", room="verified", ...)`. One drawer per
    host, updated in place; never one per run.
-3. Read every other host's `skill-usage` drawer. A host whose drawer is older than the window
-   start is a coverage gap: name it in the report with the command to run there.
+3. Read every other host's `skill-usage` drawer. For each host whose drawer is older than the
+   window start, collect it yourself: `tailscale status` lists the machines; over `ssh`, run the
+   same `usage.py --drawer --host <host>` there (copy the script over if the repo is missing or
+   behind) and file its line. Never hand the user per-machine steps. Skip servers (treat them as
+   production). Only a host you cannot reach (SSH off, key refused, offline) is a coverage gap:
+   name it with the exact error, and ask only for the one credential or toggle that unblocks it.
 
 The 2026-09 baseline (MemPalace transcript mining, Aug-Sep) is in drawer
 `drawer_skills_decisions_225924f0b416a74975d089c1`. Use it for skills with no newer data.
