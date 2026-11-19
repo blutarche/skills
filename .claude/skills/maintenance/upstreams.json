@@ -214,9 +214,6 @@
     "plan": {
       "mode": "original"
     },
-    "post-mortem": {
-      "mode": "original"
-    },
     "research": {
       "mode": "original"
     },
@@ -275,6 +272,7 @@
     "project-skill-audit": "2026-09-11 never used",
     "de-flaking-tests": "2026-09-11 folded into diagnose",
     "goal-crafter": "2026-10-02 deleted in skills-tidy",
-    "skill-creator": "2026-10-02 fork deleted in skills-tidy"
+    "skill-creator": "2026-10-02 fork deleted in skills-tidy",
+    "post-mortem": "2026-11-20 no use since 2026-06 on any machine (local logs, cleverse archive, MemPalace drawers, baseline)"
   }
 }

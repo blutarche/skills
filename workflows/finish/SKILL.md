@@ -125,7 +125,7 @@ Deliver the hand-over as a `brief` sheet of kind `finish` that carries these ite
 - review outcome: what was fixed, what was rejected and why (or "already reviewed in this session")
 - deliberate behavior changes, if any
 
-Offer **`walkthrough`** if the diff is large; don't run it unasked. Offer `/post-mortem` if the branch fixes a bug that reached users or took a `diagnose` session. The sheet's next-move panel lists `/finish land`, `/finish pr`, and `/finish discard` as plain commands. Use short sentences and common words; see `brief`'s `lib/voice.md` when installed. **Do not merge, push, or ask a menu.**
+Offer **`walkthrough`** if the diff is large; don't run it unasked. The sheet's next-move panel lists `/finish land`, `/finish pr`, and `/finish discard` as plain commands. Use short sentences and common words; see `brief`'s `lib/voice.md` when installed. **Do not merge, push, or ask a menu.**
 
 ## Precondition for `land` and `pr`
 

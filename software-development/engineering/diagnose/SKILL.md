@@ -137,7 +137,7 @@ Red flag: mock setup longer than the test logic.
 
 Redact secrets in every command and artifact you show. Build loops on environment variables; never paste their values.
 
-## Cleanup and post-mortem
+## Cleanup
 
 Required before declaring done:
 
@@ -148,5 +148,3 @@ Required before declaring done:
 - [ ] The hypothesis that proved correct is recorded in the commit or change description, so the next person learns from it.
 
 Finally, ask: **what would have prevented this bug?** Record the answer after the fix is in — you know more now than when you started.
-
-Offer `/post-mortem` when the bug reached users or took more than one session. It is user-invoked: if the user accepts and the Skill tool doesn't list it, read its `SKILL.md` from the installed skills directory and follow it.

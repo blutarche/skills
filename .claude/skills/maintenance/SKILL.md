@@ -67,6 +67,13 @@ Then share this machine's counts so a run on any machine sees all of them:
    production). Only a host you cannot reach (SSH off, key refused, offline) is a coverage gap:
    name it with the exact error, and ask only for the one credential or toggle that unblocks it.
 
+MemPalace also covers hosts you cannot reach: every machine files curated drawers. Page all
+curated rooms since the window start (`list_drawers` truncates text; `get_drawer` returns it whole)
+and count drawers that name each skill (`/name`, `` `name` ``, "name skill"). Report these as
+mentions, a proxy, never as uses; zero mentions plus zero uses on reachable hosts counts as "no use"
+for the `remove` rule. Mined transcripts in MemPalace may stop early for some hosts: check the newest
+`filed_at` per host before you rely on them.
+
 The 2026-09 baseline (MemPalace transcript mining, Aug-Sep) is in drawer
 `drawer_skills_decisions_225924f0b416a74975d089c1`. Use it for skills with no newer data.
 
