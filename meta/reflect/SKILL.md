@@ -1,6 +1,6 @@
 ---
 name: reflect
-description: Spawn three parallel review subagents over the active transcript, surface learnings, and route each to a concrete edit on an existing skill. Use when the user says reflect.
+description: Review the session transcript with three parallel reviewers and route each learning to an edit on an existing skill.
 license: MIT
 disable-model-invocation: true
 ---
@@ -31,7 +31,7 @@ For each candidate (newest first, at most ~10), read the first user message and 
 
 ### 2. Spawn three reviewers in parallel
 
-In one step, spawn three parallel subagents using whatever subagent mechanism the agent has (Claude Code: the Agent tool). Reviewers never edit files. They may use MCP tools to look up context the transcript references.
+In one step, spawn two parallel subagents (Judgment and Divergent) using whatever subagent mechanism the agent has (Claude Code: the Agent tool). Reviewers never edit files. They may use MCP tools to look up context the transcript references.
 
 | Lens | Prompt template (read at this step) |
 |---|---|
@@ -39,7 +39,7 @@ In one step, spawn three parallel subagents using whatever subagent mechanism th
 | Tooling | `references/tooling-reviewer.md` |
 | Divergent | `references/divergent-reviewer.md` |
 
-The tooling lens should come from a different model family than the other two. If the `council` skill is available, run that lens through it. Otherwise run it as a same-family subagent and say so in the step 6 summary.
+The tooling lens should come from a different model family than the other two. `council` cannot be convened from a subagent, so the parent convenes it at top level for that lens, at the same time as it spawns the Judgment and Divergent subagents. If `council` is not available, run that lens as a same-family subagent and say so in the step 6 summary.
 
 Pass each template verbatim, substituting the transcript path or digest where marked. Reviewers return findings in their response body.
 

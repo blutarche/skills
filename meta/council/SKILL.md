@@ -11,7 +11,7 @@ It is the **mechanism only**: convene the outside model and adjudicate. The *met
 
 Hand the artifact to a model of a *different family* and tell it to **attack, not approve**. The mechanism is provider-agnostic; what it requires is fixed:
 
-- a **non-interactive, one-shot CLI** of a model family different than Claude (this is what makes it a real second opinion);
+- a **non-interactive, one-shot CLI** of a model family different from the caller's (this is what makes it a real second opinion). On a Claude host that means a non-Claude model; on a Codex/GPT host prefer `claude -p` or a Claude or Gemini model through Cursor;
 - run from the **top-level session**, with the **Claude Code Bash-tool sandbox disabled** for the call;
 - fed the artifact **blind** (artifact + attack brief only), via argv for small inputs or a file/stdin for large ones, **never leaving stdin open**;
 - read its stdout as the verdict.
