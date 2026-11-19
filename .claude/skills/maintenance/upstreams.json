@@ -252,6 +252,20 @@
       "path": null,
       "pin": null,
       "imported": null
+    },
+    "migration-numbering": {
+      "mode": "original",
+      "repo": null,
+      "path": null,
+      "pin": null,
+      "imported": null
+    },
+    "heavy-runs": {
+      "mode": "original",
+      "repo": null,
+      "path": null,
+      "pin": null,
+      "imported": null
     }
   },
   "removed": {

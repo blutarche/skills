@@ -38,6 +38,8 @@ sequencing lives in [`workflows/`](../workflows/README.md), not here. Sources fo
 | [`git-commit`](engineering/git-commit/SKILL.md) | Turn a working tree into clean, atomic, bisect-safe Conventional-Commit commits with no agent trailer, leaving push to the user. |
 | [`git-worktree`](engineering/git-worktree/SKILL.md) | Create/enter an isolated feature worktree and bootstrap-or-surface its environment (setup), then remove/prune it (teardown). Use when starting or wrapping up isolated agentic work. |
 | [`delegate-coding`](engineering/delegate-coding/SKILL.md) | Hand a clear plan to a headless executor CLI (`cursor-agent`, `codex`, or a cheaper `claude`) while the brain model plans, verifies, and owns the merge. |
+| [`migration-numbering`](engineering/migration-numbering/SKILL.md) | Catch migration numbers that clash or sit below the base's highest before merge (`migcheck.sh`), renumber the unapplied side, and reset throwaway databases safely. |
+| [`heavy-runs`](engineering/heavy-runs/SKILL.md) | Serialize full suites, e2e, docker, and model-server runs across parallel agents with one machine-wide lock (`heavy.sh`), with one database per branch on a shared server. |
 
 ## frontend — UI motion and feel
 
