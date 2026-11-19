@@ -21,6 +21,7 @@ A **research lane** runs alongside: [`research`](../meta/research/SKILL.md) (gat
 | vet | [`vet`](vet/SKILL.md) | Cross-model review (`scrutinize` + `council`) of a finished change or a document, then a gated fix loop. |
 | finish | [`finish`](finish/SKILL.md) | Get the branch ready (sync base, verify, one review, hand over the diff); then `land`, `pr`, or `discard` on request and tear down the worktree. |
 | (research lane) | [`research-council`](research-council/SKILL.md) | Cross-examine a research answer with `council`; the research analog of `vet`. |
+| (any stage) | [`sitrep`](sitrep/SKILL.md) | "What now?": gather the real state, report done-with-proof / needs-you / next in 3 lines, then start the next step. Model-invoked, unlike the other workflows, because the trigger is plain words. |
 | (plan lane) | [`grill-with-docs`](grill-with-docs/SKILL.md) | Grill session that also maintains the glossary and ADRs; the brownfield counterpart to `grill-me`. |
 
 ## Three composition principles
