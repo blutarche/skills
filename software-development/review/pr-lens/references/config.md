@@ -3,8 +3,8 @@
 The generated document is regenerated on every run, so editing it is pointless. Corrections live in `.github/pr-lens.yml`, an overlay applied over fresh inference every time. Inference never writes back into this file, which is why a correction keeps holding as the code moves.
 
 ```yaml
-schemaVersion: 0.2.0          # required
-lenses: [architecture, data-flow]
+schemaVersion: 0.3.0          # required
+lenses: [architecture, data-flow, data-model]
 branding: true
 map:
   rename:
@@ -94,7 +94,7 @@ The hosted App reads `github` settings from the PR's head commit. Other options 
 ## Check it
 
 ```bash
-npx @coldtea/pr-lens-cli@latest validate .github/pr-lens.yml
+npx @coldtea/pr-lens-cli@0.15.2 validate .github/pr-lens.yml
 ```
 
 `pr-lens render` reports any correction that changed nothing about the document it drew. That is a config that has drifted out of date, usually because the file a selector named has moved or gone. It is not an error and nothing stops, but it is worth fixing: a correction that matches nothing is a correction nobody is getting.

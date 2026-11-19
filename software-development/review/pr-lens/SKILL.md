@@ -1,6 +1,6 @@
 ---
 name: pr-lens
-description: "PR Lens: draws a code change or part of a codebase as an animated architecture or data-flow diagram, standalone or on a pull request. Use when asked to diagram, visualise or visualize, or explain a change or a system, or when a pull request should carry a diagram."
+description: "PR Lens: draws a code change or part of a codebase as an animated architecture, data-flow or data-model diagram, standalone or on a pull request. Use when asked to diagram, visualise or visualize, or explain a change or a system, or when a pull request should carry a diagram."
 license: MIT
 ---
 
@@ -18,12 +18,12 @@ If the user asked for a canvas, decide that before you write the document: only 
 
    If not expressing a code diff, read the code to be visually represented
 
-2. **Write the document** to `.pr-lens/graph.json`, following `references/graph-document.md`. `references/example.graph.json` is valid reference with three lanes, all four delta states, a hero edge, a seven-step flow, a nested drill-down tree and a six-step walkthrough. Read it before you write your first one. It is quicker than reading the reference. If the user asked for a canvas, give every flow step (`messages`) that moves data a `payload` as you write it. "Sample traffic on a flow step" below says what goes in one. Only a flow step carries one. Flows need the `data-flow` lens, so an architecture view draws none.
+2. **Write the document** to `.pr-lens/graph.json`, following `references/graph-document.md`. `references/example.graph.json` is valid reference with three lanes, all four delta states, a hero edge, a seven-step flow, a nested drill-down tree and a six-step walkthrough. Read it before you write your first one. It is quicker than reading the reference. If the user asked for a canvas, give every flow step (`messages`) that moves data a `payload` as you write it. "Sample traffic on a flow step" below says what goes in one. Only a flow step carries one. Flows need the `data-flow` lens, so an architecture view draws none. A change that touches a migration, an ORM model or a schema file also gets a `dataModel`, under the `data-model` lens: the tables it changes, a delta per column, and a relation per foreign key. "Data model" in `references/graph-document.md` says what goes in one.
 
 3. **Validate, and fix**
 
    ```bash
-   npx @coldtea/pr-lens-cli@latest validate .pr-lens/graph.json
+   npx @coldtea/pr-lens-cli@0.15.2 validate .pr-lens/graph.json
    ```
 
    Fix every failure and run it again. Do not render an invalid document; do not "work around" a failure by deleting the element it names.
@@ -31,20 +31,22 @@ If the user asked for a canvas, decide that before you write the document: only 
 4. **Render.**
 
    ```bash
-   npx @coldtea/pr-lens-cli@latest render .pr-lens/graph.json --theme light
+   npx @coldtea/pr-lens-cli@0.15.2 render .pr-lens/graph.json --theme light
    ```
 
-   Render light by default unless the user requests another theme. The SVGs, the manifest and `drawn.graph.json` land in `.pr-lens/`, which the CLI adds to the repository's .gitignore. Do not commit any of it. These files are rebuilt from the diff whenever anyone wants them again. Each SVG is named after its view, the theme and a content hash; `manifest.json` lists them by lens and view, so read the names from there or from the directory.
+   Render light by default unless the user requests another theme. The SVGs, the manifest and `drawn.graph.json` land in a directory of their own under `.pr-lens/`, named after the document's title: `.pr-lens/<drawing>/`. The render prints that path, so read it from there. The CLI adds `.pr-lens/` to the repository's .gitignore. Do not commit any of it. These files are rebuilt from the diff whenever anyone wants them again. Each SVG is named after its view, the theme and a content hash; `manifest.json` lists them by lens and view, so read the names from there or from the directory. A different title renders into a different directory and leaves the first one as it was.
 
-   By default, this is the deliverable. The top view is the architecture view with `defaultOpen: true` in the document; find its SVG in `manifest.json`. Give the user the SVG paths, top view first, and open the top view locally: `open` on macOS, `xdg-open` on Linux.
+   In a sandbox, `npx` needs its cache under the temp directory: set `npm_config_cache="$TMPDIR/npm"`.
+
+   By default, this is the deliverable. The top view is the architecture view with `defaultOpen: true` in the document; find its SVG in `manifest.json`. Give the user the SVG paths, top view first, and try once to open the top view locally: `open` on macOS, `xdg-open` on Linux. If that fails or there is no display, print the path and the command for the user to run.
 
    **Only when the user asks for a prlens.dev canvas:**
 
    ```bash
-   npx @coldtea/pr-lens-cli@latest canvas push
+   npx @coldtea/pr-lens-cli@0.15.2 canvas push .pr-lens/<drawing>/drawn.graph.json
    ```
 
-   This uploads `.pr-lens/drawn.graph.json` to prlens.dev and prints three links. Give the user the view link, `https://prlens.dev/c/{id}`: that is the diagram, full screen, every view on one page, and it opens without a login. The edit link, the one ending in `#w=…`, lets its holder push over the canvas, so leave it out of the reply unless they ask, and never paste it anywhere public. The embed link serves the top view as an SVG for a README.
+   Pass the path the render printed. A bare `canvas push` works only while the checkout holds one drawing; with more than one it lists them and asks which. This uploads that file to prlens.dev and prints three links. Give the user the view link, `https://prlens.dev/c/{id}`: that is the diagram, full screen, every view on one page, and it opens without a login. The edit link, the one ending in `#w=…`, lets its holder push over the canvas, so leave it out of the reply unless they ask, and never paste it anywhere public. The embed link serves the top view as an SVG for a README.
 
    Pushing the same file again updates the same canvas, so a follow-up such as "rename that node" or "add the queue" is: edit the document, validate, render, push. The link stays the same. If the push fails, say so and tell them where the SVGs are and which one is the top view.
 
@@ -55,12 +57,12 @@ If the user asked for a canvas, decide that before you write the document: only 
    ```markdown
    Moves bulk sending off the per-recipient trigger and onto a batch endpoint.
 
-   ![Architecture after this change: the queue route, the new bulk sender and the retired per-recipient path](.pr-lens/overview-light-4f9bd6c1.svg)
+   ![Architecture after this change: the queue route, the new bulk sender and the retired per-recipient path](.pr-lens/<drawing>/overview-light-4f9bd6c1.svg)
    ```
 
    ```bash
    gh pr create --title "Batch broadcast sends" --body-file .pr-lens/body.md \
-     --attach .pr-lens/overview-light-4f9bd6c1.svg
+     --attach .pr-lens/<drawing>/overview-light-4f9bd6c1.svg
    ```
 
    On a pull request that already exists, `gh pr edit <number>` with the same two flags puts the diagram in the description, and `gh pr comment <number>` puts it in a comment. Repeat `--attach` for each diagram the body references.
@@ -70,20 +72,20 @@ If the user asked for a canvas, decide that before you write the document: only 
    - The alt text is the caption a reader without images gets. Say what the diagram shows, in one line.
    - `--attach` is recent in GitHub CLI. Check that `gh pr create --help` lists it before you write a body around it.
 
-   Attach the views a reviewer needs and leave the rest in `.pr-lens/`: the top architecture view first, then a data flow if the change has a sequence worth following. A body with four diagrams reads worse than one with two, except the four are really needed to understand the change e.g., in the case of a complex feature or refactor.
+   Attach the views a reviewer needs and leave the rest in `.pr-lens/<drawing>/`: the top architecture view first, then a data flow if the change has a sequence worth following. A body with four diagrams reads worse than one with two, except the four are really needed to understand the change e.g., in the case of a complex feature or refactor.
 
    When `--attach` is not an option and the user names where to publish the SVGs, let the CLI compose the comment instead. Never pick a host yourself:
 
    ```bash
-   npx @coldtea/pr-lens-cli@latest comment \
-     --graph .pr-lens/drawn.graph.json \
-     --manifest .pr-lens/manifest.json \
+   npx @coldtea/pr-lens-cli@0.15.2 comment \
+     --graph .pr-lens/<drawing>/drawn.graph.json \
+     --manifest .pr-lens/<drawing>/manifest.json \
      --asset-base-url https://raw.githubusercontent.com/<owner>/<repo>/<branch>/<dir>
    ```
 
    `--graph` takes `drawn.graph.json`, not the document you wrote, because corrections change what the diagrams show and the CLI refuses a document its manifest does not describe. `--asset-base-url` is where you published the SVGs; leave it out and the markdown points at local paths no reader can fetch. The markdown goes to stdout, with each diagram as a `<picture>` pair; posting it is your business.
 
-If you would rather not author the document yourself, `npx @coldtea/pr-lens-cli@latest analyze --base <ref>` does steps 1 and 2 by asking a provider — Gemini, OpenAI, or any endpoint speaking `/chat/completions` — with a key of your own. It sends the diff to that provider, so run it only when the user explicitly asks for it. That is the only path here that needs a key.
+If you would rather not author the document yourself, `npx @coldtea/pr-lens-cli@0.15.2 analyze --base <ref>` does steps 1 and 2 by asking a provider — Gemini, OpenAI, or any endpoint speaking `/chat/completions` — with a key of your own. It sends the diff to that provider, so run it only when the user explicitly asks for it. That is the only path here that needs a key.
 
 ## The pull request body, when there is one
 
@@ -118,6 +120,7 @@ What counts as a step: a behaviour change, an API change, an architecture change
 - `body`: one line under the heading on what the change means for behaviour: what happens now that did not before, or what stops happening, with the numbers when they matter. Not a restatement of the heading, and not a description of the code. A heading with no body reads as unfinished, so the body is required.
 - `stage`: open on the widest view with the focus left out, so the reader sees the whole thing before it narrows.
 - `focus`: focus the elements the step's change touched, so the veil lights the change. Point at two or three of them. A step that lights half the diagram has not said anything.
+- `detail`: optional. One or two sentences under the body, up to 240 characters, that use the names on the diagram. Its `cites` turn words copied letter for letter from that sentence into links to a node, flow step, view or flow. Do not cite files. Leave it off the overview step and off any step where it would only repeat the body. The JSON shape is in `references/graph-document.md`, "Walkthrough".
 
 Write every word for a smart twelve-year-old: short common words, one idea per line, active voice, things named as the diagram names them, numbers as digits. If a line needs a second read, rewrite it. Words like leverages, orchestrates, asynchronous pipeline and fan-out never belong in a step. This holds in whatever language the document is written in.
 
