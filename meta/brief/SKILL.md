@@ -125,8 +125,10 @@ Done when seen rendered.
 
 ### 5. Deliver
 
-**Always:** if `orca status --json` succeeds, run `orca tab create --url file://<abs path> --json`
-(Orca's built-in browser). Else use `open` on macOS or `xdg-open` on Linux. A sandbox can block
+**Always:** if `orca status --json` succeeds, serve the folder
+(`python3 -m http.server <free port> --bind 127.0.0.1 --directory <brief dir>`, in the background) and run
+`orca tab create --url http://127.0.0.1:<port>/brief.html --json` (Orca's built-in browser). A `file://`
+tab returns ok but never shows; confirm the tab with `orca tab list --json`. Else use `open` on macOS or `xdg-open` on Linux. A sandbox can block
 both: try once, then print the path and the command for the user. Feedback comes back through
 the page: Notes, then "Send feedback", then paste into the chat.
 
