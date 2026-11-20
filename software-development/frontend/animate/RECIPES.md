@@ -169,7 +169,7 @@ Keep it short — this is one of the few animations that costs layout on every f
 
 ## Stagger a group entrance
 
-For a list or grid the user sees occasionally — not for a list they scroll past all day. For group entrances, use one entrance per container with non-uniform delays.
+For a list or grid the user sees occasionally — not for a list they scroll past all day. For group entrances, follow `../choreograph/SKILL.md` (one entrance per container, non-uniform delays).
 
 ```css
 .item {
