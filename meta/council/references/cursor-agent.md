@@ -29,7 +29,17 @@ council_cursor_model() {
     | grep -E '^[A-Za-z0-9][A-Za-z0-9._/-]*$' \
     | grep -viE 'claude|sonnet|opus|haiku')"
   [ -n "$candidates" ] || return 1   # no non-Claude id found → caller treats this as a model-selection failure
-  for pat in gpt gemini grok; do
+  # Newest Grok first (GPT goes through `codex`, not Cursor); version-sort so a new
+  # release wins without editing this file. Prefer a high-effort, non-"fast" variant.
+  # Sort on the version number alone so a vendor prefix (e.g. `cursor-`) can't reorder releases.
+  grok_by_version() { awk '{ if (match($0, /[0-9]+(\.[0-9]+)+/)) print substr($0, RSTART, RLENGTH) "\t" $0; else print "0\t" $0 }' \
+      | sort -V -r | cut -f2; }
+  grok=$(printf '%s\n' "$candidates" | grep -i grok | grep -vi fast | grok_by_version)
+  newest=$(printf '%s\n' "$grok" | head -n1 | grep -oE '[0-9]+(\.[0-9]+)+')
+  m=$(printf '%s\n' "$grok" | grep -F -- "$newest" | grep -E -- '-high$' | head -n1)
+  [ -n "$m" ] || m=$(printf '%s\n' "$grok" | head -n1)
+  [ -n "$m" ] && { printf '%s\n' "$m"; return 0; }
+  for pat in gemini gpt; do
     m=$(printf '%s\n' "$candidates" | grep -i "$pat" | head -n1)
     [ -n "$m" ] && { printf '%s\n' "$m"; return 0; }
   done

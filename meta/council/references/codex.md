@@ -6,6 +6,10 @@ read and review; it persists config to `~/.codex`. Selected per [`selection.md`]
 Uses the account/CLI default model — already off-family — unless `COUNCIL_MODEL` is set,
 in which case pass it with `-m "$COUNCIL_MODEL"`.
 
+Never pin a model id anywhere (this skill, `-m`, or a top-level `model =` in
+`~/.codex/config.toml`): ids churn and a stale pin fails with "model is not supported".
+If the convene errors that way, delete the config pin and rerun on the account default.
+
 ## Invocation
 
 Small artifact (a decision, a short diff) — inline it; redirect `< /dev/null` or
