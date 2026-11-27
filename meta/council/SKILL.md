@@ -5,7 +5,7 @@ description: Convene a cross-model judge (Codex/GPT, Gemini, or a non-Claude Cur
 
 # Council — an independent cross-model judge
 
-It is the **mechanism only**: convene the outside model and adjudicate. The *methodology* — what to look for — is the caller's: `scrutinize` for a code diff, citation-and-staleness checks for a research answer, plain critical reading for a decision. `vet`, `research-council`, `plan`, and autonomous `execute` all compose this skill so the cross-model machinery lives in one place.
+It is the **mechanism only**: convene the outside model and adjudicate. The *methodology* — what to look for — is the caller's: `scrutinize` for a code diff, citation-and-staleness checks for a research answer, plain critical reading for a decision. `vet`, `research-council`, `blueprint`, and autonomous `execute` all compose this skill so the cross-model machinery lives in one place.
 
 ## Convene the council — an outside adversary
 

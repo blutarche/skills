@@ -20,7 +20,7 @@ Pick the `kind` that matches the workflow that ends. The build needs the panels 
 
 | Kind | Used by |
 |---|---|
-| `plan` | `plan` workflow |
+| `plan` | `blueprint` workflow |
 | `execute` | `execute` workflow |
 | `vet` | `vet` workflow |
 | `finish` | `finish` workflow |

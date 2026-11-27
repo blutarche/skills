@@ -1,10 +1,10 @@
 ---
-name: plan
+name: blueprint
 disable-model-invocation: true
 description: "Brief → hardened, execution-ready plan: brainstorm, write plan, grill, council. Writes no code."
 ---
 
-# Plan (workflow)
+# Blueprint (workflow)
 
 Invoke each composed skill in turn and carry its output forward; there is no automatic return between skills, so you own the sequence. This workflow plans; it does not build.
 

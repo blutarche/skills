@@ -63,7 +63,7 @@ After the self-review, ask the user to review the written spec before proceeding
 
 Wait for the user's response. If they request changes, make them and re-run the self-review. Only proceed once the user approves.
 
-**Next step:** The approved design doc is this skill's output. Turning it into an implementation plan (e.g. `writing-plans`) is owned by the workflow or user that invoked this skill (see the `plan` workflow) — don't auto-invoke it.
+**Next step:** The approved design doc is this skill's output. Turning it into an implementation plan (e.g. `writing-plans`) is owned by the workflow or user that invoked this skill (see the `blueprint` workflow) — don't auto-invoke it.
 
 ## Red Flags
 

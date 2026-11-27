@@ -9,14 +9,14 @@ workflow's `SKILL.md` is the source of truth for its steps.
 A change moves left to right through deliberate, named stages:
 
 ```
-research · plan  →  execute  →  vet  →  finish
+research · blueprint  →  execute  →  vet  →  finish
 ```
 
 A **research lane** runs alongside: [`research`](../meta/research/SKILL.md) (gathering — an atomic skill in `meta/`) and [`research-council`](research-council/SKILL.md) (cross-examining a research answer — a composer, so it lives here). Pull them in whenever a stage needs a fact established or checked, not just at the front.
 
 | Stage | Workflow | What it does |
 |-------|----------|--------------|
-| plan | [`plan`](plan/SKILL.md) | Brief → execution-ready plan: design, council, plan, grill, council; writes no code. |
+| blueprint | [`blueprint`](blueprint/SKILL.md) | Brief → execution-ready plan: design, council, plan, grill, council; writes no code. |
 | execute | [`execute`](execute/SKILL.md) | Approved plan → verified code, interactive-gated or autonomous-subagent. |
 | vet | [`vet`](vet/SKILL.md) | Cross-model review (`scrutinize` + `council`) of a finished change or a document, then a gated fix loop. |
 | finish | [`finish`](finish/SKILL.md) | Get the branch ready (sync base, verify, one review, hand over the diff); then `land`, `pr`, or `discard` on request and tear down the worktree. |

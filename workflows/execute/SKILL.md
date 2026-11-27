@@ -7,7 +7,7 @@ license: MIT
 
 # Execute (workflow)
 
-Executes an approved plan or a task list you maintain; it does not author one. If there's no plan yet, or it's still being shaped, write or harden it first (`plan`). Pick the mode first (don't make the user pre-choose), then follow that mode's stages. The skills it routes to (`diagnose`, `slop-cleanup`, `receiving-code-review`) are soft references: if one isn't installed, apply the same discipline inline.
+Executes an approved plan or a task list you maintain; it does not author one. If there's no plan yet, or it's still being shaped, write or harden it first (`blueprint`). Pick the mode first (don't make the user pre-choose), then follow that mode's stages. The skills it routes to (`diagnose`, `slop-cleanup`, `receiving-code-review`) are soft references: if one isn't installed, apply the same discipline inline.
 
 ## Pick a mode
 
